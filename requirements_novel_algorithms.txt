@@ -1,0 +1,14 @@
+# Core dependencies for MAIF Novel Algorithms
+numpy>=1.21.0
+sentence-transformers>=2.0.0
+cryptography>=3.4.0
+
+# Optional compression libraries (install what's available)
+# These will be used if available, but MAIF will work without them
+lzma; python_version >= "3.3"
+brotli>=1.0.0
+lz4>=3.0.0
+zstandard>=0.15.0
+
+# Development and testing (optional)
+pytest>=6.0.0

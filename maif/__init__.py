@@ -1,0 +1,83 @@
+"""
+MAIF (Multimodal Artifact File Format) Library
+
+A comprehensive library for creating, managing, and analyzing MAIF files.
+MAIF is an AI-native file format designed for multimodal content with
+embedded security, semantics, and provenance tracking.
+"""
+
+from .core import MAIFEncoder, MAIFDecoder, MAIFParser, MAIFBlock, MAIFVersion
+from .security import MAIFSigner
+from .privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode, AccessRule, DifferentialPrivacy, SecureMultipartyComputation, ZeroKnowledgeProof
+from .semantic import (
+    SemanticEmbedder, SemanticEmbedding, KnowledgeTriple,
+    CrossModalAttention, HierarchicalSemanticCompression,
+    CryptographicSemanticBinding, DeepSemanticUnderstanding
+)
+from .forensics import ForensicAnalyzer
+from .compression import MAIFCompressor, CompressionMetadata
+from .binary_format import MAIFBinaryParser, MAIFBinaryWriter
+from .validation import MAIFValidator, MAIFRepairTool
+from .metadata import MAIFMetadataManager
+from .streaming import MAIFStreamReader, MAIFStreamWriter
+from .integration import MAIFConverter
+
+__version__ = "2.0.0"
+__author__ = "MAIF Development Team"
+__license__ = "MIT"
+
+__all__ = [
+    # Core functionality
+    'MAIFEncoder',
+    'MAIFDecoder',
+    'MAIFParser',
+    'MAIFBlock',
+    'MAIFVersion',
+    
+    # Security
+    'MAIFSigner',
+    
+    # Privacy
+    'PrivacyEngine',
+    'PrivacyPolicy',
+    'PrivacyLevel',
+    'EncryptionMode',
+    'AccessRule',
+    'DifferentialPrivacy',
+    'SecureMultipartyComputation',
+    'ZeroKnowledgeProof',
+    
+    # Semantics
+    'SemanticEmbedder',
+    'SemanticEmbedding',
+    'KnowledgeTriple',
+    'CrossModalAttention',
+    'HierarchicalSemanticCompression',
+    'CryptographicSemanticBinding',
+    'DeepSemanticUnderstanding',
+    
+    # Forensics
+    'ForensicAnalyzer',
+    
+    # Compression
+    'MAIFCompressor',
+    'CompressionMetadata',
+    
+    # Binary Format
+    'MAIFBinaryParser',
+    'MAIFBinaryWriter',
+    
+    # Validation
+    'MAIFValidator',
+    'MAIFRepairTool',
+    
+    # Metadata
+    'MAIFMetadataManager',
+    
+    # Streaming
+    'MAIFStreamReader',
+    'MAIFStreamWriter',
+    
+    # Integration
+    'MAIFConverter',
+]
