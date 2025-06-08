@@ -167,6 +167,154 @@ class MAIFEncoder:
         
         return self._add_block("embeddings", embedding_data, embed_metadata, update_block_id, privacy_policy)
     
+    def add_video_block(self, video_data: bytes, metadata: Optional[Dict] = None,
+                       update_block_id: Optional[str] = None,
+                       privacy_policy: Optional[PrivacyPolicy] = None,
+                       extract_metadata: bool = True) -> str:
+        """Add or update a video block with automatic metadata extraction and semantic analysis."""
+        video_metadata = metadata or {}
+        
+        if extract_metadata:
+            # Extract video metadata using ffprobe-like functionality
+            extracted_metadata = self._extract_video_metadata(video_data)
+            video_metadata.update(extracted_metadata)
+        
+        # Generate video embeddings for semantic search
+        if len(video_data) > 0:
+            video_embeddings = self._generate_video_embeddings(video_data)
+            if video_embeddings:
+                video_metadata["semantic_embeddings"] = video_embeddings
+                video_metadata["has_semantic_analysis"] = True
+        
+        video_metadata.update({
+            "content_type": "video",
+            "size_bytes": len(video_data),
+            "block_type": "video_data"
+        })
+        
+        return self._add_block("video_data", video_data, video_metadata, update_block_id, privacy_policy)
+    
+    def _extract_video_metadata(self, video_data: bytes) -> Dict[str, Any]:
+        """Extract metadata from video data."""
+        metadata = {
+            "duration": None,
+            "resolution": None,
+            "fps": None,
+            "codec": None,
+            "format": None,
+            "bitrate": None,
+            "audio_codec": None,
+            "extraction_method": "basic"
+        }
+        
+        try:
+            # Try to detect video format from header
+            if video_data[:4] == b'\x00\x00\x00\x18' or video_data[4:8] == b'ftyp':
+                metadata["format"] = "mp4"
+            elif video_data[:4] == b'RIFF' and video_data[8:12] == b'AVI ':
+                metadata["format"] = "avi"
+            elif video_data[:3] == b'FLV':
+                metadata["format"] = "flv"
+            elif video_data[:4] == b'\x1a\x45\xdf\xa3':
+                metadata["format"] = "mkv"
+            
+            # Basic size estimation for common formats
+            if metadata["format"] == "mp4":
+                # Try to extract basic MP4 metadata
+                mp4_metadata = self._extract_mp4_metadata(video_data)
+                metadata.update(mp4_metadata)
+            
+        except Exception as e:
+            metadata["extraction_error"] = str(e)
+            metadata["extraction_method"] = "fallback"
+        
+        return metadata
+    
+    def _extract_mp4_metadata(self, video_data: bytes) -> Dict[str, Any]:
+        """Extract basic metadata from MP4 video data."""
+        metadata = {}
+        
+        try:
+            # Look for common MP4 atoms/boxes
+            pos = 0
+            while pos < len(video_data) - 8:
+                if pos + 8 > len(video_data):
+                    break
+                    
+                # Read box size and type
+                box_size = struct.unpack('>I', video_data[pos:pos+4])[0]
+                box_type = video_data[pos+4:pos+8]
+                
+                if box_size == 0 or box_size > len(video_data) - pos:
+                    break
+                
+                # Look for mvhd (movie header) box for duration
+                if box_type == b'mvhd':
+                    try:
+                        # Skip version and flags (4 bytes)
+                        # Skip creation and modification time (8 bytes)
+                        timescale_pos = pos + 8 + 8
+                        if timescale_pos + 8 <= len(video_data):
+                            timescale = struct.unpack('>I', video_data[timescale_pos:timescale_pos+4])[0]
+                            duration_units = struct.unpack('>I', video_data[timescale_pos+4:timescale_pos+8])[0]
+                            if timescale > 0:
+                                metadata["duration"] = duration_units / timescale
+                                metadata["timescale"] = timescale
+                    except (struct.error, IndexError):
+                        pass
+                
+                # Look for tkhd (track header) for video dimensions
+                elif box_type == b'tkhd' and box_size >= 84:
+                    try:
+                        # Track header contains width and height at the end
+                        if pos + box_size <= len(video_data):
+                            width_pos = pos + box_size - 8
+                            if width_pos + 8 <= len(video_data):
+                                width = struct.unpack('>I', video_data[width_pos:width_pos+4])[0] >> 16
+                                height = struct.unpack('>I', video_data[width_pos+4:width_pos+8])[0] >> 16
+                                if width > 0 and height > 0:
+                                    metadata["resolution"] = f"{width}x{height}"
+                                    metadata["width"] = width
+                                    metadata["height"] = height
+                    except (struct.error, IndexError):
+                        pass
+                
+                pos += box_size
+                
+        except Exception as e:
+            metadata["mp4_extraction_error"] = str(e)
+        
+        return metadata
+    
+    def _generate_video_embeddings(self, video_data: bytes) -> Optional[List[float]]:
+        """Generate semantic embeddings for video content."""
+        try:
+            # Placeholder for video semantic analysis
+            # In a real implementation, this would:
+            # 1. Extract key frames
+            # 2. Run visual feature extraction (CNN-based)
+            # 3. Generate semantic embeddings
+            
+            # For now, generate a simple hash-based embedding
+            import hashlib
+            video_hash = hashlib.sha256(video_data).hexdigest()
+            
+            # Convert hash to embedding vector (384 dimensions)
+            embedding = []
+            for i in range(0, min(len(video_hash), 96), 2):
+                hex_val = video_hash[i:i+2]
+                normalized_val = int(hex_val, 16) / 255.0
+                embedding.extend([normalized_val] * 4)  # Repeat to get 384 dims
+            
+            # Pad to 384 dimensions if needed
+            while len(embedding) < 384:
+                embedding.append(0.0)
+            
+            return embedding[:384]
+            
+        except Exception:
+            return None
+    
     def add_cross_modal_block(self, multimodal_data: Dict[str, Any], metadata: Optional[Dict] = None,
                              update_block_id: Optional[str] = None,
                              privacy_policy: Optional[PrivacyPolicy] = None) -> str:
@@ -815,6 +963,199 @@ class MAIFDecoder:
             "privacy_levels": privacy_levels,
             "encryption_modes": encryption_modes
         }
+    
+    def get_video_blocks(self) -> List[MAIFBlock]:
+        """Get all video blocks with access control."""
+        video_blocks = []
+        for block in self.blocks:
+            if block.block_type == "video_data":
+                # Check access permissions
+                if self.privacy_engine and not self.privacy_engine.check_access(
+                    self.requesting_agent, block.block_id, "read"
+                ):
+                    continue
+                video_blocks.append(block)
+        return video_blocks
+    
+    def query_videos(self,
+                    duration_range: Optional[tuple] = None,
+                    min_resolution: Optional[str] = None,
+                    max_resolution: Optional[str] = None,
+                    format_filter: Optional[str] = None,
+                    min_size_mb: Optional[float] = None,
+                    max_size_mb: Optional[float] = None) -> List[Dict[str, Any]]:
+        """Query videos by properties with advanced filtering."""
+        video_blocks = self.get_video_blocks()
+        results = []
+        
+        for block in video_blocks:
+            if not block.metadata:
+                continue
+                
+            # Apply filters
+            if duration_range:
+                duration = block.metadata.get("duration")
+                if duration is None:
+                    continue
+                min_dur, max_dur = duration_range
+                if duration < min_dur or duration > max_dur:
+                    continue
+            
+            if min_resolution or max_resolution:
+                resolution = block.metadata.get("resolution")
+                if resolution:
+                    width, height = self._parse_resolution(resolution)
+                    if min_resolution:
+                        min_w, min_h = self._parse_resolution(min_resolution)
+                        # For minimum resolution, both width AND height must meet the minimum
+                        if width < min_w or height < min_h:
+                            continue
+                    if max_resolution:
+                        max_w, max_h = self._parse_resolution(max_resolution)
+                        if width > max_w or height > max_h:
+                            continue
+                else:
+                    # If no resolution metadata, skip this video when resolution filter is applied
+                    continue
+            
+            if format_filter:
+                video_format = block.metadata.get("format")
+                if video_format != format_filter:
+                    continue
+            
+            if min_size_mb or max_size_mb:
+                size_bytes = block.metadata.get("size_bytes", 0)
+                size_mb = size_bytes / (1024 * 1024)
+                if min_size_mb and size_mb < min_size_mb:
+                    continue
+                if max_size_mb and size_mb > max_size_mb:
+                    continue
+            
+            # Include block info and metadata
+            result = {
+                "block_id": block.block_id,
+                "block_type": block.block_type,
+                "metadata": block.metadata,
+                "size_bytes": block.metadata.get("size_bytes", 0),
+                "duration": block.metadata.get("duration"),
+                "resolution": block.metadata.get("resolution"),
+                "format": block.metadata.get("format"),
+                "has_semantic_analysis": block.metadata.get("has_semantic_analysis", False)
+            }
+            results.append(result)
+        
+        return results
+    
+    def get_video_data(self, block_id: str) -> Optional[bytes]:
+        """Get video data by block ID."""
+        return self.get_block_data("video_data", block_id)
+    
+    def search_videos_by_content(self, query_text: str, top_k: int = 5) -> List[Dict[str, Any]]:
+        """Search videos by semantic content using embeddings."""
+        try:
+            from .semantic import SemanticEmbedder
+            
+            # Generate query embedding
+            embedder = SemanticEmbedder()
+            query_embedding = embedder.embed_text(query_text)
+            
+            # Get video blocks with semantic embeddings
+            video_blocks = self.get_video_blocks()
+            similarities = []
+            
+            for block in video_blocks:
+                if not block.metadata or not block.metadata.get("has_semantic_analysis"):
+                    continue
+                
+                video_embeddings = block.metadata.get("semantic_embeddings")
+                if video_embeddings:
+                    # Calculate similarity
+                    similarity = embedder.compute_similarity(query_embedding,
+                                                           type('obj', (object,), {'vector': video_embeddings})())
+                    similarities.append((block, similarity))
+            
+            # Sort by similarity and return top k
+            similarities.sort(key=lambda x: x[1], reverse=True)
+            
+            results = []
+            for block, similarity in similarities[:top_k]:
+                result = {
+                    "block_id": block.block_id,
+                    "metadata": block.metadata,
+                    "similarity_score": similarity,
+                    "duration": block.metadata.get("duration"),
+                    "resolution": block.metadata.get("resolution"),
+                    "format": block.metadata.get("format")
+                }
+                results.append(result)
+            
+            return results
+            
+        except ImportError:
+            # Fallback without semantic search
+            return []
+    
+    def get_video_frames_at_timestamps(self, block_id: str, timestamps: List[float]) -> List[bytes]:
+        """Extract frames at specific timestamps (placeholder for future implementation)."""
+        # This would require video processing libraries like OpenCV or FFmpeg
+        # For now, return empty list as placeholder
+        return []
+    
+    def get_video_summary(self) -> Dict[str, Any]:
+        """Get summary statistics of all videos in the MAIF."""
+        video_blocks = self.get_video_blocks()
+        
+        if not video_blocks:
+            return {"total_videos": 0}
+        
+        total_duration = 0
+        total_size = 0
+        formats = {}
+        resolutions = {}
+        
+        for block in video_blocks:
+            if block.metadata:
+                duration = block.metadata.get("duration", 0)
+                if duration:
+                    total_duration += duration
+                
+                size_bytes = block.metadata.get("size_bytes", 0)
+                total_size += size_bytes
+                
+                video_format = block.metadata.get("format", "unknown")
+                formats[video_format] = formats.get(video_format, 0) + 1
+                
+                resolution = block.metadata.get("resolution", "unknown")
+                resolutions[resolution] = resolutions.get(resolution, 0) + 1
+        
+        return {
+            "total_videos": len(video_blocks),
+            "total_duration_seconds": total_duration,
+            "total_size_bytes": total_size,
+            "total_size_mb": total_size / (1024 * 1024),
+            "average_duration": total_duration / len(video_blocks) if video_blocks else 0,
+            "formats": formats,
+            "resolutions": resolutions,
+            "videos_with_semantic_analysis": sum(1 for block in video_blocks
+                                               if block.metadata and block.metadata.get("has_semantic_analysis"))
+        }
+    
+    def _parse_resolution(self, resolution: str) -> tuple:
+        """Parse resolution string like '1920x1080' into (width, height)."""
+        try:
+            if 'x' in resolution:
+                width, height = resolution.split('x')
+                return int(width), int(height)
+            elif resolution == "720p":
+                return 1280, 720
+            elif resolution == "1080p":
+                return 1920, 1080
+            elif resolution == "4K":
+                return 3840, 2160
+            else:
+                return 0, 0
+        except:
+            return 0, 0
 
 class MAIFParser:
     """High-level MAIF parsing interface."""
