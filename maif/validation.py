@@ -158,8 +158,8 @@ class MAIFValidator:
                             errors.append(f"Block {i} data incomplete: expected {data_size} bytes, got {len(actual_data)}")
                             continue
                         
-                        # Calculate hash and compare
-                        calculated_hash = hashlib.sha256(actual_data).hexdigest()
+                        # Calculate hash on BOTH header and data to match _add_block() method
+                        calculated_hash = hashlib.sha256(header_data + actual_data).hexdigest()
                         expected_hash = block.hash_value
                         
                         # Handle hash format with prefix
@@ -369,8 +369,11 @@ class MAIFRepairTool:
                     f.seek(block.offset + header_size)
                     data = f.read(block.size - header_size)
                     
-                    # Recalculate hash
-                    computed_hash = hashlib.sha256(data).hexdigest()
+                    # Recalculate hash on header + data to match _add_block() method
+                    header_size = 24 if hasattr(block, 'version') and block.version else 16
+                    f.seek(block.offset)
+                    header_data = f.read(header_size)
+                    computed_hash = hashlib.sha256(header_data + data).hexdigest()
                     expected_hash = block.hash_value.replace('sha256:', '')
                     
                     if computed_hash != expected_hash:

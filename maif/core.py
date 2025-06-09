@@ -32,6 +32,8 @@ class MAIFBlock:
     def __post_init__(self):
         if self.block_id is None:
             self.block_id = str(uuid.uuid4())
+        # Note: Hash calculation moved to _add_block() method for header+data consistency
+        # This fallback is only for backward compatibility when data is set directly
         if self.data is not None and not self.hash_value:
             self.hash_value = hashlib.sha256(self.data).hexdigest()
     
@@ -651,10 +653,6 @@ class MAIFEncoder:
             # Update data variable for writing to buffer
             data = encrypted_data
         
-        # Calculate hash on the data that will be stored (encrypted or original)
-        # This ensures validation can verify the hash against stored data
-        hash_value = hashlib.sha256(data).hexdigest()
-        
         # Create enhanced block header using new structure
         block_header = BlockHeader(
             size=len(data) + 32,  # Data size + header size
@@ -669,8 +667,14 @@ class MAIFEncoder:
         if header_errors:
             print(f"Warning: Block header validation errors: {header_errors}")
         
-        # Write enhanced header (32 bytes)
+        # Get header bytes for hash calculation
         header_bytes = block_header.to_bytes()
+        
+        # Calculate hash on BOTH header and data for complete tamper protection
+        # This ensures any corruption in either header or data will be detected
+        hash_value = hashlib.sha256(header_bytes + data).hexdigest()
+        
+        # Write enhanced header (32 bytes)
         self.buffer.write(header_bytes)
         
         # Write data
@@ -1074,8 +1078,8 @@ class MAIFDecoder:
                         # Seek to block start
                         f.seek(block.offset)
                         
-                        # Skip the 32-byte header to get to the actual data
-                        header_data = f.read(32)  # Read and skip header
+                        # Read the 32-byte header
+                        header_data = f.read(32)
                         if len(header_data) != 32:
                             return False  # Invalid header size
                         
@@ -1088,15 +1092,16 @@ class MAIFDecoder:
                         if len(data) != data_size:
                             return False  # Could not read expected amount of data
                         
-                        # Compute hash of just the data portion (not including header)
-                        computed_hash = hashlib.sha256(data).hexdigest()
+                        # Compute hash of BOTH header and data for complete tamper detection
+                        # This matches the hash calculation in _add_block()
+                        computed_hash = hashlib.sha256(header_data + data).hexdigest()
                         
                         # Handle different hash formats
                         expected_hash = block.hash_value
                         if expected_hash.startswith('sha256:'):
                             expected_hash = expected_hash[7:]  # Remove 'sha256:' prefix
                         
-                        # Compare hashes - this should detect tampering
+                        # Compare hashes - this will now detect tampering in header OR data
                         if computed_hash != expected_hash:
                             # Debug: uncomment to see hash mismatch details
                             # print(f"TAMPER DETECTED: Block {block.block_id}")

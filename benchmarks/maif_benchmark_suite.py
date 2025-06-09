@@ -553,10 +553,17 @@ class MAIFBenchmarkSuite:
                     manifest_path = os.path.join(tmpdir, f"test_{test_num}_manifest.json")
                     encoder.build_maif(maif_path, manifest_path)
                     
-                    # Tamper with the file
-                    with open(maif_path, 'r+b') as f:
-                        f.seek(random.randint(50, 100))
-                        f.write(b'X')  # Corrupt one byte
+                    # Tamper with the file - corrupt within actual file bounds
+                    file_size = os.path.getsize(maif_path)
+                    if file_size > 32:  # Ensure we have data beyond header
+                        with open(maif_path, 'r+b') as f:
+                            # Corrupt somewhere in the data section (after 32-byte header)
+                            corrupt_pos = random.randint(32, file_size - 1)
+                            f.seek(corrupt_pos)
+                            f.write(b'X')  # Corrupt one byte
+                    else:
+                        # File too small, skip this test
+                        continue
                     
                     # Test detection
                     detection_start = time.time()
