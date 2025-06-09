@@ -1,4 +1,4 @@
-# MAIFSCRATCH: AI Trust with Artifact-Centric Agentic Paradigm using MAIF
+# SCYTHE: AI Trust with Artifact-Centric Agentic Paradigm using MAIF
 
 ## 🚀 Trustworthy AI Through Artifact-Centric Design
 
