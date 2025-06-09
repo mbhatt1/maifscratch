@@ -116,387 +116,99 @@
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/maif.git
-cd maif
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run tests to verify installation
-python -m pytest tests/
+pip install maif[full]
 ```
 
-### Basic MAIF Operations
+### Simple Usage
 
 ```python
-from maif.core import MAIFEncoder, MAIFDecoder
-from maif.security import MAIFSigner
+import maif
 
-# Create a new MAIF container
-encoder = MAIFEncoder(agent_id="my_agent")
+# Create a new MAIF
+artifact = maif.create_maif("my_agent")
 
-# Add text content with automatic embedding generation
-text_block_id = encoder.add_text_block(
-    "Hello, trustworthy AI world!",
-    metadata={"source": "demo", "language": "en"}
-)
-
-# Add embeddings with semantic compression
-embeddings = [[0.1, 0.2, 0.3] * 128]  # 384-dimensional vectors
-embedding_block_id = encoder.add_embeddings_block(
-    embeddings,
-    metadata={"model": "sentence-transformers", "dimensions": 384}
-)
-
-# Add cross-modal data with ACAM processing
-multimodal_data = {
+# Add content
+artifact.add_text("Hello, trustworthy AI world!")
+artifact.add_multimodal({
     "text": "A beautiful sunset over mountains",
-    "image_description": "Landscape photography"
-}
-cross_modal_id = encoder.add_cross_modal_block(
-    multimodal_data,
-    use_enhanced_acam=True
-)
-
-# Save with cryptographic signing
-encoder.build_maif("artifact.maif", "manifest.json")
-
-# Sign for provenance
-signer = MAIFSigner(agent_id="my_agent")
-signer.add_provenance_entry("create", text_block_id)
-```
-
-### Advanced Features
-
-```python
-from maif.privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode
-
-# Privacy-enabled container
-privacy_engine = PrivacyEngine()
-encoder = MAIFEncoder(
-    agent_id="secure_agent",
-    enable_privacy=True,
-    privacy_engine=privacy_engine
-)
-
-# Add sensitive data with anonymization
-encoder.add_text_block(
-    "Patient John Smith has condition X",
-    anonymize=True,
-    privacy_level=PrivacyLevel.CONFIDENTIAL,
-    encryption_mode=EncryptionMode.AES_GCM
-)
-
-# Load and verify integrity
-decoder = MAIFDecoder("artifact.maif", "manifest.json")
-assert decoder.verify_integrity()  # Cryptographic verification
-
-# Extract data with privacy controls
-text_blocks = decoder.get_text_blocks(include_anonymized=False)
-embeddings = decoder.get_embeddings()  # Automatic decompression
-```
-
-### Artifact-Centric AI Agent Example
-
-```python
-from maif.core import MAIFEncoder
-from maif.semantic_optimized import AdaptiveCrossModalAttention
-
-class ArtifactCentricAgent:
-    def __init__(self, agent_id):
-        self.agent_id = agent_id
-        self.memory = MAIFEncoder(agent_id=agent_id)
-        self.acam = AdaptiveCrossModalAttention()
-    
-    def perceive(self, multimodal_input):
-        """Ingest external data and convert to MAIF instances"""
-        return self.memory.add_cross_modal_block(
-            multimodal_input,
-            use_enhanced_acam=True
-        )
-    
-    def reason(self, query_modality, embeddings, trust_scores):
-        """Process MAIF for reasoning using ACAM"""
-        attention_weights = self.acam.compute_attention_weights(
-            embeddings, trust_scores
-        )
-        return self.acam.get_attended_representation(
-            embeddings, attention_weights, query_modality
-        )
-    
-    def act(self, decision, context):
-        """Execute operations that modify MAIF state"""
-        return self.memory.add_text_block(
-            f"Decision: {decision}",
-            metadata={"context": context, "timestamp": time.time()}
-        )
-
-# Usage
-agent = ArtifactCentricAgent("demo_agent")
-block_id = agent.perceive({
-    "text": "Analyze this data",
-    "context": "financial_report"
+    "description": "Landscape photography"
 })
+
+# Save with automatic security
+artifact.save("my_artifact.maif")
+
+# Load and verify
+loaded = maif.load_maif("my_artifact.maif")
+print(f"✅ Verified: {loaded.verify_integrity()}")
 ```
 
-## 🔬 Novel Algorithms Implementation
+### Command Line
 
-### 1. Adaptive Cross-Modal Attention Mechanism (ACAM)
-**Implementation**: [`AdaptiveCrossModalAttention`](maif/semantic_optimized.py:25-145)
+```bash
+# Create MAIF from text
+maif create --text "Hello world" --output hello.maif
 
-**Mathematical Foundation**:
-```
-α_{ij} = softmax(Q_i K_j^T / √d_k · CS(E_i, E_j))
-```
+# Verify integrity
+maif verify hello.maif
 
-**Key Features**:
-- **Trust-Aware Weighting**: Integrates cryptographic verification status into attention coefficients
-- **Multi-Head Architecture**: 8-head attention with 384-dimensional embeddings
-- **Semantic Coherence**: Combines cosine similarity with trust factors
-- **Cross-Modal Fusion**: Unified representation across text, image, audio modalities
-
-**Performance**: Enables deep semantic understanding with trust-weighted attention matrices
-
-### 2. Hierarchical Semantic Compression (HSC)
-**Implementation**: [`HierarchicalSemanticCompression`](maif/semantic_optimized.py:147-345)
-
-**Three-Tier Architecture**:
-1. **Tier 1**: DBSCAN-based semantic clustering for density-based grouping
-2. **Tier 2**: Vector quantization with k-means codebook generation
-3. **Tier 3**: Entropy coding with run-length encoding
-
-**Key Features**:
-- **Semantic Preservation**: 90-95% fidelity maintenance during compression
-- **Adaptive Clustering**: DBSCAN with cosine distance for semantic similarity
-- **Compression Ratios**: 40-60% size reduction while preserving searchability
-- **Fidelity Scoring**: Cosine similarity-based reconstruction quality metrics
-
-**Performance**: Transforms storage from linear to logarithmic semantic access
-
-### 3. Cryptographic Semantic Binding (CSB)
-**Implementation**: [`CryptographicSemanticBinding`](maif/semantic_optimized.py:347-516)
-
-**Mathematical Foundation**:
-```
-Commitment = Hash(embedding || source_data || nonce)
+# Analyze contents
+maif analyze hello.maif
 ```
 
-**Key Features**:
-- **Commitment Schemes**: SHA-256 based cryptographic binding
-- **Zero-Knowledge Proofs**: Schnorr-like proofs for embedding knowledge
-- **Authenticity Verification**: Real-time verification without revealing embeddings
-- **Tamper Detection**: Immediate detection of semantic manipulation
+### Key Features
 
-**Performance**: Real-time verification with cryptographic security guarantees
+- 🔒 **Built-in Security**: Cryptographic signatures and integrity verification
+- 🧠 **AI-Native**: Semantic embeddings and cross-modal attention
+- 📦 **Self-Contained**: All context travels with the data
+- 🔍 **Searchable**: Fast semantic search across content
+- 🗜️ **Compressed**: Advanced compression with semantic preservation
+- 🔐 **Privacy-Ready**: Encryption and anonymization support
 
-## 🛡️ Security & Privacy Model
+## Why MAIF?
 
-### Cryptographic Security
-**Implementation**: [`maif/security.py`](maif/security.py), [`maif/privacy.py`](maif/privacy.py)
+**The Problem**: Current AI systems can't provide audit trails, provenance tracking, or explainability required by regulations like the EU AI Act.
 
-**Digital Signatures**:
-- **Algorithms**: RSA-2048, ECDSA P-256, EdDSA support
-- **Provenance Chains**: Immutable operation history with cryptographic linking
-- **Verification**: Real-time signature validation with certificate management
+**The Solution**: MAIF embeds trustworthiness directly into data structures, making every AI operation inherently auditable and accountable.
 
-**Access Control**:
-- **Granular Permissions**: Block-level, field-level access control
-- **Conditional Access**: Time-based, context-aware permission evaluation
-- **Multi-Level Security**: Classification levels with automatic enforcement
+**The Result**: Deploy AI in sensitive domains with confidence, knowing every decision is traceable and verifiable.
 
-### Privacy-by-Design
-**Advanced Anonymization**:
-- **Pattern Recognition**: Automatic detection of PII (SSN, credit cards, emails, names)
-- **Consistent Pseudonymization**: Deterministic replacement with reversible mapping
-- **Context-Aware**: Different anonymization strategies per data context
+## 📚 Learn More
 
-**Encryption Modes**:
-- **AES-GCM**: High-performance authenticated encryption
-- **ChaCha20-Poly1305**: Alternative cipher for diverse security requirements
-- **Homomorphic**: Placeholder for computation on encrypted data
-
-**Advanced Privacy Features**:
-- **Differential Privacy**: Laplace noise injection for statistical privacy
-- **Secure Multiparty Computation**: Secret sharing for collaborative processing
-- **Zero-Knowledge Proofs**: Commitment schemes for verification without revelation
-
-### Compliance Framework
-- **EU AI Act**: Complete audit trails with explainable decision processes
-- **GDPR**: Privacy by design with right-to-be-forgotten implementation
-- **HIPAA**: Healthcare-grade security with access logging
-- **SOX**: Financial audit trail requirements with immutable records
-
-## 🏢 Enterprise Integration
-
-### Supported Formats
-- **Input**: JSON, XML, CSV, Images (JPEG, PNG), Video (MP4, AVI), Audio (WAV, MP3)
-- **AI Models**: ONNX, TensorFlow, PyTorch, Hugging Face
-- **Databases**: PostgreSQL, MongoDB, Elasticsearch integration
-- **Cloud**: AWS S3, Google Cloud Storage, Azure Blob
-
-### Deployment Options
-- **On-Premises**: Full control and security
-- **Cloud**: Scalable deployment with major providers
-- **Hybrid**: Flexible deployment across environments
-- **Edge**: Optimized for resource-constrained devices
+Ready to dive deeper? Check out our comprehensive documentation:
 
 ## 📚 Documentation & Implementation
 
-### Core Documentation
-- **[Academic Paper (README.tex)](README.tex)**: Complete research paper with formal analysis
-- **[Benchmark Summary](docs/BENCHMARK_SUMMARY.md)**: Detailed performance analysis and validation
-- **[Benchmarks](docs/benchmarks_README.md)**: Comprehensive benchmark suite and results
+### 📖 Documentation
+- **[Installation Guide](docs/INSTALLATION.md)** - Get started quickly
+- **[Simple API Guide](docs/SIMPLE_API_GUIDE.md)** - Easy-to-use examples
+- **[Novel Algorithms](docs/NOVEL_ALGORITHMS_IMPLEMENTATION.md)** - Advanced AI features
+- **[Security Features](docs/MAIF_Security_Verifications_Table.md)** - Trust and privacy
 
-### Implementation Reference
-- **[Core Implementation](maif/core.py)**: [`MAIFEncoder`](maif/core.py:103-952), [`MAIFDecoder`](maif/core.py:954-1638)
-- **[Block Types](maif/block_types.py)**: [`BlockType`](maif/block_types.py:12-29), [`BlockHeader`](maif/block_types.py:31-62), [`BlockFactory`](maif/block_types.py:64-166)
-- **[Security Model](maif/security.py)**: [`MAIFSigner`](maif/security.py:36-134), [`MAIFVerifier`](maif/security.py:137-265), [`AccessController`](maif/security.py:268-299)
-- **[Privacy Engine](maif/privacy.py)**: [`PrivacyEngine`](maif/privacy.py:102-446), [`PrivacyPolicy`](maif/privacy.py:42-87)
-- **[Novel Algorithms](maif/semantic_optimized.py)**: [`ACAM`](maif/semantic_optimized.py:25-145), [`HSC`](maif/semantic_optimized.py:147-345), [`CSB`](maif/semantic_optimized.py:347-516)
-- **[Validation Framework](maif/validation.py)**: Integrity verification and repair capabilities
+### 🎯 Examples
+- **[Simple API Demo](examples/simple_api_demo.py)** - Basic usage patterns
+- **[Privacy Demo](examples/privacy_demo.py)** - Secure data handling
+- **[Advanced Features](examples/advanced_features_demo.py)** - Full capabilities
 
-### Examples & Demos
-- **[Privacy Demo](examples/privacy_demo.py)**: Privacy-preserving AI with anonymization and encryption
-- **[Video Demo](examples/video_demo.py)**: Video processing with semantic embeddings
-- **[Test Suite](tests/)**: Comprehensive test coverage for all components
+### 🔬 Research
+- **[Academic Paper](README.tex)** - Complete research foundation
+- **[Performance Benchmarks](docs/BENCHMARK_SUMMARY.md)** - Validation results
 
-## 🧪 Real Implementation Examples
+## 🤝 Contributing
 
-### Privacy-Preserving AI
-```python
-# Actual implementation from examples/privacy_demo.py
-from maif.core import MAIFEncoder
-from maif.privacy import PrivacyEngine, PrivacyLevel, EncryptionMode
+We welcome contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes MAIF better for everyone.
 
-privacy_engine = PrivacyEngine()
-encoder = MAIFEncoder(enable_privacy=True, privacy_engine=privacy_engine)
+- 🐛 **Report Issues**: [GitHub Issues](https://github.com/maif-ai/maif/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/maif-ai/maif/discussions)
+- 📖 **Improve Docs**: Submit PRs for documentation improvements
+- 🧪 **Add Tests**: Help us maintain high code quality
 
-# Add sensitive data with anonymization
-block_id = encoder.add_text_block(
-    "Patient John Smith has medical condition X",
-    anonymize=True,
-    privacy_level=PrivacyLevel.CONFIDENTIAL,
-    encryption_mode=EncryptionMode.AES_GCM
-)
+## 📄 License
 
-# Generate privacy report
-report = encoder.get_privacy_report()
-print(f"Encrypted blocks: {report['encrypted_blocks']}")
-```
-
-### Video Processing with Semantic Analysis
-```python
-# Actual implementation from examples/video_demo.py
-from maif.core import MAIFEncoder
-
-encoder = MAIFEncoder(agent_id="video_processor")
-
-# Add video with automatic metadata extraction
-with open("sample_video.mp4", "rb") as f:
-    video_data = f.read()
-
-video_block_id = encoder.add_video_block(
-    video_data,
-    extract_metadata=True,  # Automatic format detection and metadata
-    metadata={"source": "demo", "category": "educational"}
-)
-
-# Video embeddings are automatically generated for semantic search
-encoder.build_maif("video_artifact.maif", "video_manifest.json")
-```
-
-### Cross-Modal AI Processing
-```python
-# Using enhanced ACAM algorithm
-from maif.core import MAIFEncoder
-from maif.semantic_optimized import AdaptiveCrossModalAttention
-
-encoder = MAIFEncoder(agent_id="multimodal_agent")
-
-# Process multimodal data with ACAM
-multimodal_data = {
-    "text": "A beautiful mountain landscape at sunset",
-    "image_description": "Scenic photography with warm colors",
-    "audio_description": "Nature sounds with wind"
-}
-
-cross_modal_id = encoder.add_cross_modal_block(
-    multimodal_data,
-    use_enhanced_acam=True  # Uses the novel ACAM algorithm
-)
-
-# The result includes attention weights and unified representations
-encoder.build_maif("multimodal_artifact.maif", "multimodal_manifest.json")
-```
-
-## 🔬 Research & Implementation Status
-
-### ✅ **Completed Features**
-- **Core MAIF Architecture**: Hierarchical block structure with FourCC identifiers
-- **Novel Algorithms**: ACAM, HSC, CSB fully implemented and tested
-- **Security Framework**: Digital signatures, provenance chains, access control
-- **Privacy Engine**: Multi-mode encryption, anonymization, differential privacy
-- **Validation System**: Integrity verification with automated repair
-- **Streaming Architecture**: Memory-mapped access with progressive loading
-
-### 🔄 **In Development**
-- **Enterprise Integrations**: Cloud deployment and database connectors
-- **Advanced Compression**: Full multi-algorithm framework
-- **Self-Optimization**: Adaptive reorganization and performance tuning
-- **Regulatory Modules**: Specific compliance frameworks (EU AI Act, GDPR)
-
-### 📋 **Future Research**
-- **Quantum-Resistant Cryptography**: Post-quantum security algorithms
-- **Federated Learning**: Privacy-preserving distributed AI training
-- **Blockchain Integration**: Immutable provenance with distributed ledgers
-- **Real-Time Adaptation**: Dynamic schema evolution and migration
-
-## 📈 Implementation Roadmap
-
-### Current Status: **Reference Implementation Complete**
-- **Paper Alignment**: 92% implementation fidelity to theoretical specification
-- **Core Features**: All fundamental capabilities operational
-- **Test Coverage**: Comprehensive validation across all components
-- **Performance**: Meets or exceeds paper benchmarks
-
-### Next Milestones
-1. **Production Hardening**: Enterprise-grade deployment features
-2. **Ecosystem Integration**: Connectors for major AI/ML platforms
-3. **Standardization**: Industry adoption and format standardization
-4. **Advanced Features**: Quantum security and federated capabilities
-
-## 🤝 Contributing & Community
-
-### Getting Involved
-- **Code Contributions**: See implementation in [`maif/`](maif/) directory
-- **Testing**: Run [`tests/`](tests/) suite and add new test cases
-- **Documentation**: Improve examples and implementation guides
-- **Research**: Contribute to novel algorithm development
-
-### Academic Collaboration
-- **Paper Citation**: Reference the formal specification in [README.tex](README.tex)
-- **Algorithm Research**: Extend ACAM, HSC, CSB implementations
-- **Benchmark Development**: Contribute to performance validation
-- **Security Analysis**: Formal verification and threat modeling
-
-## 📄 License & Acknowledgments
-
-**License**: MIT License - see [LICENSE](LICENSE) file for details
-
-**Acknowledgments**:
-- **Research Foundation**: Built on artifact-centric business process management principles
-- **Cryptographic Standards**: Implements proven security algorithms and protocols
-- **Open Source Community**: Leverages established libraries and frameworks
-- **Academic Validation**: Formal analysis and peer review of theoretical foundations
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🎯 **The Artifact-Centric Revolution**
-
-**MAIF represents the first viable solution to the AI trustworthiness crisis** — transforming data from passive storage into active trust enforcement through an artifact-centric paradigm where AI agent behavior is driven by persistent, verifiable data artifacts rather than ephemeral computational tasks.
-
-**This isn't just another file format. It's the foundation for trustworthy AI at scale.**
+**MAIF: Making AI trustworthy, one artifact at a time.** 🚀
 
 ---
 

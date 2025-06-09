@@ -34,6 +34,16 @@ from .metadata import MAIFMetadataManager
 from .streaming import MAIFStreamReader, MAIFStreamWriter
 from .integration_enhanced import EnhancedMAIFProcessor, ConversionResult
 
+# Import simple API for easy access
+try:
+    import sys
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+    from maif_api import MAIF, create_maif, load_maif, quick_text_maif, quick_multimodal_maif
+    SIMPLE_API_AVAILABLE = True
+except ImportError:
+    SIMPLE_API_AVAILABLE = False
+
 __version__ = "2.0.0"
 __author__ = "MAIF Development Team"
 __license__ = "MIT"
@@ -100,4 +110,12 @@ __all__ = [
     # Integration
     'EnhancedMAIFProcessor',
     'ConversionResult',
+    
+    # Simple API (if available)
+    'MAIF',
+    'create_maif',
+    'load_maif',
+    'quick_text_maif',
+    'quick_multimodal_maif',
+    'SIMPLE_API_AVAILABLE',
 ]

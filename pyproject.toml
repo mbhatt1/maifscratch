@@ -1,0 +1,132 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "maif"
+version = "2.0.0"
+description = "Multimodal Artifact File Format - AI-native container with trustworthy AI capabilities"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "MAIF Development Team", email = "dev@maif.ai"}
+]
+maintainers = [
+    {name = "MAIF Development Team", email = "dev@maif.ai"}
+]
+keywords = [
+    "ai", "multimodal", "security", "provenance", "forensics", 
+    "trustworthy-ai", "file-format", "compression", "streaming",
+    "cross-modal", "attention", "semantic", "cryptography"
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Archiving",
+    "Topic :: Software Development :: Version Control",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "numpy>=1.21.0",
+    "cryptography>=3.4.8",
+    "scikit-learn>=1.0.0",
+]
+
+[project.optional-dependencies]
+full = [
+    "sentence-transformers>=2.2.0",
+    "faiss-cpu>=1.7.0",
+    "opencv-python>=4.5.0",
+    "aiofiles>=0.8.0",
+    "brotli>=1.0.9",
+    "zstandard>=0.18.0",
+    "xxhash>=3.0.0",
+    "msgpack>=1.0.4",
+    "jsonschema>=4.0.0",
+    "click>=8.0.0",
+    "tqdm>=4.64.0",
+    "psutil>=5.8.0",
+    "networkx>=2.6.0",
+    "matplotlib>=3.4.0",
+    "pillow>=8.3.0",
+]
+dev = [
+    "pytest>=6.0.0",
+    "pytest-cov>=2.12.0",
+    "black>=21.0.0",
+    "flake8>=3.9.0",
+    "mypy>=0.910",
+    "pre-commit>=2.15.0",
+]
+compression = ["brotli>=1.0.9", "zstandard>=0.18.0"]
+async = ["aiofiles>=0.8.0"]
+cli = ["click>=8.0.0", "tqdm>=4.64.0"]
+validation = ["jsonschema>=4.0.0"]
+performance = ["xxhash>=3.0.0", "msgpack>=1.0.4", "psutil>=5.8.0"]
+ml = ["sentence-transformers>=2.2.0", "faiss-cpu>=1.7.0"]
+vision = ["opencv-python>=4.5.0", "pillow>=8.3.0"]
+
+[project.scripts]
+maif = "maif.cli:main"
+maif-create = "maif.cli:create_maif"
+maif-verify = "maif.cli:verify_maif"
+maif-analyze = "maif.cli:analyze_maif"
+maif-extract = "maif.cli:extract_content"
+
+[project.urls]
+Homepage = "https://github.com/maif-ai/maif"
+Documentation = "https://maif.readthedocs.io/"
+Repository = "https://github.com/maif-ai/maif"
+"Bug Reports" = "https://github.com/maif-ai/maif/issues"
+Changelog = "https://github.com/maif-ai/maif/blob/main/CHANGELOG.md"
+
+[tool.setuptools]
+packages = ["maif"]
+py-modules = ["maif_api"]
+
+[tool.setuptools.package-data]
+maif = ["*.json", "*.yaml", "schemas/*.json"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

@@ -1,25 +1,38 @@
 """
-Setup script for MAIF library.
+Setup script for MAIF library and SDK.
 """
 
 from setuptools import setup, find_packages
+import os
 
+# Read README for long description
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
+# Read requirements
 with open("requirements.txt", "r", encoding="utf-8") as fh:
     requirements = [line.strip() for line in fh if line.strip() and not line.startswith("#")]
 
+# Get version from __init__.py
+def get_version():
+    version_file = os.path.join("maif", "__init__.py")
+    with open(version_file, "r", encoding="utf-8") as f:
+        for line in f:
+            if line.startswith("__version__"):
+                return line.split("=")[1].strip().strip('"').strip("'")
+    return "2.0.0"
+
 setup(
     name="maif",
-    version="2.0.0",
+    version=get_version(),
     author="MAIF Development Team",
     author_email="dev@maif.ai",
-    description="Multimodal Artifact File Format - AI-native container format with advanced features",
+    description="Multimodal Artifact File Format - AI-native container with trustworthy AI capabilities",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/maif-ai/maif",
-    packages=find_packages(),
+    packages=find_packages(include=["maif", "maif.*"]),
+    py_modules=["maif_api"],  # Include the simple API module
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

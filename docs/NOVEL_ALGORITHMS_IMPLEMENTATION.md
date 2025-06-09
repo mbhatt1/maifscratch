@@ -19,7 +19,7 @@ The following advanced features have been successfully removed from the MAIF doc
 
 ### 1. ACAM - Adaptive Cross-Modal Attention Mechanism
 
-**Location**: `maif/semantic.py` - `CrossModalAttention` class
+**Location**: `maif/semantic_optimized.py` - `AdaptiveCrossModalAttention` class
 
 **Features**:
 - Dynamic attention weight computation between modalities
@@ -34,16 +34,16 @@ The following advanced features have been successfully removed from the MAIF doc
 
 **Usage**:
 ```python
-from maif.semantic import CrossModalAttention
+from maif.semantic_optimized import AdaptiveCrossModalAttention
 
-acam = CrossModalAttention(embedding_dim=384)
+acam = AdaptiveCrossModalAttention(embedding_dim=384)
 attention_weights = acam.compute_attention_weights(embeddings)
-attended_repr = acam.get_attended_representation(embeddings, "text")
+attended_repr = acam.get_attended_representation(embeddings, attention_weights, "text")
 ```
 
 ### 2. HSC - Hierarchical Semantic Compression
 
-**Location**: `maif/semantic.py` - `HierarchicalSemanticCompression` class
+**Location**: `maif/semantic_optimized.py` - `HierarchicalSemanticCompression` class
 
 **Features**:
 - Three-tier compression approach:
@@ -60,7 +60,7 @@ attended_repr = acam.get_attended_representation(embeddings, "text")
 
 **Usage**:
 ```python
-from maif.semantic import HierarchicalSemanticCompression
+from maif.semantic_optimized import HierarchicalSemanticCompression
 
 hsc = HierarchicalSemanticCompression(compression_levels=3)
 compressed_result = hsc.compress_embeddings(embeddings)
@@ -69,7 +69,7 @@ decompressed = hsc.decompress_embeddings(compressed_result)
 
 ### 3. CSB - Cryptographic Semantic Binding
 
-**Location**: `maif/semantic.py` - `CryptographicSemanticBinding` class
+**Location**: `maif/semantic_optimized.py` - `CryptographicSemanticBinding` class
 
 **Features**:
 - Hash-based commitment schemes for embedding authenticity
@@ -84,7 +84,7 @@ decompressed = hsc.decompress_embeddings(compressed_result)
 
 **Usage**:
 ```python
-from maif.semantic import CryptographicSemanticBinding
+from maif.semantic_optimized import CryptographicSemanticBinding
 
 csb = CryptographicSemanticBinding()
 binding = csb.create_semantic_commitment(embedding, source_data)
