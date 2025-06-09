@@ -278,8 +278,36 @@ class MAIFCompressor:
                 }
             )
         
+        # Quality validation: enforce quality threshold for lossy compression
+        if (result.semantic_fidelity is not None and
+            result.semantic_fidelity < self.config.quality_threshold):
+            # Quality below threshold - fallback to lossless compression
+            print(f"Warning: Semantic fidelity {result.semantic_fidelity:.3f} below threshold {self.config.quality_threshold:.3f}")
+            print(f"Falling back to lossless compression for data type: {data_type}")
+            
+            # Use lossless compression as fallback
+            fallback_algorithm = CompressionAlgorithm.ZLIB
+            compressed_data = self._apply_standard_compression(data, fallback_algorithm)
+            result = CompressionResult(
+                compressed_data=compressed_data,
+                original_size=original_size,
+                compressed_size=len(compressed_data),
+                compression_ratio=original_size / len(compressed_data) if compressed_data else 1.0,
+                algorithm=f"{algorithm.value}_fallback_to_{fallback_algorithm.value}",
+                metadata={
+                    "compression_time": time.time() - start_time,
+                    "data_type": data_type,
+                    "level": self.config.level,
+                    "fallback_reason": "quality_threshold_not_met",
+                    "original_algorithm": algorithm.value,
+                    "original_fidelity": result.semantic_fidelity,
+                    "quality_threshold": self.config.quality_threshold
+                },
+                semantic_fidelity=1.0  # Lossless compression guarantees perfect fidelity
+            )
+        
         # Update statistics
-        self._update_stats(algorithm.value, result)
+        self._update_stats(result.algorithm, result)
         
         return result
     
