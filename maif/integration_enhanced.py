@@ -34,7 +34,7 @@ class EnhancedMAIFProcessor:
     """Enhanced processor for MAIF file operations and conversions."""
     
     def __init__(self):
-        self.supported_formats = ['json', 'xml', 'csv', 'txt', 'yaml']
+        self.supported_formats = ['json', 'xml', 'csv', 'txt', 'yaml', 'zip', 'tar']
         self.mime_type_mapping = {
             'application/json': 'json',
             'text/json': 'json',
@@ -44,12 +44,76 @@ class EnhancedMAIFProcessor:
             'application/csv': 'csv',
             'text/plain': 'txt',
             'application/x-yaml': 'yaml',
-            'text/yaml': 'yaml'
+            'text/yaml': 'yaml',
+            'application/zip': 'zip',
+            'application/x-tar': 'tar'
         }
     
     def _mime_to_format(self, mime_type: str) -> str:
         """Convert MIME type to format string."""
         return self.mime_type_mapping.get(mime_type, 'unknown')
+    
+    def convert_to_maif(self, input_path: str, output_path: str, manifest_path: str, input_format: str) -> ConversionResult:
+        """Convert various formats to MAIF."""
+        if input_format == 'json':
+            return self.convert_json_to_maif(input_path, output_path, manifest_path)
+        elif input_format == 'xml':
+            return self.convert_xml_to_maif(input_path, output_path, manifest_path)
+        elif input_format == 'csv':
+            return self.convert_csv_to_maif(input_path, output_path, manifest_path)
+        elif input_format == 'txt':
+            return self.convert_text_to_maif(input_path, output_path, manifest_path)
+        else:
+            return ConversionResult(
+                success=False,
+                warnings=[f"Unsupported input format: {input_format}"]
+            )
+    
+    def convert_text_to_maif(self, text_path: str, output_path: str, manifest_path: str) -> ConversionResult:
+        """Convert text file to MAIF format."""
+        try:
+            with open(text_path, 'r') as f:
+                content = f.read()
+            
+            encoder = MAIFEncoder(agent_id="text_converter")
+            encoder.add_text_block(content, metadata={"source": "text_file", "path": text_path})
+            encoder.build_maif(output_path, manifest_path)
+            
+            return ConversionResult(
+                success=True,
+                output_path=output_path,
+                metadata={"format": "text", "blocks_converted": 1}
+            )
+            
+        except Exception as e:
+            return ConversionResult(
+                success=False,
+                warnings=[f"Text conversion failed: {str(e)}"]
+            )
+    
+    def convert_csv_to_maif(self, csv_path: str, output_path: str, manifest_path: str) -> ConversionResult:
+        """Convert CSV file to MAIF format."""
+        try:
+            encoder = MAIFEncoder(agent_id="csv_converter")
+            
+            with open(csv_path, 'r') as f:
+                reader = csv.DictReader(f)
+                for i, row in enumerate(reader):
+                    encoder.add_text_block(json.dumps(row), metadata={"source": "csv", "row": i})
+            
+            encoder.build_maif(output_path, manifest_path)
+            
+            return ConversionResult(
+                success=True,
+                output_path=output_path,
+                metadata={"format": "csv", "blocks_converted": len(encoder.blocks)}
+            )
+            
+        except Exception as e:
+            return ConversionResult(
+                success=False,
+                warnings=[f"CSV conversion failed: {str(e)}"]
+            )
     
     def convert_json_to_maif(self, json_path: str, output_path: str, manifest_path: str) -> ConversionResult:
         """Convert JSON file to MAIF format."""

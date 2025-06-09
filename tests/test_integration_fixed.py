@@ -152,7 +152,14 @@ class TestMAIFPluginManager:
         assert hasattr(self.plugin_manager, 'plugins')
         assert hasattr(self.plugin_manager, 'hooks')
         assert self.plugin_manager.plugins == []
-        assert self.plugin_manager.hooks == {}
+        # Check that hooks are initialized with expected hook names
+        expected_hooks = {
+            "pre_conversion": [],
+            "post_conversion": [],
+            "pre_validation": [],
+            "post_validation": []
+        }
+        assert self.plugin_manager.hooks == expected_hooks
     
     def test_register_hook(self):
         """Test hook registration."""

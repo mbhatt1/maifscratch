@@ -242,7 +242,7 @@ def run_tests():
     print("✓ CLI options updated correctly")
     print("✓ Alternative encryption modes (ChaCha20) still available")
     print("\nAll tests PASSED! The Fernet to AES-GCM migration is successful.")
-    return True
+    assert True  # Test passed
 
 if __name__ == "__main__":
     success = run_tests()

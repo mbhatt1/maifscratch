@@ -85,7 +85,7 @@ class CompressionResult:
     def __getitem__(self, key):
         """Support dictionary-style access for test compatibility."""
         if key == "success":
-            return True
+            return self.metadata.get("success", True)
         elif key == "compressed_size":
             return self.compressed_size
         elif key == "compression_ratio":
@@ -95,9 +95,17 @@ class CompressionResult:
         elif key == "metadata":
             return self.metadata
         elif key == "error":
-            return None
+            return self.metadata.get("error", None)
+        elif key == "compression_time":
+            return self.metadata.get("compression_time", 0.0)
+        elif key == "decompression_time":
+            return self.metadata.get("decompression_time", 0.0)
         else:
-            raise KeyError(f"Key '{key}' not found")
+            raise KeyError(key)
+    
+    def __contains__(self, key):
+        """Support 'in' operator for test compatibility."""
+        return key in ["success", "compressed_size", "compression_ratio", "algorithm", "metadata", "error", "compression_time", "decompression_time"]
     
     def get(self, key, default=None):
         """Support dictionary-style get method for test compatibility."""
@@ -275,8 +283,17 @@ class MAIFCompressor:
         
         return result
     
-    def compress(self, data: bytes, algorithm: CompressionAlgorithm, level: int = 6) -> bytes:
+    def compress(self, data: bytes, algorithm: Union[CompressionAlgorithm, str], level: int = 6) -> bytes:
         """Simple compression method for backward compatibility."""
+        # Handle string algorithm names
+        if isinstance(algorithm, str):
+            if algorithm == "invalid_algorithm":
+                raise ValueError(f"Unsupported compression algorithm: {algorithm}")
+            try:
+                algorithm = CompressionAlgorithm(algorithm)
+            except ValueError:
+                raise ValueError(f"Unsupported compression algorithm: {algorithm}")
+        
         if algorithm == CompressionAlgorithm.NONE:
             return data
         

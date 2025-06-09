@@ -229,7 +229,7 @@ class TestCLICommands:
             '--maif-file', maif_file,
             '--manifest', manifest_file,
             '--output-dir', output_dir,
-            '--format', 'text'
+            '--format', 'txt'
         ])
         
         # Should execute without errors

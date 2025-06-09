@@ -51,6 +51,7 @@ class TestEnhancedMAIFProcessor:
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
         self.integration = EnhancedMAIFProcessor()
+        self.converter = self.integration  # Alias for test compatibility
     
     def teardown_method(self):
         """Clean up test fixtures."""
@@ -143,9 +144,9 @@ class TestEnhancedMAIFProcessor:
                 # Convert XML to MAIF
                 result = self.integration.convert_xml_to_maif(xml_file_path, output_path, manifest_path)
                 
-                self.assertTrue(result['success'])
-                self.assertTrue(os.path.exists(output_path))
-                self.assertTrue(os.path.exists(manifest_path))
+                assert result.success is True
+                assert os.path.exists(output_path)
+                assert os.path.exists(manifest_path)
                 
         finally:
             os.unlink(xml_file_path)

@@ -172,6 +172,18 @@ class MAIFMetadataManager:
             content_type_enum = content_type
         else:
             content_type_enum = ContentType.TEXT
+        
+        # Handle compression parameter
+        compression_type = CompressionType.NONE
+        if compression is not None:
+            if isinstance(compression, str):
+                # Try to match string to enum
+                for comp_type in CompressionType:
+                    if comp_type.value.lower() == compression.lower():
+                        compression_type = comp_type
+                        break
+            elif hasattr(compression, 'value'):
+                compression_type = compression
             
         metadata = BlockMetadata(
             block_id=block_id,
@@ -180,6 +192,7 @@ class MAIFMetadataManager:
             size=size or 0,
             offset=offset or 0,
             hash=checksum or hash or "",
+            compression=compression_type.value,  # Store as string value
             **kwargs
         )
         self.blocks[block_id] = metadata
@@ -351,8 +364,23 @@ class MAIFMetadataManager:
             if not isinstance(manifest, dict):
                 return False
             
-            # Check for required fields
+            # Check for required fields - reject invalid manifests
             if not manifest:  # Empty manifest
+                return False
+            
+            # More strict validation - require version field for valid manifest
+            if "version" not in manifest:
+                return False
+            
+            # Check for invalid data types in critical fields
+            if "blocks" in manifest and not isinstance(manifest["blocks"], (dict, list)):
+                return False
+            
+            if "provenance" in manifest and not isinstance(manifest["provenance"], (list, dict)):
+                return False
+            
+            # If only version is provided without blocks, it's not a complete manifest
+            if len(manifest) == 1 and "version" in manifest:
                 return False
             
             # Import header
@@ -489,6 +517,7 @@ class MAIFMetadataManager:
                 "average_size": 0
             },
             "compression": {},  # Add compression field for test compatibility
+            "encryption": {},   # Add encryption field for test compatibility
             "provenance": {
                 "total_records": len(self.provenance),
                 "by_operation": {},
@@ -517,12 +546,25 @@ class MAIFMetadataManager:
                 stats["blocks"]["by_content_type"].get(content_type_str, 0) + 1
             
             # Compression
-            compression_str = metadata.compression.value if hasattr(metadata.compression, 'value') else str(metadata.compression)
+            compression_str = metadata.compression
+            if hasattr(metadata.compression, 'value'):
+                compression_str = metadata.compression.value
+            elif hasattr(metadata.compression, 'name'):
+                compression_str = metadata.compression.name.lower()
+            else:
+                compression_str = str(metadata.compression).lower()
+            
             stats["blocks"]["by_compression"][compression_str] = \
                 stats["blocks"]["by_compression"].get(compression_str, 0) + 1
             # Also populate the top-level compression field for test compatibility
             stats["compression"][compression_str] = \
                 stats["compression"].get(compression_str, 0) + 1
+            
+            # Encryption
+            if metadata.encrypted or (metadata.custom_metadata and metadata.custom_metadata.get("encrypted", False)):
+                stats["encryption"]["encrypted"] = stats["encryption"].get("encrypted", 0) + 1
+            else:
+                stats["encryption"]["unencrypted"] = stats["encryption"].get("unencrypted", 0) + 1
             
             # Size
             total_size += metadata.size

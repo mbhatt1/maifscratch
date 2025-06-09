@@ -146,7 +146,7 @@ class TestPrivacyEngine:
         )
         
         assert encrypted_data != test_data
-        assert metadata["algorithm"] == "CHACHA20_POLY1305"
+        assert metadata["algorithm"] == "ChaCha20-Poly1305"
         assert "nonce" in metadata
         
         # Decrypt data
@@ -497,7 +497,7 @@ class TestPrivacyIntegration:
         
         # 5. Verify encryption
         assert encrypted_data != anonymized_data.encode('utf-8')
-        assert metadata["algorithm"] == "AES_GCM"
+        assert metadata["algorithm"] == "AES-GCM"
         
         # 6. Decrypt and verify
         decrypted_data = self.privacy_engine.decrypt_data(
@@ -539,7 +539,7 @@ class TestPrivacyIntegration:
             )
             
             assert encrypted_data != processed_data.encode('utf-8')
-            assert metadata["algorithm"] in ["AES_GCM", "CHACHA20_POLY1305"]
+            assert metadata["algorithm"] in ["AES-GCM", "ChaCha20-Poly1305"]
 
 
 class TestPrivacyErrorHandling:

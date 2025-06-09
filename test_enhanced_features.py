@@ -41,7 +41,7 @@ def test_enhanced_block_types():
         assert len(errors) == 0
         
         print("✓ Enhanced Block Types: PASSED")
-        return True
+        assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Enhanced Block Types: FAILED - {e}")
@@ -107,7 +107,7 @@ def test_enhanced_semantic_algorithms():
         assert zk_valid == True
         
         print("✓ Enhanced Semantic Algorithms: PASSED")
-        return True
+        assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Enhanced Semantic Algorithms: FAILED - {e}")
@@ -151,7 +151,7 @@ def test_semantic_aware_compression():
         assert emb_result.compression_ratio > 1.0
         
         print("✓ Semantic-Aware Compression: PASSED")
-        return True
+        assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Semantic-Aware Compression: FAILED - {e}")
@@ -193,7 +193,7 @@ def test_advanced_forensics():
             assert "confidence" in risk_assessment
             
             print("✓ Advanced Forensics: PASSED")
-            return True
+            assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Advanced Forensics: FAILED - {e}")
@@ -248,7 +248,7 @@ def test_enhanced_integration():
             assert "average_processing_time" in performance
             
             print("✓ Enhanced Integration: PASSED")
-            return True
+            assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Enhanced Integration: FAILED - {e}")
@@ -284,7 +284,7 @@ def test_performance_benchmarks():
                 assert hsc_time < 1.0  # Should be fast
         
         print("✓ Performance Benchmarks: PASSED")
-        return True
+        assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Performance Benchmarks: FAILED - {e}")
@@ -330,7 +330,7 @@ def test_privacy_enhancements():
         assert "privacy_levels" in report
         
         print("✓ Privacy Enhancements: PASSED")
-        return True
+        assert True  # Test passed
         
     except Exception as e:
         print(f"✗ Privacy Enhancements: FAILED - {e}")

@@ -33,7 +33,7 @@ def test_everything():
         print("✅ CSB working")
         
         print("🎉 All novel algorithms working perfectly!")
-        return True
+        assert True  # Test passed
         
     except Exception as e:
         print(f"❌ Test failed: {e}")

@@ -42,11 +42,10 @@ def test_basic_maif_functionality():
             assert embeddings[0] == [1.0, 2.0, 3.0]
             
             print("✓ Basic MAIF functionality works")
-            return True
             
     except Exception as e:
         print(f"✗ Basic MAIF test failed: {e}")
-        return False
+        assert False, f"Basic MAIF test failed: {e}"
 
 def test_benchmark_imports():
     """Test that benchmark imports work."""
@@ -55,10 +54,9 @@ def test_benchmark_imports():
     try:
         from benchmarks.maif_benchmark_suite import MAIFBenchmarkSuite, BenchmarkResult
         print("✓ Benchmark imports work")
-        return True
     except Exception as e:
         print(f"✗ Benchmark import failed: {e}")
-        return False
+        assert False, f"Benchmark import failed: {e}"
 
 def test_quick_benchmark():
     """Run a very quick benchmark test."""
@@ -78,14 +76,13 @@ def test_quick_benchmark():
         
         if len(suite.results) > 0 and suite.results[0].success:
             print("✓ Quick benchmark test passed")
-            return True
         else:
             print("✗ Quick benchmark test failed")
-            return False
+            assert False, "Quick benchmark test failed"
             
     except Exception as e:
         print(f"✗ Quick benchmark failed: {e}")
-        return False
+        assert False, f"Quick benchmark failed: {e}"
 
 def main():
     """Run all tests."""

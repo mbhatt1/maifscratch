@@ -1,50 +1,56 @@
-# SCYTHE: Artifact-Centric AI Agent Strategy using Multimodal Artifact File Format (MAIF)
+# Project SCYTHE: AI Trust with Artifact-Centric Agentic Paradigm using MAIF
 
-## 🚀 Fixing AI Trustworthiness at Scale
+## 🚀 Trustworthy AI Through Artifact-Centric Design
 
-[![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-green.svg)](https://github.com/your-repo/maif)
-[![Benchmark Results](https://img.shields.io/badge/Benchmarks-All%20Claims%20Met-brightgreen.svg)](#benchmark-results)
-[![Compression](https://img.shields.io/badge/Compression-64.21x%20Average-blue.svg)](#compression-performance)
-[![Security](https://img.shields.io/badge/Tamper%20Detection-100%25-red.svg)](#security-validation)
+[![Implementation Status](https://img.shields.io/badge/Status-Reference%20Implementation-blue.svg)](https://github.com/your-repo/maif)
+[![Paper Alignment](https://img.shields.io/badge/Paper%20Alignment-92%25-brightgreen.svg)](#implementation-analysis)
+[![Novel Algorithms](https://img.shields.io/badge/Algorithms-ACAM%20%7C%20HSC%20%7C%20CSB-orange.svg)](#novel-algorithms)
+[![Security Model](https://img.shields.io/badge/Security-Cryptographic%20Provenance-red.svg)](#security-features)
 
-> **The AI trustworthiness crisis threatens to derail the entire artificial intelligence revolution.** Current AI systems operate on fundamentally opaque data structures that cannot provide the audit trails, provenance tracking, or explainability required by emerging regulations like the EU AI Act. 
+> **The AI trustworthiness crisis threatens to derail the entire artificial intelligence revolution.** Current AI systems operate on fundamentally opaque data structures that cannot provide the audit trails, provenance tracking, or explainability required by emerging regulations like the EU AI Act.
 
-**MAIF solves this at the data architecture level** — transforming data from passive storage into active trust enforcement, making every AI operation inherently auditable and accountable.
+**MAIF solves this at the data architecture level** — transforming data from passive storage into active trust enforcement through an artifact-centric AI agent paradigm where agent behavior is driven by persistent, verifiable data artifacts rather than ephemeral tasks.
 
-## 🎯 The Problem: Why Current AI Can't Be Trusted
+## 🎯 The Artifact-Centric Solution
 
-| Challenge | Current AI Systems | MAIF Solution |
-|-----------|-------------------|---------------|
-| **Regulatory Compliance** | No audit trails, black box decisions | Cryptographically-secured provenance chains |
-| **Security Vulnerabilities** | Data without integrity verification | Real-time tamper detection (100% success) |
-| **Accountability Gaps** | Opaque decision processes | Complete decision trails embedded in data |
-| **Economic Impact** | Trillions locked behind regulatory barriers | Production-ready trustworthy AI deployment |
+| Challenge | Traditional AI Agents | Artifact-Centric AI |
+|-----------|----------------------|---------------------|
+| **Trust & Auditability** | Opaque internal states, no audit trails | Every operation recorded in cryptographically-secured artifacts |
+| **Context Preservation** | Ephemeral memory, context loss | Persistent, verifiable context in MAIF instances |
+| **Regulatory Compliance** | Black box decisions | Complete decision trails embedded in data structure |
+| **Multi-Agent Collaboration** | Interoperability challenges | Universal MAIF exchange format |
+| **Data Integrity** | No intrinsic verification | Built-in tamper detection and provenance tracking |
 
-## ✨ Key Features
+## ✨ Core Features
 
-### 🔒 **Intrinsic Trustworthiness**
-- **Cryptographic Provenance**: Every data transformation cryptographically recorded
-- **Tamper Detection**: 100% detection rate within 0.17ms average
-- **Audit Trails**: Complete decision history embedded in data structure
-- **Access Control**: Granular, data-level permissions
+### 🏗️ **Artifact-Centric Architecture**
+- **Persistent Context**: MAIF instances serve as distributed memory store
+- **Verifiable Operations**: Every agent action recorded in artifact evolution
+- **Goal-Driven Autonomy**: Agent behavior driven by desired artifact states
+- **Multi-Agent Collaboration**: Universal MAIF exchange format
 
-### 🚄 **Production Performance**
-- **Compression**: 64.21× average ratio (up to 480× for structured data)
-- **Semantic Search**: 30.54ms average (39% faster than 50ms target)
-- **Streaming**: 657.99 MB/s throughput (31% above target)
-- **Cryptographic Overhead**: -7.6% (performance improvement with security)
+### 🔒 **Cryptographic Security**
+- **Digital Signatures**: RSA/ECDSA with provenance chains ([`maif/security.py`](maif/security.py))
+- **Tamper Detection**: SHA-256 block-level integrity verification
+- **Access Control**: Granular permissions with expiry and conditions
+- **Audit Trails**: Immutable operation history with cryptographic binding
 
-### 🧠 **AI-Native Design**
-- **Multimodal Integration**: Text, images, video, AI models in single container
-- **Semantic Embeddings**: Built-in vector representations for instant search
-- **Cross-Modal Attention**: Novel ACAM algorithm for deep understanding
-- **Self-Optimizing**: Files improve performance based on usage patterns
+### 🧠 **Novel AI Algorithms**
+- **ACAM**: Adaptive Cross-Modal Attention with trust-aware weighting ([`maif/semantic_optimized.py`](maif/semantic_optimized.py:25-145))
+- **HSC**: Hierarchical Semantic Compression (DBSCAN + Vector Quantization + Entropy Coding) ([`maif/semantic_optimized.py`](maif/semantic_optimized.py:147-345))
+- **CSB**: Cryptographic Semantic Binding with commitment schemes ([`maif/semantic_optimized.py`](maif/semantic_optimized.py:347-516))
 
-### 🔧 **Enterprise Ready**
-- **Universal Format Support**: Integrates with existing systems
-- **Scalability**: Linear scaling to 10,000+ blocks tested
-- **Repair Capabilities**: 100% automated repair success rate
-- **Privacy by Design**: Encryption and anonymization built-in
+### 🛡️ **Privacy-by-Design**
+- **Multiple Encryption Modes**: AES-GCM, ChaCha20-Poly1305 ([`maif/privacy.py`](maif/privacy.py:134-220))
+- **Advanced Anonymization**: Pattern-based sensitive data detection ([`maif/privacy.py`](maif/privacy.py:223-285))
+- **Differential Privacy**: Laplace noise for statistical privacy ([`maif/privacy.py`](maif/privacy.py:390-404))
+- **Zero-Knowledge Proofs**: Commitment schemes for verification ([`maif/privacy.py`](maif/privacy.py:423-443))
+
+### 📦 **MAIF Container Format**
+- **Hierarchical Blocks**: ISO BMFF-inspired structure with FourCC identifiers ([`maif/block_types.py`](maif/block_types.py:12-29))
+- **Multimodal Support**: Text, embeddings, knowledge graphs, binary data, video
+- **Streaming Architecture**: Memory-mapped access with progressive loading
+- **Self-Describing**: Complete metadata for autonomous interpretation
 
 ## 🏗️ Architecture Overview
 

@@ -7,6 +7,7 @@ import json
 import hashlib
 import struct
 import time
+import os
 from typing import Dict, List, Optional, Union, BinaryIO, Any
 from dataclasses import dataclass
 from pathlib import Path
@@ -187,6 +188,10 @@ class MAIFEncoder:
         # Apply anonymization if requested
         if anonymize:
             text = self.privacy_engine.anonymize_data(text, "text_block")
+            # Set a flag to indicate anonymization was applied
+            self._last_anonymize_flag = True
+        else:
+            self._last_anonymize_flag = False
         
         text_bytes = text.encode('utf-8')
         return self._add_block("text", text_bytes, metadata, update_block_id, privacy_policy)
@@ -205,16 +210,34 @@ class MAIFEncoder:
                            update_block_id: Optional[str] = None,
                            privacy_policy: Optional[PrivacyPolicy] = None) -> str:
         """Add or update semantic embeddings block to the MAIF with privacy controls."""
-        # Pack embeddings as binary data
-        embedding_data = b""
-        for embedding in embeddings:
-            for value in embedding:
-                embedding_data += struct.pack('f', value)
+        import time
+        start_time = time.time()
+        
+        # Optimize for large embeddings by using more efficient packing
+        if len(embeddings) > 500:  # For very large embeddings, use batch processing
+            # Use numpy if available for faster processing
+            try:
+                import numpy as np
+                embeddings_array = np.array(embeddings, dtype=np.float32)
+                embedding_data = embeddings_array.tobytes()
+            except ImportError:
+                # Fallback: use struct.pack with pre-allocated buffer
+                total_floats = sum(len(emb) for emb in embeddings)
+                format_str = f'{total_floats}f'
+                flat_embeddings = [val for emb in embeddings for val in emb]
+                embedding_data = struct.pack(format_str, *flat_embeddings)
+        else:
+            # Original method for smaller embeddings
+            embedding_data = b""
+            for embedding in embeddings:
+                for value in embedding:
+                    embedding_data += struct.pack('f', value)
         
         embed_metadata = metadata or {}
         embed_metadata.update({
             "dimensions": len(embeddings[0]) if embeddings else 0,
-            "count": len(embeddings)
+            "count": len(embeddings),
+            "processing_time": time.time() - start_time
         })
         
         return self._add_block("embeddings", embedding_data, embed_metadata, update_block_id, privacy_policy)
@@ -618,16 +641,19 @@ class MAIFEncoder:
         
         if policy.encryption_mode != EncryptionMode.NONE:
             # Encrypt the data
-            data, encryption_metadata = self.privacy_engine.encrypt_data(
+            encrypted_data, encryption_metadata = self.privacy_engine.encrypt_data(
                 data, block_id, policy.encryption_mode
             )
             # Set privacy policy for this block
             self.privacy_engine.set_privacy_policy(block_id, policy)
             # Use encrypted data for storage when encryption is applied
-            data_for_storage = data
+            data_for_storage = encrypted_data
+            # Update data variable for writing to buffer
+            data = encrypted_data
         
-        # Calculate hash (on original data for integrity verification)
-        hash_value = hashlib.sha256(original_data).hexdigest()
+        # Calculate hash on the data that will be stored (encrypted or original)
+        # This ensures validation can verify the hash against stored data
+        hash_value = hashlib.sha256(data).hexdigest()
         
         # Create enhanced block header using new structure
         block_header = BlockHeader(
@@ -667,17 +693,21 @@ class MAIFEncoder:
             if policy.anonymization_required:
                 combined_metadata['anonymized'] = True
         
+        # Also set anonymized flag if anonymize parameter was used directly
+        if metadata and metadata.get('anonymize') or (hasattr(self, '_last_anonymize_flag') and self._last_anonymize_flag):
+            combined_metadata['anonymized'] = True
+        
         # Create block record
         block = MAIFBlock(
             block_type=block_type,  # Keep original for test compatibility
             offset=offset,
-            size=len(data) + 24,  # Include extended header size
+            size=len(data) + 32,  # Include header size (32 bytes)
             hash_value=f"sha256:{hash_value}",
             version=version_number,
             previous_hash=previous_hash,
             block_id=block_id,
             metadata=combined_metadata,
-            data=original_data  # Store original data for test compatibility
+            data=data  # Always store the data that was actually written and hashed
         )
         
         # Add to blocks and registry
@@ -924,17 +954,34 @@ class MAIFEncoder:
 class MAIFDecoder:
     """Decodes MAIF files with versioning and privacy support."""
     
-    def __init__(self, maif_path: str, manifest_path: str, privacy_engine: Optional[PrivacyEngine] = None,
+    def __init__(self, maif_path: str, manifest_path: Optional[str] = None, privacy_engine: Optional[PrivacyEngine] = None,
                  requesting_agent: Optional[str] = None):
+        # Check if MAIF file exists
+        if not os.path.exists(maif_path):
+            raise FileNotFoundError(f"MAIF file not found: {maif_path}")
+        
+        # Check if manifest file exists when provided
+        if manifest_path and not os.path.exists(manifest_path):
+            raise FileNotFoundError(f"Manifest file not found: {manifest_path}")
+        
         self.maif_path = maif_path
         self.manifest_path = manifest_path
         self._maif_path_obj = Path(maif_path)
-        self._manifest_path_obj = Path(manifest_path)
+        self._manifest_path_obj = Path(manifest_path) if manifest_path else None
         self.privacy_engine = privacy_engine
         self.requesting_agent = requesting_agent or "anonymous"
         
-        with open(manifest_path, 'r') as f:
-            self.manifest = json.load(f)
+        if manifest_path and os.path.exists(manifest_path):
+            with open(manifest_path, 'r') as f:
+                self.manifest = json.load(f)
+        else:
+            # Create minimal manifest for compatibility
+            self.manifest = {
+                "maif_version": "0.1.0",
+                "blocks": [],
+                "created": time.time(),
+                "agent_id": "unknown"
+            }
         
         # Load blocks with versioning support
         self.blocks = []
@@ -1127,32 +1174,115 @@ class MAIFDecoder:
         if hasattr(self, 'maif_path') and self.maif_path:
             try:
                 with open(self.maif_path, 'rb') as f:
-                    # Try different header sizes for compatibility
-                    for header_size in [0, 16, 24, 32]:  # Include 0 for raw data
+                    # Seek to block offset
+                    f.seek(block.offset)
+                    
+                    # Read the block header first (32 bytes)
+                    header_data = f.read(32)
+                    if len(header_data) < 32:
+                        return None
+                    
+                    # Parse header to get actual data size
+                    try:
+                        from .block_types import BlockHeader
+                        header = BlockHeader.from_bytes(header_data)
+                        # Data size is header.size minus header size (32 bytes)
+                        data_size = header.size - 32
+                    except Exception:
+                        # Fallback: use block.size minus header size
+                        data_size = block.size - 32
+                    
+                    if data_size <= 0:
+                        return None
+                    
+                    # Read the actual data (skip header)
+                    actual_data = f.read(data_size)
+                    
+                    # Handle decryption if needed
+                    if (block.metadata and block.metadata.get('encrypted', False) and
+                        self.privacy_engine):
                         try:
-                            f.seek(block.offset + header_size)
-                            data_size = max(0, block.size - header_size)
-                            if data_size <= 0:
-                                continue
-                            data = f.read(data_size)
-                            
-                            # For text blocks, try to decode and verify it's valid UTF-8
-                            if block.block_type in ["text", "text_data"]:
-                                try:
-                                    data.decode('utf-8')
-                                    # If we can decode it, this is likely the correct data
-                                    return data
-                                except UnicodeDecodeError:
-                                    continue
-                            else:
-                                # For non-text blocks, return the data if we got the expected amount
-                                if len(data) == data_size:
-                                    return data
+                            decrypted_data = self.privacy_engine.decrypt_data(
+                                actual_data, block.block_id
+                            )
+                            return decrypted_data
                         except Exception:
-                            continue
+                            pass
+                    
+                    return actual_data
+                    
             except Exception:
                 pass
+        
         return None
+    
+    def get_text_blocks(self) -> List[str]:
+        """Get all text blocks as strings."""
+        texts = []
+        for block in self.blocks:
+            if block.block_type in ['text', 'text_data']:
+                data = self._extract_block_data(block)
+                if data:
+                    try:
+                        text = data.decode('utf-8')
+                        texts.append(text)
+                    except UnicodeDecodeError:
+                        pass
+        return texts
+    
+    def get_embeddings(self) -> List[Dict]:
+        """Get all embedding blocks."""
+        embeddings = []
+        for block in self.blocks:
+            if block.block_type in ['embeddings', 'embedding']:
+                data = self._extract_block_data(block)
+                if data:
+                    try:
+                        # Try to parse as JSON first
+                        import json
+                        embedding_data = json.loads(data.decode('utf-8'))
+                        embeddings.append(embedding_data)
+                    except (json.JSONDecodeError, UnicodeDecodeError):
+                        # Fallback: treat as binary embedding data
+                        import struct
+                        floats = []
+                        for i in range(0, len(data), 4):
+                            if i + 4 <= len(data):
+                                float_val = struct.unpack('f', data[i:i+4])[0]
+                                floats.append(float_val)
+                        if floats:
+                            embeddings.append({"vector": floats})
+        return embeddings
+    
+    def get_accessible_blocks(self, permission: str) -> List['MAIFBlock']:
+        """Get blocks accessible with given permission."""
+        accessible = []
+        for block in self.blocks:
+            # For now, return all blocks - in real implementation would check access rules
+            accessible.append(block)
+        return accessible
+    
+    def check_block_access(self, block_id: str, permission: str) -> bool:
+        """Check if current agent has permission to access block."""
+        # For now, allow all access - in real implementation would check access rules
+        return True
+    
+    def get_privacy_summary(self) -> Dict[str, Any]:
+        """Get privacy summary for the MAIF file."""
+        total_blocks = len(self.blocks)
+        encrypted_blocks = sum(1 for block in self.blocks
+                             if block.metadata and block.metadata.get("encrypted", False))
+        anonymized_blocks = sum(1 for block in self.blocks
+                              if block.metadata and block.metadata.get("anonymized", False))
+        
+        return {
+            "total_blocks": total_blocks,
+            "encrypted_blocks": encrypted_blocks,
+            "anonymized_blocks": anonymized_blocks,
+            "privacy_enabled": encrypted_blocks > 0 or anonymized_blocks > 0,
+            "encryption_ratio": encrypted_blocks / total_blocks if total_blocks > 0 else 0,
+            "anonymization_ratio": anonymized_blocks / total_blocks if total_blocks > 0 else 0
+        }
     
     def get_text_blocks(self, include_anonymized: bool = False) -> List[str]:
         """Extract all text blocks with privacy filtering."""
@@ -1199,31 +1329,83 @@ class MAIFDecoder:
         if dimensions == 0 or count == 0:
             return []
         
-        # Unpack embeddings
+        # Try to unpack embeddings - handle both numpy and struct formats
         embeddings = []
-        for i in range(count):
-            embedding = []
-            for j in range(dimensions):
-                offset = (i * dimensions + j) * 4  # 4 bytes per float
-                value = struct.unpack('f', data[offset:offset+4])[0]
-                embedding.append(value)
-            embeddings.append(embedding)
+        
+        try:
+            # First try numpy format (for large embeddings)
+            import numpy as np
+            if len(data) == count * dimensions * 4:  # 4 bytes per float32
+                embeddings_array = np.frombuffer(data, dtype=np.float32)
+                embeddings_array = embeddings_array.reshape(count, dimensions)
+                embeddings = embeddings_array.tolist()
+            else:
+                raise ValueError("Size mismatch for numpy format")
+        except (ImportError, ValueError):
+            # Fallback to struct format
+            try:
+                # Try unpacking all at once
+                total_floats = count * dimensions
+                if len(data) == total_floats * 4:
+                    format_str = f'{total_floats}f'
+                    flat_values = struct.unpack(format_str, data)
+                    # Reshape into embeddings
+                    for i in range(count):
+                        start_idx = i * dimensions
+                        end_idx = start_idx + dimensions
+                        embeddings.append(list(flat_values[start_idx:end_idx]))
+                else:
+                    raise ValueError("Size mismatch for struct format")
+            except (struct.error, ValueError):
+                # Final fallback: sequential unpacking
+                offset = 0
+                for _ in range(count):
+                    embedding = []
+                    for _ in range(dimensions):
+                        if offset + 4 <= len(data):
+                            value = struct.unpack('f', data[offset:offset+4])[0]
+                            embedding.append(value)
+                            offset += 4
+                        else:
+                            break
+                    if len(embedding) == dimensions:
+                        embeddings.append(embedding)
         
         return embeddings
     
-    def check_block_access(self, block_id: str, permission: str = "read") -> bool:
-        """Check if the requesting agent can access a specific block."""
-        if not self.privacy_engine:
-            return True
-        return self.privacy_engine.check_access(self.requesting_agent, block_id, permission)
-    
     def get_accessible_blocks(self, permission: str = "read") -> List[MAIFBlock]:
-        """Get all blocks accessible to the requesting agent."""
+        """Get blocks accessible to the requesting agent."""
         accessible = []
         for block in self.blocks:
-            if self.check_block_access(block.block_id, permission):
-                accessible.append(block)
+            # Check access permissions
+            if self.privacy_engine and not self.privacy_engine.check_access(
+                self.requesting_agent, block.block_id, permission
+            ):
+                continue
+            accessible.append(block)
         return accessible
+    
+    def get_privacy_summary(self) -> Dict[str, Any]:
+        """Get privacy summary for the MAIF file."""
+        total_blocks = len(self.blocks)
+        encrypted_blocks = sum(1 for block in self.blocks
+                             if block.metadata and block.metadata.get("encrypted", False))
+        anonymized_blocks = sum(1 for block in self.blocks
+                              if block.metadata and block.metadata.get("anonymized", False))
+        
+        return {
+            "total_blocks": total_blocks,
+            "encrypted_blocks": encrypted_blocks,
+            "anonymized_blocks": anonymized_blocks,
+            "privacy_enabled": self.privacy_engine is not None,
+            "requesting_agent": self.requesting_agent
+        }
+    
+    def check_block_access(self, block_id: str, permission: str) -> bool:
+        """Check if the requesting agent has access to a specific block."""
+        if not self.privacy_engine:
+            return True  # No privacy engine means open access
+        return self.privacy_engine.check_access(self.requesting_agent, block_id, permission)
     
     def get_privacy_summary(self) -> Dict[str, Any]:
         """Get a summary of privacy policies and access controls."""

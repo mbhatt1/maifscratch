@@ -62,37 +62,41 @@ class TestSemanticEmbedder:
         with patch('sentence_transformers.SentenceTransformer'):
             self.embedder = SemanticEmbedder(model_name="test-model")
     
-    @patch('sentence_transformers.SentenceTransformer')
-    def test_embedder_initialization(self, mock_transformer):
+    def test_embedder_initialization(self):
         """Test SemanticEmbedder initialization."""
-        mock_model = Mock()
-        mock_transformer.return_value = mock_model
-        
-        embedder = SemanticEmbedder(model_name="test-model")
-        
-        assert embedder.model_name == "test-model"
-        assert embedder.embeddings == []
-        mock_transformer.assert_called_once_with("test-model")
+        with patch('maif.semantic.SENTENCE_TRANSFORMERS_AVAILABLE', True), \
+             patch('maif.semantic.SentenceTransformer') as mock_transformer:
+            
+            mock_model = Mock()
+            mock_transformer.return_value = mock_model
+            
+            embedder = SemanticEmbedder(model_name="test-model")
+            
+            assert embedder.model_name == "test-model"
+            assert embedder.embeddings == []
+            mock_transformer.assert_called_once_with("test-model")
     
-    @patch('sentence_transformers.SentenceTransformer')
-    def test_embed_text(self, mock_transformer):
+    def test_embed_text(self):
         """Test text embedding generation."""
-        # Mock the model
-        mock_model = Mock()
-        mock_model.encode.return_value = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
-        mock_transformer.return_value = mock_model
-        
-        embedder = SemanticEmbedder(model_name="test-model")
-        
-        text = "Hello, semantic world!"
-        metadata = {"source": "test"}
-        
-        embedding = embedder.embed_text(text, metadata)
-        
-        assert isinstance(embedding, SemanticEmbedding)
-        assert len(embedding.vector) == 5
-        assert embedding.metadata["source"] == "test"
-        assert embedding.metadata["text"] == text
+        with patch('maif.semantic.SENTENCE_TRANSFORMERS_AVAILABLE', True), \
+             patch('maif.semantic.SentenceTransformer') as mock_transformer:
+            
+            # Mock the model
+            mock_model = Mock()
+            mock_model.encode.return_value = np.array([0.1, 0.2, 0.3, 0.4, 0.5])
+            mock_transformer.return_value = mock_model
+            
+            embedder = SemanticEmbedder(model_name="test-model")
+            
+            text = "Hello, semantic world!"
+            metadata = {"source": "test"}
+            
+            embedding = embedder.embed_text(text, metadata)
+            
+            assert isinstance(embedding, SemanticEmbedding)
+            assert len(embedding.vector) == 5
+            assert embedding.metadata["source"] == "test"
+            assert embedding.metadata["text"] == text
         
         # Check that embedding was stored
         assert len(embedder.embeddings) == 1
