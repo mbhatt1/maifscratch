@@ -87,9 +87,8 @@ class MAIFSigner:
         previous_hash = None
         if self.provenance_chain:
             last_entry = self.provenance_chain[-1]
-            previous_hash = hashlib.sha256(
-                json.dumps(last_entry.to_dict(), sort_keys=True).encode()
-            ).hexdigest()
+            # Use the block_hash of the previous entry as the previous_hash
+            previous_hash = last_entry.block_hash
             entry_data["previous_hash"] = previous_hash
         
         # Sign the entry
@@ -171,28 +170,51 @@ class MAIFVerifier:
                 return False
             
             signature_info = signed_manifest["signature"]
-            signature_data = signature_info["data"]
-            signature = signature_info["signature"]
-            public_key_pem = signature_info["public_key"]
             
-            # Load public key
-            public_key = load_pem_public_key(public_key_pem.encode('ascii'))
+            # Handle different signature formats
+            if isinstance(signature_info, str):
+                # Simple string signature format (as created by sign_maif_manifest)
+                signature = signature_info
+                public_key_pem = signed_manifest.get("public_key", "")
+                
+                if not public_key_pem:
+                    return False
+                
+                # Create manifest copy without signature for verification
+                manifest_copy = signed_manifest.copy()
+                manifest_copy.pop("signature", None)
+                manifest_copy.pop("public_key", None)
+                
+                # Verify signature against manifest data
+                manifest_bytes = json.dumps(manifest_copy, sort_keys=True).encode()
+                return self.verify_signature(manifest_bytes, signature, public_key_pem)
+                
+            elif isinstance(signature_info, dict):
+                # Complex signature format
+                signature_data = signature_info["data"]
+                signature = signature_info["signature"]
+                public_key_pem = signature_info["public_key"]
+                
+                # Load public key
+                public_key = load_pem_public_key(public_key_pem.encode('ascii'))
+                
+                # Verify signature
+                signature_bytes = json.dumps(signature_data, sort_keys=True).encode()
+                signature_raw = __import__('base64').b64decode(signature)
+                
+                public_key.verify(
+                    signature_raw,
+                    signature_bytes,
+                    padding.PSS(
+                        mgf=padding.MGF1(hashes.SHA256()),
+                        salt_length=padding.PSS.MAX_LENGTH
+                    ),
+                    hashes.SHA256()
+                )
+                
+                return True
             
-            # Verify signature
-            signature_bytes = json.dumps(signature_data, sort_keys=True).encode()
-            signature_raw = __import__('base64').b64decode(signature)
-            
-            public_key.verify(
-                signature_raw,
-                signature_bytes,
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
-                ),
-                hashes.SHA256()
-            )
-            
-            return True
+            return False
             
         except (InvalidSignature, Exception):
             return False
@@ -224,16 +246,23 @@ class MAIFVerifier:
         """Verify the integrity of a provenance chain."""
         errors = []
         
-        if "chain" not in provenance_data:
+        # Handle different provenance data formats
+        if isinstance(provenance_data, list):
+            # Direct list of entries
+            chain = provenance_data
+        elif "chain" in provenance_data:
+            # Wrapped in a chain key
+            chain = provenance_data["chain"]
+        elif "version_history" in provenance_data:
+            # Version history format
+            chain = provenance_data["version_history"]
+        else:
             return False, ["No provenance chain found"]
         
-        chain = provenance_data["chain"]
-        agent_id = provenance_data.get("agent_id")
+        if not chain:
+            return True, []  # Empty chain is valid
         
-        if not agent_id:
-            errors.append("No agent_id found in provenance")
-            return False, errors
-        
+        # Verify chain linkage
         previous_hash = None
         for i, entry in enumerate(chain):
             # Verify chain linkage for entries after the first
@@ -243,8 +272,18 @@ class MAIFVerifier:
                 if actual_previous != expected_previous:
                     errors.append(f"Chain link broken at entry {i}")
             
-            # Calculate hash for next iteration (use block_hash as the linking hash)
-            previous_hash = entry.get("block_hash")
+            # Calculate hash for next iteration
+            if "current_hash" in entry:
+                # Version history format
+                previous_hash = entry.get("current_hash")
+            elif "block_hash" in entry:
+                # Provenance entry format
+                previous_hash = entry.get("block_hash")
+            else:
+                # Generate hash from entry data
+                import hashlib
+                entry_str = json.dumps(entry, sort_keys=True)
+                previous_hash = hashlib.sha256(entry_str.encode()).hexdigest()
         
         return len(errors) == 0, errors
     

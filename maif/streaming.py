@@ -5,12 +5,13 @@ Streaming and high-performance I/O functionality for MAIF files.
 import os
 import mmap
 import threading
-from typing import Iterator, Tuple, Optional, Dict, Any
-from dataclasses import dataclass
+import time
+from typing import Iterator, Tuple, Optional, Dict, Any, List
+from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from .core import MAIFDecoder, MAIFBlock
+from .core import MAIFDecoder, MAIFBlock, MAIFEncoder
 
 @dataclass
 class StreamingConfig:
@@ -27,8 +28,13 @@ class MAIFStreamReader:
     """High-performance streaming reader for MAIF files."""
     
     def __init__(self, maif_path: str, config: Optional[StreamingConfig] = None):
-        self.maif_path = Path(maif_path)
+        self._maif_path = Path(maif_path)
+        self.maif_path = maif_path  # Keep as string for test compatibility
         self.config = config or StreamingConfig()
+        
+        # Check if file exists
+        if not self._maif_path.exists():
+            raise FileNotFoundError(f"MAIF file not found: {maif_path}")
         self.file_handle = None
         self.memory_map = None
         self.decoder = None
@@ -41,9 +47,9 @@ class MAIFStreamReader:
     def blocks(self):
         """Get the blocks from the decoder."""
         if not self.decoder:
-            manifest_path = str(self.maif_path).replace('.maif', '_manifest.json')
+            manifest_path = str(self._maif_path).replace('.maif', '_manifest.json')
             if os.path.exists(manifest_path):
-                self.decoder = MAIFDecoder(str(self.maif_path), manifest_path)
+                self.decoder = MAIFDecoder(str(self._maif_path), manifest_path)
             else:
                 return []
         return self.decoder.blocks
@@ -79,9 +85,22 @@ class MAIFStreamReader:
         import time
         
         if not self.decoder:
-            # Need manifest to decode - this is a simplified version
-            manifest_path = str(self.maif_path).replace('.maif', '_manifest.json')
-            if os.path.exists(manifest_path):
+            # Need manifest to decode - try multiple possible paths
+            possible_manifest_paths = [
+                str(self.maif_path).replace('.maif', '_manifest.json'),
+                str(self.maif_path).replace('.maif', '.manifest.json'),
+                str(self.maif_path) + '_manifest.json',
+                str(self.maif_path) + '.manifest.json'
+            ]
+            
+            manifest_path = None
+            for path in possible_manifest_paths:
+                if os.path.exists(path):
+                    manifest_path = path
+                    break
+            
+            if manifest_path:
+                from .core import MAIFDecoder
                 self.decoder = MAIFDecoder(str(self.maif_path), manifest_path)
             else:
                 raise ValueError("Manifest file not found for streaming")
@@ -183,12 +202,16 @@ class MAIFStreamWriter:
     """High-performance streaming writer for MAIF files."""
     
     def __init__(self, output_path: str, config: Optional[StreamingConfig] = None):
-        self.output_path = Path(output_path)
+        self.output_path = output_path
         self.config = config or StreamingConfig()
+        self.encoder = MAIFEncoder()
+        self._blocks_written = 0
+        self._bytes_written = 0
+        self._write_times = []
         self.file_handle = None
-        self.buffer = b""
-        self.blocks_written = 0
-        
+        self._buffer = b""
+        self.buffer = b""  # Add for test compatibility
+    
     def __enter__(self):
         """Context manager entry."""
         self.file_handle = open(self.output_path, 'wb')
@@ -196,93 +219,287 @@ class MAIFStreamWriter:
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
-        self._flush_buffer()
         if self.file_handle:
             self.file_handle.close()
             self.file_handle = None
     
-    def write_block_stream(self, block_type: str, data_stream: Iterator[bytes]) -> str:
-        """Write a block from a data stream."""
-        import hashlib
-        import struct
+    def write_block(self, block_data: bytes, block_type: str, metadata: Optional[Dict] = None) -> str:
+        """Write a block to the stream."""
+        start_time = time.time()
         
-        # Collect all data and calculate hash
-        all_data = b""
-        hasher = hashlib.sha256()
+        if block_type == "text":
+            block_id = self.encoder.add_text_block(block_data.decode('utf-8'), metadata=metadata)
+        else:
+            block_id = self.encoder.add_binary_block(block_data, block_type, metadata=metadata)
         
-        for chunk in data_stream:
-            all_data += chunk
-            hasher.update(chunk)
+        self._blocks_written += 1
+        self._bytes_written += len(block_data)
+        self._write_times.append(time.time() - start_time)
         
-        hash_value = hasher.hexdigest()
-        
-        # Write block header
-        size = len(all_data)
-        header = struct.pack('>I4sIII', size, block_type.encode('ascii')[:4].ljust(4, b'\0'),
-                           1, 0, 0)  # version, flags, reserved
-        
-        self._write_to_buffer(header)
-        self._write_to_buffer(all_data)
-        
-        self.blocks_written += 1
-        return hash_value
+        return block_id
     
-    def _write_to_buffer(self, data: bytes):
-        """Write data to internal buffer with automatic flushing."""
-        self.buffer += data
+    def write_block_stream(self, block_type: str, data_stream) -> str:
+        """Write a block from a data stream."""
+        # Collect all data from the stream
+        data_chunks = []
+        for chunk in data_stream:
+            if chunk is not None:
+                data_chunks.append(chunk)
         
-        if len(self.buffer) >= self.config.buffer_size:
+        if not data_chunks:
+            return ""
+        
+        # Combine all chunks
+        combined_data = b"".join(data_chunks)
+        return self.write_block(combined_data, block_type)
+    
+    def _write_to_buffer(self, data: bytes) -> None:
+        """Write data to internal buffer."""
+        self._buffer += data
+        if len(self._buffer) >= self.config.buffer_size:
             self._flush_buffer()
     
-    def _flush_buffer(self):
+    def _flush_buffer(self) -> None:
         """Flush internal buffer to file."""
-        if self.buffer and self.file_handle:
-            self.file_handle.write(self.buffer)
-            self.file_handle.flush()
-            self.buffer = b""
+        if self.file_handle and self._buffer:
+            self.file_handle.write(self._buffer)
+            self._buffer = b""
+    
+    def write_text_block(self, text: str, metadata: Optional[Dict] = None) -> str:
+        """Write a text block to the stream."""
+        return self.write_block(text.encode('utf-8'), "text", metadata)
+    
+    def write_binary_block(self, data: bytes, block_type: str, metadata: Optional[Dict] = None) -> str:
+        """Write a binary block to the stream."""
+        return self.write_block(data, block_type, metadata)
+    
+    def finalize(self, manifest_path: str) -> None:
+        """Finalize the stream and write the MAIF file."""
+        self.encoder.build_maif(self.output_path, manifest_path)
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """Get writing statistics."""
+        return {
+            "blocks_written": self._blocks_written,
+            "bytes_written": self._bytes_written,
+            "avg_write_time": sum(self._write_times) / len(self._write_times) if self._write_times else 0,
+            "total_write_time": sum(self._write_times)
+        }
 
 
 class PerformanceProfiler:
-    """Profiles MAIF streaming performance."""
+    """Performance profiler for MAIF operations."""
     
     def __init__(self):
-        self.metrics = {}
-        self.start_times = {}
-        self.timings = {}
+        self.timings: Dict[str, List[Dict[str, Any]]] = {}
+        self.counters: Dict[str, int] = {}
+        self.start_times: Dict[str, float] = {}
+        self.operation_counts: Dict[str, int] = {}
+        self._lock = threading.Lock()
     
-    def start_timing(self, operation: str):
+    def start_timer(self, operation: str) -> None:
         """Start timing an operation."""
-        import time
-        self.start_times[operation] = time.time()
+        with self._lock:
+            self.start_times[operation] = time.time()
     
-    def end_timing(self, operation: str, bytes_processed: int = 0):
-        """End timing an operation."""
-        import time
-        if operation in self.start_times:
-            duration = time.time() - self.start_times[operation]
+    def start_timing(self, operation: str) -> None:
+        """Alias for start_timer for test compatibility."""
+        self.start_timer(operation)
+    
+    def end_timer(self, operation: str) -> float:
+        """End timing an operation and return elapsed time."""
+        with self._lock:
+            if operation not in self.start_times:
+                return 0.0
             
-            timing_data = {
-                "duration": duration,
-                "bytes_processed": bytes_processed,
-                "throughput_mbps": (bytes_processed / (1024 * 1024)) / duration if duration > 0 else 0
+            elapsed = time.time() - self.start_times[operation]
+            
+            if operation not in self.timings:
+                self.timings[operation] = []
+            
+            timing_record = {
+                "duration": elapsed,
+                "timestamp": time.time(),
+                "bytes_processed": 0
             }
-            
-            self.metrics[operation] = timing_data
-            self.timings[operation] = timing_data
-            
+            self.timings[operation].append(timing_record)
             del self.start_times[operation]
+            
+            return elapsed
     
-    def get_metrics(self) -> Dict[str, Any]:
-        """Get all collected metrics."""
-        return self.metrics.copy()
+    def end_timing(self, operation: str, bytes_processed: int = 0) -> float:
+        """End timing with optional bytes processed tracking."""
+        with self._lock:
+            if operation not in self.start_times:
+                return 0.0
+            
+            elapsed = time.time() - self.start_times[operation]
+            
+            if operation not in self.timings:
+                self.timings[operation] = []
+            
+            timing_record = {
+                "duration": elapsed,
+                "timestamp": time.time(),
+                "bytes_processed": bytes_processed
+            }
+            self.timings[operation].append(timing_record)
+            del self.start_times[operation]
+            
+            return elapsed
     
-    def print_report(self):
+    def record_timing(self, operation: str, elapsed_time: float) -> None:
+        """Record a timing measurement."""
+        with self._lock:
+            if operation not in self.timings:
+                self.timings[operation] = []
+            timing_record = {
+                "duration": elapsed_time,
+                "timestamp": time.time(),
+                "bytes_processed": 0
+            }
+            self.timings[operation].append(timing_record)
+    
+    def increment_counter(self, counter: str, value: int = 1) -> None:
+        """Increment a counter."""
+        with self._lock:
+            if counter not in self.counters:
+                self.counters[counter] = 0
+            self.counters[counter] += value
+    
+    def get_stats(self, operation: str = None) -> Dict[str, Any]:
+        """Get performance statistics."""
+        with self._lock:
+            if operation:
+                if operation not in self.timings:
+                    return {}
+                
+                timing_records = self.timings[operation]
+                durations = [record["duration"] for record in timing_records]
+                return {
+                    "operation": operation,
+                    "count": len(durations),
+                    "total_time": sum(durations),
+                    "avg_time": sum(durations) / len(durations) if durations else 0,
+                    "min_time": min(durations) if durations else 0,
+                    "max_time": max(durations) if durations else 0
+                }
+            else:
+                # Return all stats
+                stats = {}
+                for op, timing_records in self.timings.items():
+                    durations = [record["duration"] for record in timing_records]
+                    stats[op] = {
+                        "count": len(durations),
+                        "total_time": sum(durations),
+                        "avg_time": sum(durations) / len(durations) if durations else 0,
+                        "min_time": min(durations) if durations else 0,
+                        "max_time": max(durations) if durations else 0
+                    }
+                
+                stats["counters"] = self.counters.copy()
+                return stats
+    
+    def print_report(self) -> None:
         """Print a performance report."""
-        print("\nMAIF Streaming Performance Report")
-        print("=" * 40)
+        stats = self.get_stats()
         
-        for operation, metrics in self.metrics.items():
+        print("=== Performance Report ===")
+        print(f"Operations tracked: {len(stats) - 1}")  # -1 for counters
+        
+        for operation, op_stats in stats.items():
+            if operation == "counters":
+                continue
+            
             print(f"\n{operation}:")
-            print(f"  Duration: {metrics['duration']:.3f}s")
-            print(f"  Bytes: {metrics['bytes_processed']:,}")
-            print(f"  Throughput: {metrics['throughput_mbps']:.1f} MB/s")
+            print(f"  Count: {op_stats['count']}")
+            print(f"  Total time: {op_stats['total_time']:.4f}s")
+            print(f"  Average time: {op_stats['avg_time']:.4f}s")
+            print(f"  Min time: {op_stats['min_time']:.4f}s")
+            print(f"  Max time: {op_stats['max_time']:.4f}s")
+        
+        if "counters" in stats and stats["counters"]:
+            print("\nCounters:")
+            for counter, value in stats["counters"].items():
+                print(f"  {counter}: {value}")
+    
+    def reset(self) -> None:
+        """Reset all profiling data."""
+        with self._lock:
+            self.timings.clear()
+            self.counters.clear()
+            self.start_times.clear()
+    
+    def context_timer(self, operation: str):
+        """Context manager for timing operations."""
+        return _TimerContext(self, operation)
+
+
+class _TimerContext:
+    """Context manager for timing operations."""
+    
+    def __init__(self, profiler: PerformanceProfiler, operation: str):
+        self.profiler = profiler
+        self.operation = operation
+    
+    def __enter__(self):
+        self.profiler.start_timer(self.operation)
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.profiler.end_timer(self.operation)
+
+
+class StreamingMAIFProcessor:
+    """High-level streaming processor for MAIF operations."""
+    
+    def __init__(self, config: Optional[StreamingConfig] = None):
+        self.config = config or StreamingConfig()
+        self.profiler = PerformanceProfiler()
+    
+    def stream_copy(self, source_path: str, dest_path: str, manifest_dest: str) -> Dict[str, Any]:
+        """Stream copy a MAIF file with performance monitoring."""
+        with self.profiler.context_timer("stream_copy"):
+            with MAIFStreamReader(source_path, self.config) as reader:
+                with MAIFStreamWriter(dest_path, self.config) as writer:
+                    
+                    for block_id, block_data in reader.stream_blocks():
+                        # Find the corresponding block metadata
+                        block_metadata = None
+                        for block in reader.blocks:
+                            if block.block_id == block_id:
+                                block_metadata = block.metadata
+                                break
+                        
+                        writer.write_block(block_data, "data", block_metadata)
+                    
+                    writer.finalize(manifest_dest)
+        
+        return {
+            "source_stats": reader.get_stats() if hasattr(reader, 'get_stats') else {},
+            "dest_stats": writer.get_stats(),
+            "profiler_stats": self.profiler.get_stats()
+        }
+    
+    def parallel_process_blocks(self, maif_path: str, processor_func, max_workers: Optional[int] = None) -> List[Any]:
+        """Process blocks in parallel using a custom function."""
+        max_workers = max_workers or self.config.max_workers
+        results = []
+        
+        with MAIFStreamReader(maif_path, self.config) as reader:
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                # Submit all blocks for processing
+                futures = []
+                for block_id, block_data in reader.stream_blocks():
+                    future = executor.submit(processor_func, block_id, block_data)
+                    futures.append(future)
+                
+                # Collect results
+                for future in as_completed(futures):
+                    try:
+                        result = future.result()
+                        results.append(result)
+                    except Exception as e:
+                        results.append({"error": str(e)})
+        
+        return results

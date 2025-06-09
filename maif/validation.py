@@ -5,6 +5,7 @@ Validation and repair functionality for MAIF files.
 import json
 import hashlib
 import os
+import uuid
 from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 from pathlib import Path
@@ -157,13 +158,29 @@ class MAIFValidator:
         if "version_history" in decoder.manifest:
             version_history = decoder.manifest["version_history"]
             
-            # Check chain linkage
-            for i in range(1, len(version_history)):
-                current = version_history[i]
-                previous = version_history[i-1]
-                
-                if current.get("previous_hash") != previous.get("current_hash"):
-                    errors.append(f"Provenance chain break at version {i}")
+            # Handle different version history formats
+            if isinstance(version_history, dict):
+                # New format: dict of block_id -> list of versions
+                for block_id, versions in version_history.items():
+                    if isinstance(versions, list) and len(versions) > 1:
+                        for i in range(1, len(versions)):
+                            current = versions[i]
+                            previous = versions[i-1]
+                            
+                            if isinstance(current, dict) and isinstance(previous, dict):
+                                if current.get("previous_hash") != previous.get("current_hash"):
+                                    errors.append(f"Provenance chain break at version {i} for block {block_id}")
+            elif isinstance(version_history, list):
+                # Old format: list of versions
+                if len(version_history) > 1:
+                    for i in range(1, len(version_history)):
+                        if i < len(version_history):  # Bounds check
+                            current = version_history[i]
+                            previous = version_history[i-1]
+                            
+                            if isinstance(current, dict) and isinstance(previous, dict):
+                                if current.get("previous_hash") != previous.get("current_hash"):
+                                    errors.append(f"Provenance chain break at version {i}")
         
         return errors, warnings
     
@@ -230,8 +247,22 @@ class MAIFRepairTool:
         manifest_blocks = decoder.manifest.get("blocks", [])
         if len(manifest_blocks) != len(decoder.blocks):
             # Rebuild blocks list from actual blocks
-            decoder.manifest["blocks"] = [block.to_dict() for block in decoder.blocks]
-            repairs_made = True
+            try:
+                decoder.manifest["blocks"] = [block.to_dict() for block in decoder.blocks]
+                repairs_made = True
+            except AttributeError:
+                # Handle blocks that don't have to_dict method
+                decoder.manifest["blocks"] = []
+                for block in decoder.blocks:
+                    block_dict = {
+                        "block_id": getattr(block, 'block_id', str(uuid.uuid4())),
+                        "block_type": getattr(block, 'block_type', 'unknown'),
+                        "hash": getattr(block, 'hash_value', ''),
+                        "offset": getattr(block, 'offset', 0),
+                        "size": getattr(block, 'size', 0)
+                    }
+                    decoder.manifest["blocks"].append(block_dict)
+                repairs_made = True
         
         return repairs_made
     

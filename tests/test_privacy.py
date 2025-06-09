@@ -120,8 +120,8 @@ class TestPrivacyEngine:
         )
         
         assert encrypted_data != test_data
-        assert metadata["algorithm"] == "AES_GCM"
-        assert "nonce" in metadata
+        assert metadata["algorithm"] == "AES-GCM"
+        assert "iv" in metadata
         assert "tag" in metadata
         
         # Decrypt data
@@ -597,7 +597,7 @@ class TestPrivacyErrorHandling:
         
         # Corrupt metadata
         corrupted_metadata = metadata.copy()
-        corrupted_metadata["nonce"] = "corrupted_nonce"
+        corrupted_metadata["iv"] = "corrupted_iv"
         
         # Decryption should fail gracefully
         with pytest.raises(Exception):

@@ -50,7 +50,8 @@ def create_privacy_maif(input_file, output, manifest, text, files, agent_id, pri
         if access_rule:
             for subject, resource, permissions in access_rule:
                 perms = permissions.split(',')
-                encoder.add_access_rule(subject, resource, perms)
+                rule = AccessRule(subject, resource, perms)
+                encoder.privacy_engine.add_access_rule(rule)
                 click.echo(f"Added access rule: {subject} -> {resource} ({permissions})")
         
         # Add input file content if provided
@@ -88,10 +89,10 @@ def create_privacy_maif(input_file, output, manifest, text, files, agent_id, pri
         
         # Build MAIF
         manifest_path = manifest or f"{output}.manifest.json"
-        encoder.save(output, manifest_path)
+        encoder.build_maif(output, manifest_path)
         
         # Generate privacy report
-        privacy_report = encoder.get_privacy_report()
+        privacy_report = encoder.privacy_engine.generate_privacy_report()
         click.echo(f"\n✓ Privacy-enabled MAIF created: {output}")
         click.echo(f"✓ Manifest: {manifest_path}")
         click.echo(f"✓ Privacy level: {privacy_level}")
@@ -235,10 +236,12 @@ def manage_privacy(command, maif_file, manifest, agent_id, block_id, subject, re
 @click.option('--text', multiple=True, help='Add text content')
 @click.option('--file', 'files', multiple=True, help='Add file content')
 @click.option('--agent-id', help='Agent identifier')
+@click.option('--format', type=click.Choice(['text', 'json', 'binary']), default='text', help='Input format')
+@click.option('--compression', type=click.Choice(['none', 'zlib', 'gzip', 'bzip2']), default='none', help='Compression algorithm')
 @click.option('--compress', is_flag=True, help='Enable compression')
 @click.option('--sign', is_flag=True, help='Sign the MAIF file')
 @click.option('--key', help='Private key file for signing')
-def create_maif(input_file, output, manifest, text, files, agent_id, compress, sign, key):
+def create_maif(input_file, output, manifest, text, files, agent_id, format, compression, compress, sign, key):
     """CLI command to create MAIF files."""
     try:
         from .core import MAIFEncoder
@@ -312,15 +315,14 @@ def create_maif(input_file, output, manifest, text, files, agent_id, compress, s
         sys.exit(1)
 
 @click.command()
-@click.option('--input', 'maif_file', required=True, help='MAIF file to verify')
+@click.option('--maif-file', required=True, help='MAIF file to verify')
 @click.option('--manifest', help='Manifest file path')
 @click.option('--verbose', '-v', is_flag=True, help='Verbose output')
 @click.option('--repair', is_flag=True, help='Attempt to repair issues')
 def verify_maif(maif_file, manifest, verbose, repair):
     """CLI command to verify MAIF files."""
     try:
-        from .core import MAIFParser
-        from .security import MAIFVerifier
+        from .core import MAIFDecoder
         from .validation import MAIFValidator, MAIFRepairTool
         
         manifest_path = manifest or f"{maif_file}.manifest.json"
@@ -335,88 +337,111 @@ def verify_maif(maif_file, manifest, verbose, repair):
         
         # Perform validation
         click.echo("Validating MAIF file...")
-        validator = MAIFValidator()
-        report = validator.validate_file(maif_file, manifest_path)
-        
-        # Display results
-        if report.is_valid:
-            click.echo("✓ MAIF file is valid")
-        else:
-            click.echo("✗ MAIF file has issues")
-        
-        # Show statistics
-        stats = report.statistics
-        click.echo(f"\nStatistics:")
-        click.echo(f"  Total blocks: {stats.get('total_blocks', 0)}")
-        click.echo(f"  File size: {stats.get('total_size', 0):,} bytes")
-        click.echo(f"  Integrity checks: {stats.get('integrity_checks', 0)}")
-        click.echo(f"  Signature checks: {stats.get('signature_checks', 0)}")
-        
-        # Show issues
-        if report.issues:
-            click.echo(f"\nIssues found: {len(report.issues)}")
+        try:
+            validator = MAIFValidator()
+            report = validator.validate_file(maif_file, manifest_path)
             
-            for severity in ['critical', 'error', 'warning', 'info']:
-                issues = [i for i in report.issues if i.severity.value == severity]
-                if issues:
-                    click.echo(f"\n{severity.upper()} ({len(issues)}):")
-                    for issue in issues:
-                        click.echo(f"  - {issue.message}")
-                        if verbose and issue.suggested_fix:
-                            click.echo(f"    Fix: {issue.suggested_fix}")
-        
-        # Attempt repair if requested
-        if repair and not report.is_valid:
-            click.echo("\nAttempting repairs...")
-            repair_tool = MAIFRepairTool()
-            if repair_tool.repair_file(maif_file, manifest_path):
-                click.echo("✓ Repairs completed")
-                for log_entry in repair_tool.repair_log:
-                    click.echo(f"  {log_entry}")
+            # Display results
+            if report.is_valid:
+                click.echo("✓ MAIF file is valid")
             else:
-                click.echo("✗ Could not repair all issues")
-        
-        # Exit with appropriate code
-        if report.is_valid:
-            sys.exit(0)
-        else:
-            critical_errors = len([i for i in report.issues if i.severity.value == 'critical'])
-            sys.exit(1 if critical_errors > 0 else 2)
+                click.echo("✗ MAIF file has issues")
+            
+            # Show statistics
+            click.echo(f"\nStatistics:")
+            click.echo(f"  Total blocks: {report.block_count}")
+            click.echo(f"  File size: {report.file_size:,} bytes")
+            
+            # Show errors and warnings
+            if report.errors:
+                click.echo(f"\nErrors ({len(report.errors)}):")
+                for error in report.errors:
+                    click.echo(f"  - {error}")
+            
+            if report.warnings:
+                click.echo(f"\nWarnings ({len(report.warnings)}):")
+                for warning in report.warnings:
+                    click.echo(f"  - {warning}")
+            
+            # Attempt repair if requested
+            if repair and not report.is_valid:
+                click.echo("\nAttempting repairs...")
+                try:
+                    repair_tool = MAIFRepairTool()
+                    if repair_tool.repair_file(maif_file, manifest_path):
+                        click.echo("✓ Repairs completed")
+                    else:
+                        click.echo("✗ Could not repair all issues")
+                except Exception as repair_error:
+                    click.echo(f"✗ Repair failed: {repair_error}")
+            
+            # Exit with appropriate code
+            sys.exit(0 if report.is_valid else 1)
+            
+        except ImportError:
+            # Fallback to basic validation using decoder
+            click.echo("Using basic validation (validation module not available)")
+            decoder = MAIFDecoder(maif_file, manifest_path)
+            integrity_result = decoder.verify_integrity()
+            
+            if integrity_result:
+                click.echo("✓ Basic integrity check passed")
+                sys.exit(0)
+            else:
+                click.echo("✗ Basic integrity check failed")
+                sys.exit(1)
         
     except Exception as e:
         click.echo(f"Error verifying MAIF: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 @click.command()
-@click.option('--input', 'maif_file', required=True, help='MAIF file to analyze')
+@click.option('--maif-file', required=True, help='MAIF file to analyze')
 @click.option('--manifest', help='Manifest file path')
 @click.option('--output', '-o', help='Output report file')
 @click.option('--format', type=click.Choice(['json', 'text']), default='text', help='Output format')
+@click.option('--analysis-type', type=click.Choice(['basic', 'forensic', 'timeline', 'agents']), default='basic', help='Analysis type')
 @click.option('--forensic', is_flag=True, help='Perform forensic analysis')
 @click.option('--timeline', is_flag=True, help='Show version timeline')
 @click.option('--agents', is_flag=True, help='Show agent activity')
-def analyze_maif(maif_file, manifest, output, format, forensic, timeline, agents):
+def analyze_maif(maif_file, manifest, output, format, analysis_type, forensic, timeline, agents):
     """CLI command to analyze MAIF files."""
     try:
-        from .core import MAIFParser
-        from .security import MAIFVerifier
-        from .forensics import ForensicAnalyzer
+        from .core import MAIFDecoder
         
         manifest_path = manifest or f"{maif_file}.manifest.json"
         
-        # Parse MAIF
-        parser_obj = MAIFParser(maif_file, manifest_path)
+        if not os.path.exists(maif_file):
+            click.echo(f"Error: MAIF file not found: {maif_file}")
+            sys.exit(2)
+        
+        if not os.path.exists(manifest_path):
+            click.echo(f"Error: Manifest file not found: {manifest_path}")
+            sys.exit(2)
+        
+        # Parse MAIF using decoder
+        decoder = MAIFDecoder(maif_file, manifest_path)
         
         # Basic analysis
-        metadata = parser_obj.get_metadata()
-        content = parser_obj.extract_content()
+        text_blocks = decoder.get_text_blocks()
+        embeddings = decoder.get_embeddings()
         
         if format == 'json':
             result = {
-                "metadata": metadata,
+                "file": maif_file,
+                "manifest": manifest_path,
+                "analysis_type": analysis_type,
                 "content_summary": {
-                    "text_blocks": len(content['texts']),
-                    "embeddings": len(content['embeddings'])
+                    "text_blocks": len(text_blocks),
+                    "embeddings": len(embeddings),
+                    "total_blocks": len(decoder.blocks)
+                },
+                "metadata": {
+                    "version": decoder.manifest.get('maif_version', 'unknown'),
+                    "created": decoder.manifest.get('created', 'unknown'),
+                    "agent_id": decoder.manifest.get('agent_id', 'unknown')
                 }
             }
         else:
@@ -424,35 +449,32 @@ def analyze_maif(maif_file, manifest, output, format, forensic, timeline, agents
             result.append("MAIF Analysis Report")
             result.append("=" * 50)
             result.append(f"File: {maif_file}")
-            result.append(f"Version: {metadata.get('version', 'unknown')}")
-            result.append(f"Created: {metadata.get('created', 'unknown')}")
-            result.append(f"Blocks: {metadata.get('block_count', 0)}")
-            result.append(f"Text blocks: {len(content['texts'])}")
-            result.append(f"Embeddings: {len(content['embeddings'])}")
+            result.append(f"Version: {decoder.manifest.get('maif_version', 'unknown')}")
+            result.append(f"Created: {decoder.manifest.get('created', 'unknown')}")
+            result.append(f"Agent ID: {decoder.manifest.get('agent_id', 'unknown')}")
+            result.append(f"Total blocks: {len(decoder.blocks)}")
+            result.append(f"Text blocks: {len(text_blocks)}")
+            result.append(f"Embeddings: {len(embeddings)}")
         
         # Forensic analysis
-        if forensic:
-            verifier = MAIFVerifier()
-            analyzer = ForensicAnalyzer()
-            forensic_report = analyzer.analyze_maif(parser_obj, verifier)
+        if forensic or analysis_type == 'forensic':
+            integrity_result = decoder.verify_integrity()
             
             if format == 'json':
-                result["forensic_analysis"] = forensic_report.to_dict()
+                result["forensic_analysis"] = {
+                    "integrity_status": "valid" if integrity_result else "invalid",
+                    "blocks_analyzed": len(decoder.blocks),
+                    "integrity_verified": integrity_result
+                }
             else:
                 result.append("\nForensic Analysis")
                 result.append("-" * 20)
-                result.append(f"Status: {forensic_report.integrity_status}")
-                result.append(f"Events analyzed: {forensic_report.events_analyzed}")
-                result.append(f"Evidence found: {len(forensic_report.evidence)}")
-                
-                if forensic_report.evidence:
-                    result.append("\nEvidence:")
-                    for evidence in forensic_report.evidence[:5]:  # Show first 5
-                        result.append(f"  - {evidence.severity.upper()}: {evidence.description}")
+                result.append(f"Integrity status: {'✓ Valid' if integrity_result else '✗ Invalid'}")
+                result.append(f"Blocks analyzed: {len(decoder.blocks)}")
         
         # Timeline analysis
-        if timeline and hasattr(parser_obj.decoder, 'version_history'):
-            timeline_data = parser_obj.decoder.get_version_timeline()
+        if (timeline or analysis_type == 'timeline') and hasattr(decoder, 'version_history'):
+            timeline_data = decoder.get_version_timeline()
             
             if format == 'json':
                 result["timeline"] = [v.to_dict() for v in timeline_data]
@@ -460,18 +482,22 @@ def analyze_maif(maif_file, manifest, output, format, forensic, timeline, agents
                 result.append(f"\nVersion Timeline ({len(timeline_data)} events)")
                 result.append("-" * 30)
                 for event in timeline_data[-10:]:  # Show last 10 events
-                    result.append(f"  {event.datetime_str}: {event.operation} by {event.agent_id}")
+                    result.append(f"  {event.timestamp}: {event.operation} by {event.agent_id}")
         
         # Agent activity
-        if agents and hasattr(parser_obj.decoder, 'version_history'):
+        if (agents or analysis_type == 'agents') and hasattr(decoder, 'version_history'):
             agent_stats = {}
-            for version in parser_obj.decoder.version_history:
+            all_versions = []
+            for versions in decoder.version_history.values():
+                all_versions.extend(versions)
+            
+            for version in all_versions:
                 agent_id = version.agent_id
                 if agent_id not in agent_stats:
                     agent_stats[agent_id] = {"operations": 0, "last_activity": version.timestamp}
                 agent_stats[agent_id]["operations"] += 1
                 agent_stats[agent_id]["last_activity"] = max(
-                    agent_stats[agent_id]["last_activity"], 
+                    agent_stats[agent_id]["last_activity"],
                     version.timestamp
                 )
             
@@ -501,7 +527,7 @@ def analyze_maif(maif_file, manifest, output, format, forensic, timeline, agents
         sys.exit(1)
 
 @click.command()
-@click.option('--input', 'maif_file', required=True, help='MAIF file to extract from')
+@click.option('--maif-file', required=True, help='MAIF file to extract from')
 @click.option('--manifest', help='Manifest file path')
 @click.option('--output-dir', '-o', help='Output directory', default='.')
 @click.option('--type', type=click.Choice(['text', 'embeddings', 'all']), default='all', help='Content type to extract')
@@ -509,44 +535,63 @@ def analyze_maif(maif_file, manifest, output, format, forensic, timeline, agents
 def extract_content(maif_file, manifest, output_dir, type, format):
     """CLI command to extract content from MAIF files."""
     try:
-        from .core import MAIFParser
+        from .core import MAIFDecoder
         import csv
         
         manifest_path = manifest or f"{maif_file}.manifest.json"
-        parser_obj = MAIFParser(maif_file, manifest_path)
-        content = parser_obj.extract_content()
+        
+        if not os.path.exists(maif_file):
+            click.echo(f"Error: MAIF file not found: {maif_file}")
+            sys.exit(2)
+        
+        if not os.path.exists(manifest_path):
+            click.echo(f"Error: Manifest file not found: {manifest_path}")
+            sys.exit(2)
+        
+        decoder = MAIFDecoder(maif_file, manifest_path)
         
         output_path = Path(output_dir)
         output_path.mkdir(exist_ok=True)
         
         # Extract text content
-        if type in ['text', 'all'] and content['texts']:
-            if format == 'json':
-                with open(output_path / 'texts.json', 'w') as f:
-                    json.dump(content['texts'], f, indent=2)
-            elif format == 'txt':
-                for i, text in enumerate(content['texts']):
-                    with open(output_path / f'text_{i}.txt', 'w') as f:
-                        f.write(text)
-            click.echo(f"Extracted {len(content['texts'])} text blocks")
+        if type in ['text', 'all']:
+            texts = decoder.get_text_blocks()
+            if texts:
+                if format == 'json':
+                    with open(output_path / 'texts.json', 'w') as f:
+                        json.dump(texts, f, indent=2)
+                elif format == 'txt':
+                    for i, text in enumerate(texts):
+                        with open(output_path / f'text_{i}.txt', 'w') as f:
+                            f.write(text)
+                click.echo(f"Extracted {len(texts)} text blocks")
+            else:
+                click.echo("No text blocks found")
         
         # Extract embeddings
-        if type in ['embeddings', 'all'] and content['embeddings']:
-            if format == 'json':
-                with open(output_path / 'embeddings.json', 'w') as f:
-                    json.dump(content['embeddings'], f, indent=2)
-            elif format == 'csv':
-                with open(output_path / 'embeddings.csv', 'w', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([f'dim_{i}' for i in range(len(content['embeddings'][0]))])
-                    writer.writerows(content['embeddings'])
-            click.echo(f"Extracted {len(content['embeddings'])} embeddings")
+        if type in ['embeddings', 'all']:
+            embeddings = decoder.get_embeddings()
+            if embeddings:
+                if format == 'json':
+                    with open(output_path / 'embeddings.json', 'w') as f:
+                        json.dump(embeddings, f, indent=2)
+                elif format == 'csv':
+                    with open(output_path / 'embeddings.csv', 'w', newline='') as f:
+                        writer = csv.writer(f)
+                        if embeddings and embeddings[0]:
+                            writer.writerow([f'dim_{i}' for i in range(len(embeddings[0]))])
+                            writer.writerows(embeddings)
+                click.echo(f"Extracted {len(embeddings)} embeddings")
+            else:
+                click.echo("No embeddings found")
         
         click.echo(f"Content extracted to: {output_path}")
         
     except Exception as e:
         click.echo(f"Error extracting content: {e}")
-        sys.exit(1)
+        import traceback
+        traceback.print_exc()
+        sys.exit(2)
 
 @click.group()
 def main():

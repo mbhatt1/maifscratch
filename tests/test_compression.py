@@ -43,7 +43,7 @@ class TestCompressionAlgorithm:
         assert CompressionAlgorithm.LZMA.value == "lzma"
         assert CompressionAlgorithm.BROTLI.value == "brotli"
         assert CompressionAlgorithm.LZ4.value == "lz4"
-        assert CompressionAlgorithm.ZSTD.value == "zstd"
+        assert CompressionAlgorithm.ZSTANDARD.value == "zstandard"
         assert CompressionAlgorithm.HSC.value == "hsc"
 
 
