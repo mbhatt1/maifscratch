@@ -131,7 +131,15 @@ class ForensicAnalyzer:
             return {"status": "no_version_history", "findings": []}
         
         findings = []
-        version_history = decoder.version_history
+        # Flatten version history from dict to list
+        all_versions = []
+        for versions in decoder.version_history.values():
+            all_versions.extend(versions)
+        
+        if not all_versions:
+            return {"status": "no_version_history", "findings": []}
+        
+        version_history = all_versions
         
         # Check for rapid successive changes
         rapid_changes = self._detect_rapid_changes(version_history)
@@ -283,7 +291,15 @@ class ForensicAnalyzer:
         if not hasattr(decoder, 'version_history') or not decoder.version_history:
             return {"status": "no_temporal_data", "findings": []}
         
-        timestamps = [v.timestamp for v in decoder.version_history]
+        # Flatten version history from dict to list
+        all_versions = []
+        for versions in decoder.version_history.values():
+            all_versions.extend(versions)
+        
+        if not all_versions:
+            return {"status": "no_temporal_data", "findings": []}
+            
+        timestamps = [v.timestamp for v in all_versions]
         
         # Check for future timestamps
         current_time = time.time()
@@ -329,14 +345,14 @@ class ForensicAnalyzer:
         
         # Check for unusually fast operations
         fast_operations = []
-        for i in range(1, len(decoder.version_history)):
-            time_diff = decoder.version_history[i].timestamp - decoder.version_history[i-1].timestamp
+        for i in range(1, len(all_versions)):
+            time_diff = all_versions[i].timestamp - all_versions[i-1].timestamp
             if time_diff < 0.1:  # Less than 100ms between operations
                 fast_operations.append({
                     "operation_index": i,
                     "time_difference": time_diff,
-                    "agent_id": decoder.version_history[i].agent_id,
-                    "operation": decoder.version_history[i].operation
+                    "agent_id": all_versions[i].agent_id,
+                    "operation": all_versions[i].operation
                 })
         
         if len(fast_operations) > 5:  # More than 5 very fast operations
@@ -369,8 +385,16 @@ class ForensicAnalyzer:
             return {"status": "no_agent_data", "findings": []}
         
         # Build agent profiles
+        # Flatten version history from dict to list
+        all_versions = []
+        for versions in decoder.version_history.values():
+            all_versions.extend(versions)
+        
+        if not all_versions:
+            return {"status": "no_agent_data", "findings": []}
+            
         agent_activities = {}
-        for version in decoder.version_history:
+        for version in all_versions:
             agent_id = version.agent_id
             if agent_id not in agent_activities:
                 agent_activities[agent_id] = []
@@ -490,8 +514,16 @@ class ForensicAnalyzer:
         if not hasattr(decoder, 'version_history') or not decoder.version_history:
             return timeline
         
+        # Flatten version history from dict to list
+        all_versions = []
+        for versions in decoder.version_history.values():
+            all_versions.extend(versions)
+        
+        if not all_versions:
+            return timeline
+        
         # Sort by timestamp
-        sorted_versions = sorted(decoder.version_history, key=lambda v: v.timestamp)
+        sorted_versions = sorted(all_versions, key=lambda v: v.timestamp)
         
         for version in sorted_versions:
             # Detect anomaly indicators for this event
