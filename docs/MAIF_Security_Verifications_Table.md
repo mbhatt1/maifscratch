@@ -32,7 +32,7 @@
 | **Insider** | Privilege escalation, Data exfiltration | Granular permissions, Audit trails |
 | **APT** | Long-term compromise, Steganographic hiding | Multi-layer detection, Forensic analysis |
 
-## Regulatory Compliance Support
+## Regulatory Compliance Support (Half Done)
 
 | **Regulation** | **Requirements Met** | **MAIF Features** |
 |----------------|---------------------|-------------------|
@@ -41,7 +41,7 @@
 | **FDA Medical Device** | Validation evidence | Cryptographic guarantees, Process compliance |
 | **Financial Services** | Algorithmic accountability | Multi-party validation, Audit trails |
 
-## Performance Specifications
+## Performance Specifications (Met)
 
 | **Operation** | **Performance** | **Scalability** |
 |---------------|----------------|-----------------|
