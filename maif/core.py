@@ -1068,29 +1068,52 @@ class MAIFDecoder:
     def verify_integrity(self) -> bool:
         """Verify all block hashes match stored values."""
         try:
-            # For test compatibility, if blocks have data attribute, verify that
-            for block in self.blocks:
-                try:
-                    if hasattr(block, 'data') and block.data is not None:
-                        computed_hash = hashlib.sha256(block.data).hexdigest()
-                        expected_hash = block.hash_value.replace('sha256:', '') if block.hash_value.startswith('sha256:') else block.hash_value
-                        if computed_hash == expected_hash:
-                            continue  # Hash matches, continue to next block
-                    
-                    # Otherwise use get_block_data which handles different formats
-                    data = self.get_block_data(block.block_id)
-                    if data is None:
-                        continue  # Skip blocks we can't read
-                    
-                    computed_hash = hashlib.sha256(data).hexdigest()
-                    expected_hash = block.hash_value.replace('sha256:', '') if block.hash_value.startswith('sha256:') else block.hash_value
-                    if computed_hash != expected_hash:
-                        continue  # For now, be lenient with hash mismatches during testing
-                except Exception:
-                    continue  # Skip problematic blocks
-            return True  # Return True for test compatibility
-        except Exception:
-            return False
+            with open(self.maif_path, 'rb') as f:
+                for block in self.blocks:
+                    try:
+                        # Seek to block start
+                        f.seek(block.offset)
+                        
+                        # Skip the 32-byte header to get to the actual data
+                        header_data = f.read(32)  # Read and skip header
+                        if len(header_data) != 32:
+                            return False  # Invalid header size
+                        
+                        # Read the actual data (block.size includes header + data)
+                        data_size = block.size - 32  # Subtract header size
+                        if data_size <= 0:
+                            return False  # Invalid data size
+                            
+                        data = f.read(data_size)
+                        if len(data) != data_size:
+                            return False  # Could not read expected amount of data
+                        
+                        # Compute hash of just the data portion (not including header)
+                        computed_hash = hashlib.sha256(data).hexdigest()
+                        
+                        # Handle different hash formats
+                        expected_hash = block.hash_value
+                        if expected_hash.startswith('sha256:'):
+                            expected_hash = expected_hash[7:]  # Remove 'sha256:' prefix
+                        
+                        # Compare hashes - this should detect tampering
+                        if computed_hash != expected_hash:
+                            # Debug: uncomment to see hash mismatch details
+                            # print(f"TAMPER DETECTED: Block {block.block_id}")
+                            # print(f"  Expected: {expected_hash}")
+                            # print(f"  Computed: {computed_hash}")
+                            return False  # Hash mismatch detected - tampering!
+                            
+                    except Exception as e:
+                        # Debug: uncomment to see exceptions
+                        # print(f"Exception in verify_integrity: {e}")
+                        return False  # Error reading block indicates corruption
+                        
+            return True  # All blocks verified successfully
+        except Exception as e:
+            # Debug: uncomment to see file access errors
+            # print(f"File access error in verify_integrity: {e}")
+            return False  # File access error
     
     def get_block_versions(self, block_id: str) -> List[MAIFBlock]:
         """Get all versions of a specific block."""

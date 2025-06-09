@@ -289,8 +289,27 @@ class TestMAIFDecoder:
     
     def test_verify_integrity(self):
         """Test integrity verification."""
+        # First verify that a clean file passes integrity check
         result = self.decoder.verify_integrity()
         assert result is True
+        
+        # Now test that tampering is detected
+        # Tamper with the MAIF file (seek past header + some data)
+        with open(self.maif_path, 'r+b') as f:
+            f.seek(80)  # Seek well past the 32-byte header into data
+            original_byte = f.read(1)
+            f.seek(80)
+            f.write(b'X')  # Change one byte
+        
+        # Create new decoder for tampered file
+        tampered_decoder = MAIFDecoder(self.maif_path, self.manifest_path)
+        tampered_result = tampered_decoder.verify_integrity()
+        assert tampered_result is False  # Should detect tampering
+        
+        # Restore the original byte for other tests
+        with open(self.maif_path, 'r+b') as f:
+            f.seek(50)
+            f.write(original_byte)
     
     def test_get_text_blocks(self):
         """Test retrieving text blocks."""

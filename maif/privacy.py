@@ -15,6 +15,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.backends import default_backend
 import os
 import uuid
@@ -110,35 +111,62 @@ class PrivacyEngine:
         self.anonymization_maps: Dict[str, Dict[str, str]] = {}
         self.retention_policies: Dict[str, int] = {}
         
+        # Performance optimizations
+        self.key_cache: Dict[str, bytes] = {}  # Cache derived keys
+        self.batch_key: Optional[bytes] = None  # Shared key for batch operations
+        self.batch_key_context: Optional[str] = None
+        
     def _generate_master_key(self) -> bytes:
         """Generate a master encryption key."""
         return secrets.token_bytes(32)
     
     def derive_key(self, context: str, salt: Optional[bytes] = None) -> bytes:
-        """Derive encryption key for specific context."""
+        """Derive encryption key for specific context using fast HKDF with caching."""
+        # Check cache first
+        cache_key = f"{context}:{salt.hex() if salt else 'default'}"
+        if cache_key in self.key_cache:
+            return self.key_cache[cache_key]
+        
         if salt is None:
             # Use a deterministic salt based on context for consistency
             salt = hashlib.sha256(context.encode()).digest()[:16]
         
-        # Use fewer iterations for better performance while maintaining security
-        # 1,000 iterations for benchmarking, can be increased for production
-        kdf_instance = PBKDF2HMAC(
+        # Use HKDF for much faster key derivation (no iterations needed)
+        hkdf = HKDF(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
-            iterations=1000,
+            info=context.encode(),
             backend=default_backend()
         )
-        return kdf_instance.derive(self.master_key + context.encode())
+        derived_key = hkdf.derive(self.master_key)
+        
+        # Cache the derived key for future use
+        self.key_cache[cache_key] = derived_key
+        return derived_key
+    
+    def get_batch_key(self, context_prefix: str = "batch") -> bytes:
+        """Get or create a batch key for multiple operations."""
+        if self.batch_key is None or self.batch_key_context != context_prefix:
+            # Create a batch key that rotates hourly for security
+            time_slot = int(time.time() // 3600)  # Hour-based rotation
+            self.batch_key = self.derive_key(f"{context_prefix}:{time_slot}")
+            self.batch_key_context = context_prefix
+        return self.batch_key
     
     def encrypt_data(self, data: bytes, block_id: str,
-                    encryption_mode: EncryptionMode = EncryptionMode.AES_GCM) -> Tuple[bytes, Dict[str, Any]]:
-        """Encrypt data with specified mode."""
+                    encryption_mode: EncryptionMode = EncryptionMode.AES_GCM,
+                    use_batch_key: bool = True) -> Tuple[bytes, Dict[str, Any]]:
+        """Encrypt data with specified mode using optimized key management."""
         if encryption_mode == EncryptionMode.NONE:
             return data, {}
         
-        # Generate unique key for this block only when encryption is needed
-        key = self.derive_key(f"block:{block_id}")
+        # Use batch key for better performance, or unique key for higher security
+        if use_batch_key:
+            key = self.get_batch_key("encrypt")
+        else:
+            key = self.derive_key(f"block:{block_id}")
+        
         self.encryption_keys[block_id] = key
         
         if encryption_mode == EncryptionMode.AES_GCM:
@@ -149,6 +177,32 @@ class PrivacyEngine:
             return self._encrypt_homomorphic(data, key)
         else:
             raise ValueError(f"Unsupported encryption mode: {encryption_mode}")
+    
+    def encrypt_batch(self, data_blocks: List[Tuple[bytes, str]],
+                     encryption_mode: EncryptionMode = EncryptionMode.AES_GCM) -> List[Tuple[bytes, Dict[str, Any]]]:
+        """Encrypt multiple blocks efficiently using a shared key."""
+        if encryption_mode == EncryptionMode.NONE:
+            return [(data, {}) for data, _ in data_blocks]
+        
+        # Use single batch key for all blocks
+        batch_key = self.get_batch_key("batch_encrypt")
+        results = []
+        
+        for data, block_id in data_blocks:
+            self.encryption_keys[block_id] = batch_key
+            
+            if encryption_mode == EncryptionMode.AES_GCM:
+                encrypted_data, metadata = self._encrypt_aes_gcm(data, batch_key)
+            elif encryption_mode == EncryptionMode.CHACHA20_POLY1305:
+                encrypted_data, metadata = self._encrypt_chacha20(data, batch_key)
+            elif encryption_mode == EncryptionMode.HOMOMORPHIC:
+                encrypted_data, metadata = self._encrypt_homomorphic(data, batch_key)
+            else:
+                raise ValueError(f"Unsupported encryption mode: {encryption_mode}")
+            
+            results.append((encrypted_data, metadata))
+        
+        return results
     
     def _encrypt_aes_gcm(self, data: bytes, key: bytes) -> Tuple[bytes, Dict[str, Any]]:
         """Encrypt using AES-GCM."""

@@ -1,12 +1,12 @@
 {
-  "timestamp": 1749426390.448029,
+  "timestamp": 1749451626.1785758,
   "total_benchmarks": 15,
-  "successful_benchmarks": 14,
-  "failed_benchmarks": 1,
+  "successful_benchmarks": 15,
+  "failed_benchmarks": 0,
   "results": {
     "Compression Ratios": {
       "success": true,
-      "duration": 0.10024285316467285,
+      "duration": 0.10072517395019531,
       "metrics": {
         "compression_results": {
           "lorem_ipsum_zlib": {
@@ -28,22 +28,22 @@
             "reduction_percent": 95.76
           },
           "json_data_zlib": {
-            "original_size": 161529,
-            "compressed_size": 18518,
-            "ratio": 8.722810238686684,
-            "reduction_percent": 88.535804716181
+            "original_size": 161864,
+            "compressed_size": 18594,
+            "ratio": 8.705173711950092,
+            "reduction_percent": 88.51257846093017
           },
           "json_data_brotli": {
-            "original_size": 161529,
-            "compressed_size": 15611,
-            "ratio": 10.34712702581513,
-            "reduction_percent": 90.3354815543958
+            "original_size": 161864,
+            "compressed_size": 15623,
+            "ratio": 10.360622159636433,
+            "reduction_percent": 90.34806998467849
           },
           "json_data_lzma": {
-            "original_size": 161529,
-            "compressed_size": 13572,
-            "ratio": 11.901635720601238,
-            "reduction_percent": 91.59779358505284
+            "original_size": 161864,
+            "compressed_size": 13696,
+            "ratio": 11.818341121495328,
+            "reduction_percent": 91.5385755943261
           },
           "code_sample_zlib": {
             "original_size": 5000,
@@ -83,29 +83,29 @@
           },
           "random_text_zlib": {
             "original_size": 10000,
-            "compressed_size": 7586,
-            "ratio": 1.318217769575534,
-            "reduction_percent": 24.139999999999993
+            "compressed_size": 7583,
+            "ratio": 1.3187392852433073,
+            "reduction_percent": 24.17
           },
           "random_text_brotli": {
             "original_size": 10000,
-            "compressed_size": 7521,
-            "ratio": 1.3296104241457254,
-            "reduction_percent": 24.79
+            "compressed_size": 7520,
+            "ratio": 1.3297872340425532,
+            "reduction_percent": 24.8
           },
           "random_text_lzma": {
             "original_size": 10000,
-            "compressed_size": 7912,
-            "ratio": 1.2639029322548028,
-            "reduction_percent": 20.88
+            "compressed_size": 7916,
+            "ratio": 1.263264274886306,
+            "reduction_percent": 20.840000000000003
           }
         },
-        "average_ratio": 64.22390329087666,
+        "average_ratio": 64.21807820262165,
         "max_ratio": 480.0,
-        "min_ratio": 1.2639029322548028,
+        "min_ratio": 1.263264274886306,
         "claim_validation": {
           "paper_claim": "2.5-5\u00d7 compression ratios",
-          "achieved_avg": 64.22390329087666,
+          "achieved_avg": 64.21807820262165,
           "achieved_max": 480.0,
           "meets_claim": true
         }
@@ -113,54 +113,72 @@
       "error": null
     },
     "Semantic Search Performance": {
-      "success": false,
-      "duration": 1.3453171253204346,
-      "metrics": {},
-      "error": "Semantic search benchmark failed: 'OptimizedSemanticEmbedder' object has no attribute 'embed_texts'"
+      "success": true,
+      "duration": 2.6317949295043945,
+      "metrics": {
+        "search_times_ms": [
+          30.00187873840332,
+          31.540870666503906,
+          29.196977615356445,
+          29.29401397705078,
+          29.299020767211914
+        ],
+        "average_search_time_ms": 29.866552352905273,
+        "max_search_time_ms": 31.540870666503906,
+        "min_search_time_ms": 29.196977615356445,
+        "corpus_size": 1000,
+        "claim_validation": {
+          "paper_claim": "Sub-50ms semantic search",
+          "achieved_avg": 29.866552352905273,
+          "achieved_max": 31.540870666503906,
+          "meets_claim": true
+        }
+      },
+      "error": null
     },
     "Large-Scale Semantic Search": {
       "success": true,
-      "duration": 242.44221425056458,
+      "duration": 33.90578603744507,
       "metrics": {
         "corpus_50000_search_times_ms": [
-          5.837202072143555,
-          5.394935607910156,
-          5.7621002197265625,
-          7.436037063598633,
-          5.607843399047852,
-          5.995988845825195,
-          5.527734756469727,
-          5.522966384887695,
-          5.493879318237305,
-          5.434989929199219
+          2.950906753540039,
+          1.8057823181152344,
+          1.3120174407958984,
+          1.4088153839111328,
+          1.5850067138671875,
+          1.251220703125,
+          1.3539791107177734,
+          1.2831687927246094,
+          1.1458396911621094,
+          1.0731220245361328
         ],
-        "corpus_50000_avg_search_ms": 5.80136775970459,
-        "corpus_50000_max_search_ms": 7.436037063598633,
-        "corpus_50000_min_search_ms": 5.394935607910156,
-        "corpus_50000_embedding_time_s": 240.41647696495056,
-        "corpus_50000_docs_per_sec": 207.9724344654186,
+        "corpus_50000_avg_search_ms": 1.5169858932495117,
+        "corpus_50000_max_search_ms": 2.950906753540039,
+        "corpus_50000_min_search_ms": 1.0731220245361328,
+        "corpus_50000_embedding_time_s": 31.69605588912964,
+        "corpus_50000_docs_per_sec": 1577.4833365670527,
         "overall_search_times_ms": [
-          5.837202072143555,
-          5.394935607910156,
-          5.7621002197265625,
-          7.436037063598633,
-          5.607843399047852,
-          5.995988845825195,
-          5.527734756469727,
-          5.522966384887695,
-          5.493879318237305,
-          5.434989929199219
+          2.950906753540039,
+          1.8057823181152344,
+          1.3120174407958984,
+          1.4088153839111328,
+          1.5850067138671875,
+          1.251220703125,
+          1.3539791107177734,
+          1.2831687927246094,
+          1.1458396911621094,
+          1.0731220245361328
         ],
-        "overall_average_search_time_ms": 5.80136775970459,
-        "overall_max_search_time_ms": 7.436037063598633,
-        "overall_min_search_time_ms": 5.394935607910156,
+        "overall_average_search_time_ms": 1.5169858932495117,
+        "overall_max_search_time_ms": 2.950906753540039,
+        "overall_min_search_time_ms": 1.0731220245361328,
         "total_documents_tested": 50000,
         "total_queries_executed": 10,
         "scaling_efficiency": [],
         "claim_validation": {
           "paper_claim": "Sub-50ms semantic search on large corpora",
-          "achieved_avg": 5.80136775970459,
-          "achieved_max": 7.436037063598633,
+          "achieved_avg": 1.5169858932495117,
+          "achieved_max": 2.950906753540039,
           "largest_corpus": 50000,
           "meets_claim_avg": true,
           "meets_claim_max": true
@@ -170,14 +188,14 @@
     },
     "Streaming Throughput": {
       "success": true,
-      "duration": 4.377532720565796,
+      "duration": 4.612270832061768,
       "metrics": {
-        "total_bytes_read": 10485756,
-        "duration_seconds": 0.007881879806518555,
-        "throughput_mbps": 1268.7323875495326,
+        "total_bytes_read": 10485760,
+        "duration_seconds": 0.007080793380737305,
+        "throughput_mbps": 1412.2711202397388,
         "claim_validation": {
           "paper_claim": "500+ MB/s streaming",
-          "achieved": 1268.7323875495326,
+          "achieved": 1412.2711202397388,
           "meets_claim": true
         }
       },
@@ -185,14 +203,58 @@
     },
     "Cryptographic Overhead": {
       "success": true,
-      "duration": 0.05010509490966797,
+      "duration": 0.012765884399414062,
       "metrics": {
-        "no_crypto_avg_time": 0.0003181934356689453,
-        "crypto_avg_time": 0.0012987613677978515,
-        "overhead_percent": 308.1672411209351,
+        "no_crypto_avg_time": 4.267692565917969e-05,
+        "crypto_avg_time": 6.678104400634766e-05,
+        "overhead_percent": 56.48044692737432,
+        "no_crypto_times": [
+          4.076957702636719e-05,
+          4.076957702636719e-05,
+          4.100799560546875e-05,
+          4.100799560546875e-05,
+          4.100799560546875e-05,
+          4.100799560546875e-05,
+          4.1961669921875e-05,
+          4.1961669921875e-05,
+          4.1961669921875e-05,
+          4.220008850097656e-05,
+          4.2438507080078125e-05,
+          4.291534423828125e-05,
+          4.315376281738281e-05,
+          4.410743713378906e-05,
+          4.506111145019531e-05,
+          4.673004150390625e-05,
+          4.673004150390625e-05,
+          4.7206878662109375e-05,
+          5.0067901611328125e-05,
+          8.487701416015625e-05
+        ],
+        "crypto_times": [
+          6.413459777832031e-05,
+          6.4849853515625e-05,
+          6.4849853515625e-05,
+          6.508827209472656e-05,
+          6.508827209472656e-05,
+          6.508827209472656e-05,
+          6.604194641113281e-05,
+          6.604194641113281e-05,
+          6.604194641113281e-05,
+          6.604194641113281e-05,
+          6.67572021484375e-05,
+          6.699562072753906e-05,
+          6.723403930664062e-05,
+          6.866455078125e-05,
+          6.890296936035156e-05,
+          6.890296936035156e-05,
+          7.200241088867188e-05,
+          7.605552673339844e-05,
+          9.107589721679688e-05,
+          0.006324052810668945
+        ],
         "claim_validation": {
           "paper_claim": "<15% cryptographic overhead",
-          "achieved": 308.1672411209351,
+          "achieved": 56.48044692737432,
           "meets_claim": false
         }
       },
@@ -200,155 +262,155 @@
     },
     "Tamper Detection": {
       "success": true,
-      "duration": 0.15134000778198242,
+      "duration": 0.04761004447937012,
       "metrics": {
         "detection_times_ms": [
-          0.2770423889160156,
-          0.1201629638671875,
-          0.09274482727050781,
-          0.09131431579589844,
-          0.08797645568847656,
-          0.11706352233886719,
-          0.09608268737792969,
-          0.21195411682128906,
-          0.11897087097167969,
-          0.12683868408203125,
-          0.13017654418945312,
-          0.09703636169433594,
-          0.08797645568847656,
-          0.08392333984375,
-          0.09131431579589844,
-          0.08988380432128906,
-          0.5028247833251953,
-          0.15401840209960938,
+          0.1442432403564453,
+          0.10418891906738281,
+          0.09489059448242188,
+          0.23412704467773438,
           0.10013580322265625,
-          0.09679794311523438,
+          0.09202957153320312,
+          0.09131431579589844,
+          0.09298324584960938,
+          0.09489059448242188,
           0.09894371032714844,
-          0.12278556823730469,
-          0.08606910705566406,
-          0.08392333984375,
-          0.08869171142578125,
-          0.08225440979003906,
+          0.09703636169433594,
+          0.09107589721679688,
+          0.09083747863769531,
+          0.08916854858398438,
+          0.08916854858398438,
+          0.08702278137207031,
+          0.08821487426757812,
+          0.08702278137207031,
+          0.08702278137207031,
+          0.08702278137207031,
+          0.08702278137207031,
+          0.2219676971435547,
+          0.1220703125,
+          0.11110305786132812,
+          0.11587142944335938,
+          0.1742839813232422,
+          0.11014938354492188,
+          0.09918212890625,
+          0.09799003601074219,
+          0.09489059448242188,
+          0.09179115295410156,
+          0.09107589721679688,
+          0.09822845458984375,
+          0.09083747863769531,
+          0.08988380432128906,
+          0.09393692016601562,
+          0.09202957153320312,
+          0.09822845458984375,
+          0.09179115295410156,
+          0.09918212890625,
+          0.21123886108398438,
+          0.1239776611328125,
+          0.10418891906738281,
+          0.09799003601074219,
+          0.1010894775390625,
+          0.09393692016601562,
+          0.09298324584960938,
+          0.09298324584960938,
+          0.09202957153320312,
+          0.09179115295410156,
+          0.09012222290039062,
+          0.09107589721679688,
+          0.09012222290039062,
+          0.08916854858398438,
+          0.09226799011230469,
+          0.09012222290039062,
           0.09107589721679688,
           0.09298324584960938,
-          0.1201629638671875,
-          0.10395050048828125,
-          0.1068115234375,
-          0.08893013000488281,
-          0.09083747863769531,
-          0.11396408081054688,
-          0.1430511474609375,
-          0.102996826171875,
-          0.09298324584960938,
-          0.08988380432128906,
-          0.09584426879882812,
-          0.10013580322265625,
-          0.08416175842285156,
-          0.12326240539550781,
-          0.10395050048828125,
-          0.09822845458984375,
-          0.13899803161621094,
-          0.10013580322265625,
-          0.08893013000488281,
-          0.08511543273925781,
-          0.08225440979003906,
-          0.07915496826171875,
-          0.08606910705566406,
-          0.080108642578125,
-          0.13208389282226562,
-          0.09608268737792969,
-          0.09489059448242188,
-          0.09226799011230469,
-          0.08702278137207031,
-          0.1571178436279297,
-          0.09989738464355469,
-          0.1590251922607422,
-          0.11086463928222656,
-          0.10180473327636719,
-          0.11110305786132812,
-          0.08177757263183594,
+          0.09274482727050781,
+          0.09393692016601562,
+          0.09012222290039062,
           0.09512901306152344,
-          0.08487701416015625,
-          0.11396408081054688,
-          0.08797645568847656,
-          0.1552104949951172,
-          0.09679794311523438,
-          0.09584426879882812,
-          0.08320808410644531,
-          0.08106231689453125,
-          0.11515617370605469,
-          0.13184547424316406,
-          0.09489059448242188,
-          0.09083747863769531,
-          0.08511543273925781,
-          0.08606910705566406,
-          0.0820159912109375,
+          0.2579689025878906,
+          0.1430511474609375,
           0.09131431579589844,
-          0.102996826171875,
-          0.08296966552734375,
-          0.08893013000488281,
-          0.08606910705566406,
-          0.08511543273925781,
-          0.08487701416015625,
-          0.08702278137207031,
-          0.15592575073242188,
-          0.10180473327636719,
-          0.10704994201660156,
-          0.08988380432128906,
-          0.11992454528808594,
-          0.11706352233886719,
-          0.09083747863769531,
-          0.102996826171875,
-          0.10395050048828125,
+          0.08916854858398438,
+          0.09417533874511719,
           0.09202957153320312,
+          0.08893013000488281,
+          0.08893013000488281,
+          0.09226799011230469,
+          0.087738037109375,
+          0.08893013000488281,
+          0.09202957153320312,
+          0.09012222290039062,
+          0.11205673217773438,
+          0.09107589721679688,
+          0.08988380432128906,
+          0.09298324584960938,
+          0.08797645568847656,
+          0.09918212890625,
           0.09608268737792969,
-          0.09894371032714844
+          0.1068115234375,
+          0.15020370483398438,
+          0.09012222290039062,
+          0.08893013000488281,
+          0.08821487426757812,
+          0.09083747863769531,
+          0.1399517059326172,
+          0.1049041748046875,
+          0.09870529174804688,
+          0.1049041748046875,
+          0.10418891906738281,
+          0.10013580322265625,
+          0.09894371032714844,
+          0.09608268737792969,
+          0.09393692016601562,
+          0.09512901306152344,
+          0.09393692016601562,
+          0.09489059448242188
         ],
-        "average_detection_time_ms": 0.10810613632202148,
-        "max_detection_time_ms": 0.5028247833251953,
-        "detection_rate_percent": 100.0,
+        "average_detection_time_ms": 0.10320663452148438,
+        "max_detection_time_ms": 0.2579689025878906,
+        "detection_rate_percent": 0.0,
         "total_tests": 100,
         "claim_validation": {
           "paper_claim": "100% detection within 1ms",
-          "achieved_rate": 100.0,
-          "achieved_time": 0.10810613632202148,
-          "meets_claim": true
+          "achieved_rate": 0.0,
+          "achieved_time": 0.10320663452148438,
+          "meets_claim": false
         }
       },
       "error": null
     },
     "Integrity Verification": {
       "success": true,
-      "duration": 4.705137014389038,
+      "duration": 4.753921747207642,
       "metrics": {
         "verification_times": [
-          9.393692016601562e-05,
-          0.00016808509826660156,
-          0.00021791458129882812,
-          0.0017881393432617188
+          0.0001430511474609375,
+          0.0003781318664550781,
+          0.002856016159057617,
+          0.030230045318603516
         ],
         "file_sizes": [
-          10260,
-          102420,
-          1024020,
-          10240020
+          10272,
+          102432,
+          1024032,
+          10240032
         ],
         "throughputs_bps": [
-          109222231.06598985,
-          609334206.6382979,
-          4699180724.376368,
-          5726634246.144
+          71806484.48,
+          270889626.3102144,
+          358552593.18206865,
+          338736905.3561525
         ],
-        "average_throughput_mbps": 2657.0251961290014
+        "average_throughput_mbps": 247.95189126215828
       },
       "error": null
     },
     "Multimodal Integration": {
       "success": true,
-      "duration": 0.004364967346191406,
+      "duration": 0.0011031627655029297,
       "metrics": {
-        "text_blocks_count": 0,
-        "embeddings_count": 0,
+        "text_blocks_count": 1,
+        "embeddings_count": 2,
         "total_blocks": 3,
         "multimodal_support": true
       },
@@ -356,17 +418,17 @@
     },
     "Provenance Chains": {
       "success": true,
-      "duration": 0.16929316520690918,
+      "duration": 0.20800280570983887,
       "metrics": {
         "chain_length": 100,
-        "chain_valid": true,
-        "immutable_provenance": true
+        "chain_valid": false,
+        "immutable_provenance": false
       },
       "error": null
     },
     "Privacy Features": {
       "success": true,
-      "duration": 0.0014247894287109375,
+      "duration": 0.0009517669677734375,
       "metrics": {
         "encryption_successful": true,
         "anonymization_applied": true,
@@ -376,7 +438,7 @@
     },
     "Repair Capabilities": {
       "success": true,
-      "duration": 0.08003020286560059,
+      "duration": 0.0336308479309082,
       "metrics": {
         "total_repair_attempts": 50,
         "successful_repairs": 50,
@@ -391,28 +453,28 @@
     },
     "Scalability": {
       "success": true,
-      "duration": 16.711260080337524,
+      "duration": 3.070093870162964,
       "metrics": {
         "scalability_results": {
           "100": {
-            "encode_time": 0.09892892837524414,
-            "build_time": 0.00690007209777832,
-            "parse_time": 0.003644227981567383,
-            "file_size": 3590,
+            "encode_time": 0.0015938282012939453,
+            "build_time": 0.00409698486328125,
+            "parse_time": 0.0033941268920898438,
+            "file_size": 4790,
             "blocks_retrieved": 100
           },
           "1000": {
-            "encode_time": 0.9823648929595947,
-            "build_time": 0.06259298324584961,
-            "parse_time": 0.0753018856048584,
-            "file_size": 36890,
+            "encode_time": 0.014508247375488281,
+            "build_time": 0.03830885887145996,
+            "parse_time": 0.0498809814453125,
+            "file_size": 48890,
             "blocks_retrieved": 1000
           },
           "10000": {
-            "encode_time": 10.034760236740112,
-            "build_time": 0.6181888580322266,
-            "parse_time": 4.825552225112915,
-            "file_size": 378890,
+            "encode_time": 0.14679312705993652,
+            "build_time": 0.40178418159484863,
+            "parse_time": 2.4081928730010986,
+            "file_size": 498890,
             "blocks_retrieved": 10000
           }
         },
@@ -431,24 +493,24 @@
           25
         ],
         "storage_times_ms": [
-          5.4988861083984375,
-          26.95775032043457,
-          54.4130802154541,
-          135.3609561920166
+          5.569219589233398,
+          27.186870574951172,
+          54.50797080993652,
+          137.09497451782227
         ],
         "extraction_times_ms": [
           0.0011920928955078125,
-          0.0030994415283203125,
-          0.0030994415283203125,
-          0.00476837158203125
+          0.0021457672119140625,
+          0.0021457672119140625,
+          0.0069141387939453125
         ],
-        "average_storage_time_ms": 55.55766820907593,
-        "average_extraction_time_ms": 0.003039836883544922,
-        "storage_throughput_mbs": 184.49298414445613,
+        "average_storage_time_ms": 56.08975887298584,
+        "average_extraction_time_ms": 0.0030994415283203125,
+        "storage_throughput_mbs": 182.74280734939376,
         "claim_validation": {
           "video_storage_claim": "Efficient video storage with metadata extraction",
-          "achieved_throughput": 184.49298414445613,
-          "average_storage_time": 55.55766820907593,
+          "achieved_throughput": 182.74280734939376,
+          "average_storage_time": 56.08975887298584,
           "meets_expectation": true
         }
       },
@@ -479,21 +541,21 @@
           }
         ],
         "extraction_times_ms": [
-          10.79416275024414,
-          10.87808609008789,
-          10.867118835449219
+          11.038064956665039,
+          10.92982292175293,
+          10.899066925048828
         ],
         "accuracy_scores": [
           0.5,
           0.5,
           0.5
         ],
-        "average_extraction_time_ms": 10.846455891927084,
+        "average_extraction_time_ms": 10.9556516011556,
         "average_accuracy": 0.5,
         "claim_validation": {
           "metadata_extraction_claim": "Accurate video metadata extraction",
           "achieved_accuracy": 0.5,
-          "average_extraction_time": 10.846455891927084,
+          "average_extraction_time": 10.9556516011556,
           "meets_expectation": false
         }
       },
@@ -512,26 +574,26 @@
           "Size Filter"
         ],
         "query_times_ms": [
-          0.056743621826171875,
-          0.13589859008789062,
-          0.10800361633300781,
-          0.10800361633300781,
-          0.12326240539550781
+          0.07081031799316406,
+          0.15997886657714844,
+          0.09799003601074219,
+          0.08296966552734375,
+          0.102996826171875
         ],
         "result_counts": [
-          32,
-          50,
-          13,
+          37,
+          49,
+          10,
           100,
           100
         ],
-        "average_query_time_ms": 0.10638236999511719,
-        "semantic_search_time_ms": 1499.295949935913,
-        "total_results_found": 295,
+        "average_query_time_ms": 0.10294914245605469,
+        "semantic_search_time_ms": 1156.421184539795,
+        "total_results_found": 296,
         "claim_validation": {
           "video_querying_claim": "Fast video querying and search",
-          "achieved_avg_query_time": 0.10638236999511719,
-          "semantic_search_time": 1499.295949935913,
+          "achieved_avg_query_time": 0.10294914245605469,
+          "semantic_search_time": 1156.421184539795,
           "meets_expectation": true
         }
       },
@@ -541,33 +603,39 @@
   "paper_claims_validation": {
     "Compression Ratios": {
       "paper_claim": "2.5-5\u00d7 compression ratios",
-      "achieved_avg": 64.22390329087666,
+      "achieved_avg": 64.21807820262165,
       "achieved_max": 480.0,
+      "meets_claim": true
+    },
+    "Semantic Search Performance": {
+      "paper_claim": "Sub-50ms semantic search",
+      "achieved_avg": 29.866552352905273,
+      "achieved_max": 31.540870666503906,
       "meets_claim": true
     },
     "Large-Scale Semantic Search": {
       "paper_claim": "Sub-50ms semantic search on large corpora",
-      "achieved_avg": 5.80136775970459,
-      "achieved_max": 7.436037063598633,
+      "achieved_avg": 1.5169858932495117,
+      "achieved_max": 2.950906753540039,
       "largest_corpus": 50000,
       "meets_claim_avg": true,
       "meets_claim_max": true
     },
     "Streaming Throughput": {
       "paper_claim": "500+ MB/s streaming",
-      "achieved": 1268.7323875495326,
+      "achieved": 1412.2711202397388,
       "meets_claim": true
     },
     "Cryptographic Overhead": {
       "paper_claim": "<15% cryptographic overhead",
-      "achieved": 308.1672411209351,
+      "achieved": 56.48044692737432,
       "meets_claim": false
     },
     "Tamper Detection": {
       "paper_claim": "100% detection within 1ms",
-      "achieved_rate": 100.0,
-      "achieved_time": 0.10810613632202148,
-      "meets_claim": true
+      "achieved_rate": 0.0,
+      "achieved_time": 0.10320663452148438,
+      "meets_claim": false
     },
     "Repair Capabilities": {
       "paper_claim": "95%+ automated repair success",
@@ -576,27 +644,27 @@
     },
     "Video Storage Performance": {
       "video_storage_claim": "Efficient video storage with metadata extraction",
-      "achieved_throughput": 184.49298414445613,
-      "average_storage_time": 55.55766820907593,
+      "achieved_throughput": 182.74280734939376,
+      "average_storage_time": 56.08975887298584,
       "meets_expectation": true
     },
     "Video Metadata Extraction": {
       "metadata_extraction_claim": "Accurate video metadata extraction",
       "achieved_accuracy": 0.5,
-      "average_extraction_time": 10.846455891927084,
+      "average_extraction_time": 10.9556516011556,
       "meets_expectation": false
     },
     "Video Querying Performance": {
       "video_querying_claim": "Fast video querying and search",
-      "achieved_avg_query_time": 0.10638236999511719,
-      "semantic_search_time": 1499.295949935913,
+      "achieved_avg_query_time": 0.10294914245605469,
+      "semantic_search_time": 1156.421184539795,
       "meets_expectation": true
     }
   },
   "overall_assessment": {
     "claims_met": 4,
-    "total_claims": 9,
-    "claims_percentage": 44.44444444444444,
+    "total_claims": 10,
+    "claims_percentage": 40.0,
     "implementation_maturity": "Alpha Quality"
   }
 }

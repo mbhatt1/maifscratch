@@ -14,6 +14,47 @@ from sklearn.cluster import DBSCAN
 from sklearn.decomposition import PCA
 import struct
 
+# Import the base semantic classes
+from .semantic import SemanticEmbedder, SemanticEmbedding
+
+try:
+    import faiss
+    FAISS_AVAILABLE = True
+except ImportError:
+    FAISS_AVAILABLE = False
+
+# High-performance numpy-based similarity search
+def fast_cosine_similarity_batch(query_vectors, database_vectors):
+    """
+    Fast batch cosine similarity computation using numpy.
+    """
+    # Normalize vectors
+    query_norm = np.linalg.norm(query_vectors, axis=1, keepdims=True)
+    db_norm = np.linalg.norm(database_vectors, axis=1, keepdims=True)
+    
+    query_normalized = query_vectors / (query_norm + 1e-8)
+    db_normalized = database_vectors / (db_norm + 1e-8)
+    
+    # Compute similarities
+    similarities = np.dot(query_normalized, db_normalized.T)
+    return similarities
+
+def fast_top_k_indices(similarities, k):
+    """
+    Fast top-k selection using numpy argpartition.
+    """
+    if k >= similarities.shape[1]:
+        return np.argsort(similarities, axis=1)[:, ::-1]
+    
+    # Use argpartition for faster top-k selection
+    top_k_indices = np.argpartition(similarities, -k, axis=1)[:, -k:]
+    
+    # Sort the top-k results
+    for i in range(similarities.shape[0]):
+        top_k_indices[i] = top_k_indices[i][np.argsort(similarities[i, top_k_indices[i]])[::-1]]
+    
+    return top_k_indices
+
 @dataclass
 class AttentionWeights:
     """Structured attention weights for ACAM."""
@@ -21,6 +62,164 @@ class AttentionWeights:
     trust_scores: Dict[str, float]
     coherence_matrix: np.ndarray
     normalized_weights: np.ndarray
+
+class OptimizedSemanticEmbedder(SemanticEmbedder):
+    """
+    High-performance semantic embedder with FAISS indexing and batch processing.
+    Optimized for large-scale semantic search operations.
+    """
+    
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2", use_gpu: bool = False):
+        super().__init__(model_name)
+        self.use_gpu = use_gpu and FAISS_AVAILABLE
+        self.index = None
+        self.embedding_dimension = None
+        self.indexed_embeddings = []
+        
+        # Performance optimization settings
+        self.batch_size = 64
+        self.index_type = "IVF"  # Inverted File index for fast search
+        self.nlist = 100  # Number of clusters for IVF
+        
+        print(f"OptimizedSemanticEmbedder initialized (GPU: {self.use_gpu}, FAISS: {FAISS_AVAILABLE})")
+    
+    def embed_texts_batch(self, texts: List[str], batch_size: Optional[int] = None, 
+                         metadata_list: Optional[List[Dict]] = None) -> List[SemanticEmbedding]:
+        """
+        High-performance batch embedding generation with optimized processing.
+        """
+        batch_size = batch_size or self.batch_size
+        embeddings = []
+        
+        # Process in batches for memory efficiency
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+            batch_metadata = metadata_list[i:i + batch_size] if metadata_list else None
+            
+            # Use parent class batch processing
+            batch_embeddings = self.embed_texts(batch_texts, batch_metadata)
+            embeddings.extend(batch_embeddings)
+        
+        return embeddings
+    
+    def embed_text_single(self, text: str, metadata: Optional[Dict] = None) -> SemanticEmbedding:
+        """Single text embedding - optimized version."""
+        return self.embed_text(text, metadata)
+    
+    def build_search_index(self, embeddings: List[SemanticEmbedding]):
+        """
+        Build optimized index for fast similarity search.
+        """
+        if not embeddings:
+            return
+        
+        # Extract vectors and store embeddings
+        vectors = []
+        self.indexed_embeddings = []
+        
+        for emb in embeddings:
+            if isinstance(emb.vector, list):
+                vectors.append(np.array(emb.vector, dtype=np.float32))
+            else:
+                vectors.append(np.array(emb.vector, dtype=np.float32))
+            self.indexed_embeddings.append(emb)
+        
+        if not vectors:
+            return
+        
+        # Convert to numpy array
+        vector_matrix = np.vstack(vectors)
+        self.embedding_dimension = vector_matrix.shape[1]
+        
+        if FAISS_AVAILABLE:
+            # Create FAISS index
+            if len(embeddings) > 1000 and self.embedding_dimension > 50:
+                # Use IVF index for large datasets
+                quantizer = faiss.IndexFlatIP(self.embedding_dimension)  # Inner product for cosine similarity
+                self.index = faiss.IndexIVFFlat(quantizer, self.embedding_dimension, min(self.nlist, len(embeddings) // 10))
+                
+                # Train the index
+                self.index.train(vector_matrix)
+                self.index.add(vector_matrix)
+                self.index.nprobe = min(10, self.nlist)  # Number of clusters to search
+            else:
+                # Use flat index for smaller datasets
+                self.index = faiss.IndexFlatIP(self.embedding_dimension)
+                self.index.add(vector_matrix)
+            
+            if self.use_gpu and hasattr(faiss, 'StandardGpuResources'):
+                try:
+                    res = faiss.StandardGpuResources()
+                    self.index = faiss.index_cpu_to_gpu(res, 0, self.index)
+                except Exception as e:
+                    print(f"GPU acceleration failed, using CPU: {e}")
+                    self.use_gpu = False
+        else:
+            # High-performance numpy fallback
+            # Pre-normalize vectors for fast cosine similarity
+            norms = np.linalg.norm(vector_matrix, axis=1, keepdims=True)
+            self.index = vector_matrix / (norms + 1e-8)  # Normalized vectors
+        
+        print(f"Search index built: {len(embeddings)} embeddings, dimension {self.embedding_dimension}")
+    
+    def search_similar(self, query_embedding: SemanticEmbedding, top_k: int = 5) -> List[Tuple[int, float]]:
+        """
+        Fast similarity search using optimized indexing.
+        Returns list of (index, similarity_score) tuples.
+        """
+        if self.index is None:
+            # Fallback to parent class method
+            results = super().search_similar(query_embedding, top_k)
+            # Convert to (index, score) format
+            return [(i, score) for i, (emb, score) in enumerate(results)]
+        
+        # Prepare query vector
+        if isinstance(query_embedding.vector, list):
+            query_vector = np.array(query_embedding.vector, dtype=np.float32)
+        else:
+            query_vector = np.array(query_embedding.vector, dtype=np.float32)
+        
+        if FAISS_AVAILABLE and hasattr(self.index, 'search'):
+            # FAISS search
+            query_vector = query_vector.reshape(1, -1)
+            similarities, indices = self.index.search(query_vector, min(top_k, len(self.indexed_embeddings)))
+            
+            # Convert to list of tuples
+            results = []
+            for i in range(len(indices[0])):
+                if indices[0][i] != -1:  # Valid result
+                    results.append((indices[0][i], float(similarities[0][i])))
+            
+            return results
+        else:
+            # High-performance numpy search with pre-normalized vectors
+            if isinstance(self.index, np.ndarray):
+                # Normalize query vector
+                query_norm = np.linalg.norm(query_vector)
+                if query_norm > 0:
+                    query_normalized = query_vector / query_norm
+                else:
+                    query_normalized = query_vector
+                
+                # Fast dot product with pre-normalized database vectors
+                similarities = np.dot(self.index, query_normalized)
+                
+                # Fast top-k selection using argpartition
+                if top_k >= len(similarities):
+                    top_indices = np.argsort(similarities)[::-1]
+                else:
+                    # Use argpartition for O(n) top-k selection instead of O(n log n) sort
+                    top_k_indices = np.argpartition(similarities, -top_k)[-top_k:]
+                    top_indices = top_k_indices[np.argsort(similarities[top_k_indices])[::-1]]
+                
+                results = []
+                for idx in top_indices:
+                    results.append((int(idx), float(similarities[idx])))
+                
+                return results
+            else:
+                # Ultimate fallback
+                return super().search_similar(query_embedding, top_k)
 
 class AdaptiveCrossModalAttention:
     """
@@ -514,11 +713,3 @@ class CryptographicSemanticBinding:
             
         except Exception:
             return False
-
-# Export enhanced classes
-__all__ = [
-    'AdaptiveCrossModalAttention', 
-    'HierarchicalSemanticCompression', 
-    'CryptographicSemanticBinding',
-    'AttentionWeights'
-]

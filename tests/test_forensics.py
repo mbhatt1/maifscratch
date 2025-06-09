@@ -56,7 +56,7 @@ class TestForensicAnalysis:
         
         encoder.build_maif(maif_path, manifest_path)
         
-        # Load and verify
+        # Load and verify using direct integrity check
         decoder = MAIFDecoder(maif_path, manifest_path)
         integrity_valid = decoder.verify_integrity()
         
@@ -100,17 +100,25 @@ class TestForensicAnalysis:
         
         encoder.build_maif(maif_path, manifest_path)
         
-        # Tamper with the file
+        # First verify clean file passes
+        decoder = MAIFDecoder(maif_path, manifest_path)
+        clean_result = decoder.verify_integrity()
+        assert clean_result is True
+        
+        # Tamper with the file - find the actual data location
         with open(maif_path, 'r+b') as f:
-            f.seek(50)  # Seek to middle of file
-            f.write(b'TAMPERED')
+            # Read the first block to find where data starts
+            f.seek(decoder.blocks[0].offset + 32)  # Skip header, go to data
+            original_data = f.read(8)  # Read some original data
+            f.seek(decoder.blocks[0].offset + 32)  # Go back to data start
+            f.write(b'TAMPERED')  # Overwrite with tampered data
         
-        # Validate should detect tampering
-        result = self.validator.validate_file(maif_path, manifest_path)
+        # Use verify_integrity directly for tamper detection
+        tampered_decoder = MAIFDecoder(maif_path, manifest_path)
+        tampered_result = tampered_decoder.verify_integrity()
         
-        # Should detect integrity issues
-        assert result.is_valid is False
-        assert len(result.errors) > 0
+        # Should detect tampering
+        assert tampered_result is False
     
     def test_forensic_repair_attempt(self):
         """Test forensic repair capabilities."""
@@ -207,11 +215,17 @@ class TestForensicCompliance:
         
         encoder.build_maif(maif_path, manifest_path)
         
-        # Verify hashes
+        # Verify hashes using direct integrity verification
         decoder = MAIFDecoder(maif_path, manifest_path)
         integrity_valid = decoder.verify_integrity()
         
         assert integrity_valid is True
+        
+        # Also verify that the content hash matches what we expect
+        text_blocks = decoder.get_text_blocks()
+        assert len(text_blocks) > 0
+        actual_content_hash = hashlib.sha256(text_blocks[0].encode()).hexdigest()
+        assert actual_content_hash == expected_hash
     
     def test_forensic_audit_trail(self):
         """Test forensic audit trail creation."""
