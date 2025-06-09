@@ -20,6 +20,9 @@ psutil>=5.8.0        # For system monitoring
 networkx>=2.6.0      # For knowledge graphs
 matplotlib>=3.4.0    # For visualization
 pillow>=8.3.0        # For image processing
+scipy>=1.7.0         # For scientific computing
+lz4>=4.0.0           # For LZ4 compression
+numba>=0.56.0        # For performance optimization
 
 # Development dependencies
 pytest>=6.0.0

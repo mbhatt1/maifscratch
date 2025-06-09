@@ -10,7 +10,7 @@ import zipfile
 import tarfile
 from unittest.mock import Mock, patch, MagicMock
 
-from maif.integration import ConversionResult, MAIFConverter, MAIFPluginManager, MAIFPlugin
+from maif.integration_enhanced import ConversionResult, EnhancedMAIFProcessor
 from maif.core import MAIFEncoder, MAIFDecoder, MAIFParser
 
 
@@ -44,26 +44,26 @@ class TestConversionResult:
         assert result.metadata == {}
 
 
-class TestMAIFConverter:
-    """Test MAIFConverter functionality."""
+class TestEnhancedMAIFProcessor:
+    """Test EnhancedMAIFProcessor functionality."""
     
     def setup_method(self):
         """Set up test fixtures."""
         self.temp_dir = tempfile.mkdtemp()
-        self.converter = MAIFConverter()
+        self.integration = EnhancedMAIFProcessor()
     
     def teardown_method(self):
         """Clean up test fixtures."""
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
     
-    def test_converter_initialization(self):
-        """Test MAIFConverter initialization."""
-        assert hasattr(self.converter, 'supported_formats')
-        assert 'json' in self.converter.supported_formats
-        assert 'xml' in self.converter.supported_formats
-        assert 'csv' in self.converter.supported_formats
-        assert 'txt' in self.converter.supported_formats
+    def test_processor_initialization(self):
+        """Test EnhancedMAIFProcessor initialization."""
+        assert hasattr(self.integration, 'supported_formats')
+        assert 'json' in self.integration.supported_formats
+        assert 'xml' in self.integration.supported_formats
+        assert 'csv' in self.integration.supported_formats
+        assert 'txt' in self.integration.supported_formats
     
     def test_mime_to_format_conversion(self):
         """Test MIME type to format conversion."""
@@ -78,7 +78,7 @@ class TestMAIFConverter:
         ]
         
         for mime_type, expected_format in test_cases:
-            result = self.converter._mime_to_format(mime_type)
+            result = self.integration._mime_to_format(mime_type)
             assert result == expected_format
     
     def test_convert_json_to_maif(self):
@@ -128,4 +128,24 @@ class TestMAIFConverter:
         xml_content = """<?xml version="1.0" encoding="UTF-8"?>
         <document>
             <title>Test XML Document</title>
-            <content>This is test content for XML conversion
+            <content>This is test content for XML conversion</content>
+        </document>"""
+        
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.xml', delete=False) as xml_file:
+            xml_file.write(xml_content)
+            xml_file_path = xml_file.name
+        
+        try:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                output_path = os.path.join(temp_dir, "converted.maif")
+                manifest_path = os.path.join(temp_dir, "converted_manifest.json")
+                
+                # Convert XML to MAIF
+                result = self.integration.convert_xml_to_maif(xml_file_path, output_path, manifest_path)
+                
+                self.assertTrue(result['success'])
+                self.assertTrue(os.path.exists(output_path))
+                self.assertTrue(os.path.exists(manifest_path))
+                
+        finally:
+            os.unlink(xml_file_path)

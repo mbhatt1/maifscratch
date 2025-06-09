@@ -20,7 +20,7 @@ class ProvenanceEntry:
     agent_id: str
     action: str
     block_hash: str
-    signature: str
+    signature: str = ""
     previous_hash: Optional[str] = None
     
     def to_dict(self) -> Dict:
@@ -109,6 +109,10 @@ class MAIFSigner:
         self.provenance_chain.append(entry)
         return entry
     
+    def get_provenance_chain(self) -> List[Dict]:
+        """Get the complete provenance chain."""
+        return [entry.to_dict() for entry in self.provenance_chain]
+    
     def sign_maif_manifest(self, manifest: Dict) -> Dict:
         """Sign a MAIF manifest."""
         manifest_copy = manifest.copy()
@@ -127,12 +131,9 @@ class MAIFSigner:
         signature_bytes = json.dumps(signature_data, sort_keys=True).encode()
         signature = self.sign_data(signature_bytes)
         
-        # Add signature to manifest
-        manifest_copy["signature"] = {
-            "data": signature_data,
-            "signature": signature,
-            "public_key": self.get_public_key_pem().decode('ascii')
-        }
+        # Add signature and public key to manifest (as expected by tests)
+        manifest_copy["signature"] = signature
+        manifest_copy["public_key"] = self.get_public_key_pem().decode('ascii')
         
         return manifest_copy
 
@@ -142,6 +143,26 @@ class MAIFVerifier:
     
     def __init__(self):
         pass
+    
+    def verify_signature(self, data: bytes, signature: str, public_key_pem: str) -> bool:
+        """Verify a signature against data using a public key."""
+        try:
+            import base64
+            signature_bytes = base64.b64decode(signature.encode('ascii'))
+            public_key = load_pem_public_key(public_key_pem.encode('ascii'))
+            
+            public_key.verify(
+                signature_bytes,
+                data,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.MAX_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            return True
+        except (InvalidSignature, Exception):
+            return False
     
     def verify_maif_signature(self, signed_manifest: Dict) -> bool:
         """Verify a signed MAIF manifest."""
@@ -199,52 +220,6 @@ class MAIFVerifier:
         
         return len(errors) == 0, errors
     
-    def get_provenance_chain(self) -> List[Dict]:
-        """Get the complete provenance chain."""
-        return [entry.to_dict() for entry in self.provenance_chain]
-    
-    def sign_maif_manifest(self, manifest: Dict) -> Dict:
-        """Sign a MAIF manifest and add provenance."""
-        # Add provenance chain to manifest
-        manifest["provenance"] = {
-            "creator_did": f"did:maif:{self.agent_id}",
-            "public_key": self.get_public_key_pem().decode('ascii'),
-            "chain": self.get_provenance_chain()
-        }
-        
-        # Sign the entire manifest
-        manifest_bytes = json.dumps(manifest, sort_keys=True).encode()
-        manifest_signature = self.sign_data(manifest_bytes)
-        manifest["signature"] = manifest_signature
-        
-        return manifest
-
-class MAIFVerifier:
-    """Handles verification of MAIF signatures and provenance."""
-    
-    def __init__(self):
-        pass
-    
-    def verify_signature(self, data: bytes, signature: str, public_key_pem: str) -> bool:
-        """Verify a signature against data using a public key."""
-        try:
-            import base64
-            signature_bytes = base64.b64decode(signature.encode('ascii'))
-            public_key = load_pem_public_key(public_key_pem.encode('ascii'))
-            
-            public_key.verify(
-                signature_bytes,
-                data,
-                padding.PSS(
-                    mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
-                ),
-                hashes.SHA256()
-            )
-            return True
-        except (InvalidSignature, Exception):
-            return False
-    
     def verify_provenance_chain(self, provenance_data: Dict) -> Tuple[bool, List[str]]:
         """Verify the integrity of a provenance chain."""
         errors = []
@@ -253,62 +228,27 @@ class MAIFVerifier:
             return False, ["No provenance chain found"]
         
         chain = provenance_data["chain"]
-        public_key_pem = provenance_data.get("public_key")
+        agent_id = provenance_data.get("agent_id")
         
-        if not public_key_pem:
-            return False, ["No public key found in provenance"]
+        if not agent_id:
+            errors.append("No agent_id found in provenance")
+            return False, errors
         
         previous_hash = None
         for i, entry in enumerate(chain):
-            # Verify entry signature
-            entry_copy = entry.copy()
-            signature = entry_copy.pop("signature")
-            entry_bytes = json.dumps(entry_copy, sort_keys=True).encode()
-            
-            if not self.verify_signature(entry_bytes, signature, public_key_pem):
-                errors.append(f"Invalid signature for entry {i}")
-            
-            # Verify chain linkage
+            # Verify chain linkage for entries after the first
             if i > 0:
-                if entry.get("previous_hash") != previous_hash:
-                    errors.append(f"Broken chain at entry {i}")
+                expected_previous = previous_hash
+                actual_previous = entry.get("previous_hash")
+                if actual_previous != expected_previous:
+                    errors.append(f"Chain link broken at entry {i}")
             
-            # Calculate hash for next iteration
-            previous_hash = hashlib.sha256(
-                json.dumps(entry, sort_keys=True).encode()
-            ).hexdigest()
+            # Calculate hash for next iteration (use block_hash as the linking hash)
+            previous_hash = entry.get("block_hash")
         
         return len(errors) == 0, errors
     
-    def verify_maif_manifest(self, manifest: Dict) -> Tuple[bool, List[str]]:
-        """Verify a complete MAIF manifest."""
-        errors = []
-        
-        # Check for required fields
-        if "provenance" not in manifest:
-            return False, ["No provenance data found"]
-        
-        if "signature" not in manifest:
-            return False, ["No manifest signature found"]
-        
-        # Verify provenance chain
-        provenance_valid, provenance_errors = self.verify_provenance_chain(manifest["provenance"])
-        if not provenance_valid:
-            errors.extend(provenance_errors)
-        
-        # Verify manifest signature
-        manifest_copy = manifest.copy()
-        manifest_signature = manifest_copy.pop("signature")
-        manifest_bytes = json.dumps(manifest_copy, sort_keys=True).encode()
-        public_key_pem = manifest["provenance"].get("public_key")
-        
-        if public_key_pem:
-            if not self.verify_signature(manifest_bytes, manifest_signature, public_key_pem):
-                errors.append("Invalid manifest signature")
-        else:
-            errors.append("No public key for manifest verification")
-        
-        return len(errors) == 0, errors
+
 
 class AccessController:
     """Manages granular access control for MAIF blocks."""

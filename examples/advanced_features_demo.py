@@ -22,7 +22,7 @@ from maif.compression import MAIFCompressor, CompressionAlgorithm
 from maif.binary_format import BinaryFormatWriter, BinaryFormatReader
 from maif.validation import MAIFValidator, MAIFRepairTool
 from maif.streaming import MAIFStreamReader, MAIFStreamWriter, StreamingConfig
-from maif.integration import MAIFConverter
+from maif.integration_enhanced import EnhancedMAIFProcessor
 from maif.metadata import MAIFMetadataManager
 from maif.forensics import ForensicAnalyzer
 

@@ -15,11 +15,13 @@ from .core import MAIFDecoder, MAIFBlock
 @dataclass
 class StreamingConfig:
     """Configuration for streaming operations."""
-    chunk_size: int = 8192
+    chunk_size: int = 4096  # 4KB default
     max_workers: int = 4
-    buffer_size: int = 1024 * 1024  # 1MB
+    buffer_size: int = 65536  # 64KB default
     use_memory_mapping: bool = True
     prefetch_blocks: int = 10
+    enable_compression: bool = False
+    compression_level: int = 6
 
 class MAIFStreamReader:
     """High-performance streaming reader for MAIF files."""
@@ -30,6 +32,21 @@ class MAIFStreamReader:
         self.file_handle = None
         self.memory_map = None
         self.decoder = None
+        self._blocks = None
+        self._total_blocks_read = 0
+        self._total_bytes_read = 0
+        self._read_times = []
+    
+    @property
+    def blocks(self):
+        """Get the blocks from the decoder."""
+        if not self.decoder:
+            manifest_path = str(self.maif_path).replace('.maif', '_manifest.json')
+            if os.path.exists(manifest_path):
+                self.decoder = MAIFDecoder(str(self.maif_path), manifest_path)
+            else:
+                return []
+        return self.decoder.blocks
         
     def __enter__(self):
         """Context manager entry."""
@@ -52,11 +69,15 @@ class MAIFStreamReader:
         """Context manager exit."""
         if self.memory_map:
             self.memory_map.close()
+            self.memory_map = None
         if self.file_handle:
             self.file_handle.close()
+            self.file_handle = None
     
     def stream_blocks(self) -> Iterator[Tuple[str, bytes]]:
         """Stream blocks sequentially."""
+        import time
+        
         if not self.decoder:
             # Need manifest to decode - this is a simplified version
             manifest_path = str(self.maif_path).replace('.maif', '_manifest.json')
@@ -66,8 +87,15 @@ class MAIFStreamReader:
                 raise ValueError("Manifest file not found for streaming")
         
         for block in self.decoder.blocks:
+            start_time = time.time()
             data = self._read_block_data(block)
-            yield block.block_id or f"block_{block.offset}", data
+            read_time = time.time() - start_time
+            
+            self._total_blocks_read += 1
+            self._total_bytes_read += len(data)
+            self._read_times.append(read_time)
+            
+            yield block.block_type or "unknown", data
     
     def stream_blocks_parallel(self) -> Iterator[Tuple[str, bytes]]:
         """Stream blocks in parallel using multiple workers."""
@@ -137,8 +165,12 @@ class MAIFStreamReader:
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get performance statistics for the current session."""
         file_size = os.path.getsize(self.maif_path)
+        avg_read_time = sum(self._read_times) / len(self._read_times) if self._read_times else 0
         
         return {
+            "total_blocks_read": self._total_blocks_read,
+            "total_bytes_read": self._total_bytes_read,
+            "average_read_time": avg_read_time,
             "file_size": file_size,
             "memory_mapped": self.memory_map is not None,
             "chunk_size": self.config.chunk_size,
@@ -154,7 +186,7 @@ class MAIFStreamWriter:
         self.output_path = Path(output_path)
         self.config = config or StreamingConfig()
         self.file_handle = None
-        self.buffer = bytearray()
+        self.buffer = b""
         self.blocks_written = 0
         
     def __enter__(self):
@@ -167,6 +199,7 @@ class MAIFStreamWriter:
         self._flush_buffer()
         if self.file_handle:
             self.file_handle.close()
+            self.file_handle = None
     
     def write_block_stream(self, block_type: str, data_stream: Iterator[bytes]) -> str:
         """Write a block from a data stream."""
@@ -196,7 +229,7 @@ class MAIFStreamWriter:
     
     def _write_to_buffer(self, data: bytes):
         """Write data to internal buffer with automatic flushing."""
-        self.buffer.extend(data)
+        self.buffer += data
         
         if len(self.buffer) >= self.config.buffer_size:
             self._flush_buffer()
@@ -206,7 +239,7 @@ class MAIFStreamWriter:
         if self.buffer and self.file_handle:
             self.file_handle.write(self.buffer)
             self.file_handle.flush()
-            self.buffer.clear()
+            self.buffer = b""
 
 
 class PerformanceProfiler:
@@ -215,6 +248,7 @@ class PerformanceProfiler:
     def __init__(self):
         self.metrics = {}
         self.start_times = {}
+        self.timings = {}
     
     def start_timing(self, operation: str):
         """Start timing an operation."""
@@ -227,11 +261,14 @@ class PerformanceProfiler:
         if operation in self.start_times:
             duration = time.time() - self.start_times[operation]
             
-            self.metrics[operation] = {
+            timing_data = {
                 "duration": duration,
                 "bytes_processed": bytes_processed,
                 "throughput_mbps": (bytes_processed / (1024 * 1024)) / duration if duration > 0 else 0
             }
+            
+            self.metrics[operation] = timing_data
+            self.timings[operation] = timing_data
             
             del self.start_times[operation]
     

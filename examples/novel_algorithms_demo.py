@@ -284,7 +284,7 @@ def demo_maif_integration():
     # Add compressed embeddings using HSC
     hsc_block_id = encoder.add_compressed_embeddings_block(
         embeddings,
-        use_hsc=True,
+        use_enhanced_hsc=True,
         metadata={"algorithm": "HSC", "demo": True}
     )
     print(f"Added compressed embeddings block (HSC): {hsc_block_id}")

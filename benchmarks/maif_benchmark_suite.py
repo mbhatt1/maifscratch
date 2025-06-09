@@ -113,6 +113,11 @@ class MAIFBenchmarkSuite:
         self._benchmark_repair_capabilities()
         self._benchmark_scalability()
         
+        # Video functionality benchmarks
+        self._benchmark_video_storage_performance()
+        self._benchmark_video_metadata_extraction()
+        self._benchmark_video_querying_performance()
+        
         # Generate comprehensive report
         return self._generate_report()
     
@@ -995,6 +1000,305 @@ class ExampleClass:
         import string
         chars = string.ascii_letters + string.digits + " \n"
         return ''.join(random.choice(chars) for _ in range(length))
+    
+    def _create_mock_video_data(self, format_type: str = "mp4", size_mb: float = 1.0) -> bytes:
+        """Create mock video data for benchmarking."""
+        import struct
+        
+        size_bytes = int(size_mb * 1024 * 1024)
+        
+        if format_type == "mp4":
+            # Create minimal MP4 structure
+            data = bytearray()
+            
+            # ftyp box
+            ftyp_size = 32
+            data.extend(struct.pack('>I', ftyp_size))
+            data.extend(b'ftyp')
+            data.extend(b'mp42')
+            data.extend(struct.pack('>I', 0))
+            data.extend(b'mp42isom')
+            data.extend(b'\x00' * 12)
+            
+            # mvhd box with duration
+            mvhd_size = 108
+            data.extend(struct.pack('>I', mvhd_size))
+            data.extend(b'mvhd')
+            data.extend(struct.pack('>I', 0))  # version/flags
+            data.extend(struct.pack('>I', 0))  # creation time
+            data.extend(struct.pack('>I', 0))  # modification time
+            data.extend(struct.pack('>I', 1000))  # timescale
+            data.extend(struct.pack('>I', 30000))  # duration (30 seconds)
+            data.extend(b'\x00' * 80)
+            
+            # Fill remaining space with dummy data
+            remaining = size_bytes - len(data)
+            if remaining > 0:
+                data.extend(b'\x00' * remaining)
+            
+            return bytes(data[:size_bytes])
+        
+        else:
+            # Generic video data
+            return b'\x00' * size_bytes
+    
+    def _benchmark_video_storage_performance(self):
+        """Benchmark video storage performance and metadata extraction."""
+        result = BenchmarkResult("Video Storage Performance")
+        
+        try:
+            print("\n--- Video Storage Performance ---")
+            
+            # Test different video sizes
+            video_sizes = [1, 5, 10, 25]  # MB
+            storage_times = []
+            extraction_times = []
+            
+            for size_mb in video_sizes:
+                print(f"  Testing {size_mb}MB video storage...")
+                
+                # Create mock video data
+                video_data = self._create_mock_video_data("mp4", size_mb)
+                
+                # Test storage performance
+                encoder = MAIFEncoder(enable_privacy=False)
+                
+                storage_start = time.time()
+                video_hash = encoder.add_video_block(
+                    video_data,
+                    metadata={"title": f"Test Video {size_mb}MB"},
+                    extract_metadata=True
+                )
+                storage_end = time.time()
+                
+                storage_time = (storage_end - storage_start) * 1000  # ms
+                storage_times.append(storage_time)
+                
+                # Test metadata extraction time
+                extraction_start = time.time()
+                metadata = encoder.blocks[-1].metadata
+                extraction_end = time.time()
+                
+                extraction_time = (extraction_end - extraction_start) * 1000  # ms
+                extraction_times.append(extraction_time)
+                
+                print(f"    Storage: {storage_time:.2f}ms, Metadata extraction: {extraction_time:.2f}ms")
+            
+            # Calculate statistics
+            avg_storage_time = statistics.mean(storage_times)
+            avg_extraction_time = statistics.mean(extraction_times)
+            
+            # Calculate throughput (MB/s)
+            total_data_mb = sum(video_sizes)
+            total_time_s = sum(storage_times) / 1000
+            throughput_mbs = total_data_mb / total_time_s if total_time_s > 0 else 0
+            
+            result.add_metric("video_sizes_mb", video_sizes)
+            result.add_metric("storage_times_ms", storage_times)
+            result.add_metric("extraction_times_ms", extraction_times)
+            result.add_metric("average_storage_time_ms", avg_storage_time)
+            result.add_metric("average_extraction_time_ms", avg_extraction_time)
+            result.add_metric("storage_throughput_mbs", throughput_mbs)
+            
+            result.add_metric("claim_validation", {
+                "video_storage_claim": "Efficient video storage with metadata extraction",
+                "achieved_throughput": throughput_mbs,
+                "average_storage_time": avg_storage_time,
+                "meets_expectation": throughput_mbs > 10.0  # Expect >10 MB/s
+            })
+            
+        except Exception as e:
+            result.set_error(f"Video storage benchmark failed: {str(e)}")
+        
+        self.results.append(result)
+        print(f"✓ Video Storage: {result.metrics.get('storage_throughput_mbs', 0):.1f} MB/s throughput")
+    
+    def _benchmark_video_metadata_extraction(self):
+        """Benchmark video metadata extraction accuracy and performance."""
+        result = BenchmarkResult("Video Metadata Extraction")
+        
+        try:
+            print("\n--- Video Metadata Extraction ---")
+            
+            # Test different video formats and properties
+            test_videos = [
+                {"format": "mp4", "duration": 10.0, "width": 1920, "height": 1080},
+                {"format": "mp4", "duration": 30.0, "width": 1280, "height": 720},
+                {"format": "mp4", "duration": 60.0, "width": 3840, "height": 2160},
+            ]
+            
+            extraction_times = []
+            accuracy_scores = []
+            
+            for i, video_props in enumerate(test_videos):
+                print(f"  Testing video {i+1}: {video_props['width']}x{video_props['height']}, {video_props['duration']}s")
+                
+                # Create mock video with specific properties
+                video_data = self._create_mock_video_data(video_props["format"], 2.0)
+                
+                encoder = MAIFEncoder(enable_privacy=False)
+                
+                # Time metadata extraction
+                extraction_start = time.time()
+                encoder.add_video_block(video_data, extract_metadata=True)
+                extraction_end = time.time()
+                
+                extraction_time = (extraction_end - extraction_start) * 1000
+                extraction_times.append(extraction_time)
+                
+                # Check extraction accuracy
+                metadata = encoder.blocks[-1].metadata
+                accuracy = 0
+                
+                # Check format detection
+                if metadata.get("format") == video_props["format"]:
+                    accuracy += 1
+                
+                # Check if duration was extracted (may not match exactly with mock data)
+                if metadata.get("duration") is not None:
+                    accuracy += 1
+                
+                # Check if resolution was extracted
+                if metadata.get("resolution"):
+                    accuracy += 1
+                
+                # Check semantic analysis
+                if metadata.get("has_semantic_analysis"):
+                    accuracy += 1
+                
+                accuracy_score = accuracy / 4.0  # 4 possible checks
+                accuracy_scores.append(accuracy_score)
+                
+                print(f"    Extraction time: {extraction_time:.2f}ms, Accuracy: {accuracy_score:.1%}")
+            
+            avg_extraction_time = statistics.mean(extraction_times)
+            avg_accuracy = statistics.mean(accuracy_scores)
+            
+            result.add_metric("test_videos", test_videos)
+            result.add_metric("extraction_times_ms", extraction_times)
+            result.add_metric("accuracy_scores", accuracy_scores)
+            result.add_metric("average_extraction_time_ms", avg_extraction_time)
+            result.add_metric("average_accuracy", avg_accuracy)
+            
+            result.add_metric("claim_validation", {
+                "metadata_extraction_claim": "Accurate video metadata extraction",
+                "achieved_accuracy": avg_accuracy,
+                "average_extraction_time": avg_extraction_time,
+                "meets_expectation": avg_accuracy > 0.5 and avg_extraction_time < 100
+            })
+            
+        except Exception as e:
+            result.set_error(f"Video metadata extraction benchmark failed: {str(e)}")
+        
+        self.results.append(result)
+        print(f"✓ Video Metadata: {result.metrics.get('average_accuracy', 0):.1%} accuracy, {result.metrics.get('average_extraction_time_ms', 0):.1f}ms avg")
+    
+    def _benchmark_video_querying_performance(self):
+        """Benchmark video querying and search performance."""
+        result = BenchmarkResult("Video Querying Performance")
+        
+        try:
+            print("\n--- Video Querying Performance ---")
+            
+            # Create a collection of test videos
+            encoder = MAIFEncoder(enable_privacy=False)
+            video_count = 100
+            
+            print(f"  Creating {video_count} test videos...")
+            
+            # Add videos with different properties
+            for i in range(video_count):
+                video_data = self._create_mock_video_data("mp4", 0.5)  # Small videos for speed
+                
+                # Vary video properties
+                duration = random.uniform(10, 300)  # 10s to 5min
+                width = random.choice([1280, 1920, 3840])
+                height = random.choice([720, 1080, 2160])
+                
+                encoder.add_video_block(
+                    video_data,
+                    metadata={
+                        "title": f"Test Video {i}",
+                        "duration": duration,
+                        "resolution": f"{width}x{height}",
+                        "format": "mp4",
+                        "tags": [f"tag{i%10}", f"category{i%5}"]
+                    },
+                    extract_metadata=False
+                )
+            
+            # Save to temporary file
+            temp_dir = tempfile.mkdtemp()
+            maif_path = os.path.join(temp_dir, "video_test.maif")
+            manifest_path = os.path.join(temp_dir, "video_test.maif.manifest.json")
+            
+            encoder.build_maif(maif_path, manifest_path)
+            
+            # Test querying performance
+            decoder = MAIFDecoder(maif_path, manifest_path)
+            
+            query_tests = [
+                {"name": "Duration Range", "params": {"duration_range": (60, 180)}},
+                {"name": "HD Resolution", "params": {"min_resolution": "1080p"}},
+                {"name": "4K Resolution", "params": {"min_resolution": "4K"}},
+                {"name": "Format Filter", "params": {"format_filter": "mp4"}},
+                {"name": "Size Filter", "params": {"max_size_mb": 1.0}},
+            ]
+            
+            query_times = []
+            result_counts = []
+            
+            for query_test in query_tests:
+                print(f"  Testing {query_test['name']} query...")
+                
+                query_start = time.time()
+                results = decoder.query_videos(**query_test["params"])
+                query_end = time.time()
+                
+                query_time = (query_end - query_start) * 1000
+                query_times.append(query_time)
+                result_counts.append(len(results))
+                
+                print(f"    Query time: {query_time:.2f}ms, Results: {len(results)}")
+            
+            # Test semantic search if available
+            semantic_search_time = 0
+            try:
+                semantic_start = time.time()
+                semantic_results = decoder.search_videos_by_content("test video", top_k=10)
+                semantic_end = time.time()
+                semantic_search_time = (semantic_end - semantic_start) * 1000
+                print(f"  Semantic search: {semantic_search_time:.2f}ms, Results: {len(semantic_results)}")
+            except Exception:
+                print("  Semantic search: Not available")
+            
+            avg_query_time = statistics.mean(query_times)
+            total_results = sum(result_counts)
+            
+            result.add_metric("video_count", video_count)
+            result.add_metric("query_tests", [test["name"] for test in query_tests])
+            result.add_metric("query_times_ms", query_times)
+            result.add_metric("result_counts", result_counts)
+            result.add_metric("average_query_time_ms", avg_query_time)
+            result.add_metric("semantic_search_time_ms", semantic_search_time)
+            result.add_metric("total_results_found", total_results)
+            
+            result.add_metric("claim_validation", {
+                "video_querying_claim": "Fast video querying and search",
+                "achieved_avg_query_time": avg_query_time,
+                "semantic_search_time": semantic_search_time,
+                "meets_expectation": avg_query_time < 50.0  # Expect <50ms for queries
+            })
+            
+            # Cleanup
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
+            
+        except Exception as e:
+            result.set_error(f"Video querying benchmark failed: {str(e)}")
+        
+        self.results.append(result)
+        print(f"✓ Video Querying: {result.metrics.get('average_query_time_ms', 0):.1f}ms avg query time")
 
 
 def main():

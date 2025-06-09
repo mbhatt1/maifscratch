@@ -14,13 +14,25 @@ from .semantic import (
     CrossModalAttention, HierarchicalSemanticCompression,
     CryptographicSemanticBinding, DeepSemanticUnderstanding
 )
+
+# Import enhanced algorithms from semantic_optimized
+try:
+    from .semantic_optimized import (
+        AdaptiveCrossModalAttention,
+        HierarchicalSemanticCompression as EnhancedHierarchicalSemanticCompression,
+        CryptographicSemanticBinding as EnhancedCryptographicSemanticBinding,
+        AttentionWeights
+    )
+    ENHANCED_ALGORITHMS_AVAILABLE = True
+except ImportError:
+    ENHANCED_ALGORITHMS_AVAILABLE = False
 from .forensics import ForensicAnalyzer
 from .compression import MAIFCompressor, CompressionMetadata
 from .binary_format import MAIFBinaryParser, MAIFBinaryWriter
 from .validation import MAIFValidator, MAIFRepairTool
 from .metadata import MAIFMetadataManager
 from .streaming import MAIFStreamReader, MAIFStreamWriter
-from .integration import MAIFConverter
+from .integration_enhanced import EnhancedMAIFProcessor, ConversionResult
 
 __version__ = "2.0.0"
 __author__ = "MAIF Development Team"
@@ -56,6 +68,13 @@ __all__ = [
     'CryptographicSemanticBinding',
     'DeepSemanticUnderstanding',
     
+    # Enhanced Novel Algorithms (if available)
+    'AdaptiveCrossModalAttention',
+    'EnhancedHierarchicalSemanticCompression',
+    'EnhancedCryptographicSemanticBinding',
+    'AttentionWeights',
+    'ENHANCED_ALGORITHMS_AVAILABLE',
+    
     # Forensics
     'ForensicAnalyzer',
     
@@ -79,5 +98,6 @@ __all__ = [
     'MAIFStreamWriter',
     
     # Integration
-    'MAIFConverter',
+    'EnhancedMAIFProcessor',
+    'ConversionResult',
 ]

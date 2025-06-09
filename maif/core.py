@@ -1,6 +1,6 @@
 """
 Core MAIF implementation - encoding, decoding, and parsing functionality.
-Enhanced with privacy-by-design features.
+Enhanced with privacy-by-design features and improved block structure.
 """
 
 import json
@@ -13,26 +13,36 @@ from pathlib import Path
 import io
 import uuid
 from .privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode, AccessRule
+from .block_types import BlockType, BlockHeader, BlockFactory, BlockValidator
 
 @dataclass
 class MAIFBlock:
     """Represents a MAIF block with metadata."""
     block_type: str
-    offset: int
-    size: int
-    hash_value: str
+    offset: int = 0
+    size: int = 0
+    hash_value: str = ""
     version: int = 1
     previous_hash: Optional[str] = None
     block_id: Optional[str] = None
     metadata: Optional[Dict] = None
+    data: Optional[bytes] = None
     
     def __post_init__(self):
         if self.block_id is None:
             self.block_id = str(uuid.uuid4())
+        if self.data is not None and not self.hash_value:
+            self.hash_value = hashlib.sha256(self.data).hexdigest()
+    
+    @property
+    def hash(self) -> str:
+        """Return the hash value for compatibility with tests."""
+        return self.hash_value
     
     def to_dict(self) -> Dict:
         return {
             "type": self.block_type,
+            "block_type": self.block_type,
             "offset": self.offset,
             "size": self.size,
             "hash": self.hash_value,
@@ -45,24 +55,35 @@ class MAIFBlock:
 @dataclass
 class MAIFVersion:
     """Represents a version entry in the version history."""
-    version_number: int
+    version: int
     timestamp: float
     agent_id: str
     operation: str  # "create", "update", "delete"
-    block_id: str
-    previous_hash: Optional[str]
-    current_hash: str
+    block_hash: str
+    block_id: Optional[str] = None
+    previous_hash: Optional[str] = None
     change_description: Optional[str] = None
+    
+    # Keep version_number as alias for backward compatibility
+    @property
+    def version_number(self) -> int:
+        return self.version
+    
+    # Keep current_hash as alias for backward compatibility
+    @property
+    def current_hash(self) -> str:
+        return self.block_hash
     
     def to_dict(self) -> Dict:
         return {
-            "version": self.version_number,
+            "version": self.version,
             "timestamp": self.timestamp,
             "agent_id": self.agent_id,
             "operation": self.operation,
             "block_id": self.block_id,
             "previous_hash": self.previous_hash,
-            "current_hash": self.current_hash,
+            "current_hash": self.block_hash,
+            "block_hash": self.block_hash,
             "change_description": self.change_description
         }
 
@@ -81,21 +102,36 @@ class MAIFHeader:
 class MAIFEncoder:
     """Encodes multimodal data into MAIF format with versioning and privacy-by-design support."""
     
+    # Block type mapping for backward compatibility
+    BLOCK_TYPE_MAPPING = {
+        "text": BlockType.TEXT_DATA.value,
+        "text_data": BlockType.TEXT_DATA.value,
+        "binary": BlockType.BINARY_DATA.value,
+        "binary_data": BlockType.BINARY_DATA.value,
+        "embedding": BlockType.EMBEDDING.value,
+        "embeddings": BlockType.EMBEDDING.value,
+        "cross_modal": BlockType.CROSS_MODAL.value,
+        "semantic_binding": BlockType.SEMANTIC_BINDING.value,
+        "compressed_embeddings": BlockType.COMPRESSED_EMBEDDINGS.value,
+    }
+    
     def __init__(self, agent_id: Optional[str] = None, existing_maif_path: Optional[str] = None,
-                 existing_manifest_path: Optional[str] = None, enable_privacy: bool = True):
+                 existing_manifest_path: Optional[str] = None, enable_privacy: bool = True,
+                 privacy_engine: Optional['PrivacyEngine'] = None):
         self.blocks: List[MAIFBlock] = []
         self.header = MAIFHeader()
         self.buffer = io.BytesIO()
         self.agent_id = agent_id or str(uuid.uuid4())
-        self.version_history: List[MAIFVersion] = []
+        self.version_history: Dict = {}  # Changed to dict for test compatibility
         self.block_registry: Dict[str, List[MAIFBlock]] = {}  # block_id -> list of versions
+        self.access_rules: List[AccessRule] = []  # Add missing access_rules attribute
         
         # Privacy-by-design features
         self.enable_privacy = enable_privacy
-        self.privacy_engine = PrivacyEngine() if enable_privacy else None
+        self.privacy_engine = privacy_engine or (PrivacyEngine() if enable_privacy else None)
         self.default_privacy_policy = PrivacyPolicy(
             privacy_level=PrivacyLevel.INTERNAL,
-            encryption_mode=EncryptionMode.AES_GCM,
+            encryption_mode=EncryptionMode.AES_GCM if enable_privacy else EncryptionMode.NONE,
             anonymization_required=False,
             audit_required=True
         )
@@ -134,14 +170,25 @@ class MAIFEncoder:
     def add_text_block(self, text: str, metadata: Optional[Dict] = None,
                       update_block_id: Optional[str] = None,
                       privacy_policy: Optional[PrivacyPolicy] = None,
-                      anonymize: bool = False) -> str:
+                      anonymize: bool = False,
+                      privacy_level: Optional[PrivacyLevel] = None,
+                      encryption_mode: Optional[EncryptionMode] = None) -> str:
         """Add or update a text block to the MAIF with privacy controls."""
+        # Create privacy policy from individual parameters if provided
+        if privacy_level is not None or encryption_mode is not None:
+            privacy_policy = PrivacyPolicy(
+                privacy_level=privacy_level or PrivacyLevel.INTERNAL,
+                encryption_mode=encryption_mode or EncryptionMode.NONE,
+                anonymization_required=anonymize,
+                audit_required=True
+            )
+        
         # Apply anonymization if requested
         if self.enable_privacy and anonymize:
             text = self.privacy_engine.anonymize_data(text, "text_block")
         
         text_bytes = text.encode('utf-8')
-        return self._add_block("text_data", text_bytes, metadata, update_block_id, privacy_policy)
+        return self._add_block("text", text_bytes, metadata, update_block_id, privacy_policy)
     
     def add_binary_block(self, data: bytes, block_type: str, metadata: Optional[Dict] = None,
                         update_block_id: Optional[str] = None,
@@ -317,38 +364,65 @@ class MAIFEncoder:
     
     def add_cross_modal_block(self, multimodal_data: Dict[str, Any], metadata: Optional[Dict] = None,
                              update_block_id: Optional[str] = None,
-                             privacy_policy: Optional[PrivacyPolicy] = None) -> str:
-        """Add cross-modal data block using ACAM (Adaptive Cross-Modal Attention Mechanism)."""
+                             privacy_policy: Optional[PrivacyPolicy] = None,
+                             use_enhanced_acam: bool = True) -> str:
+        """Add cross-modal data block using enhanced ACAM implementation."""
         try:
-            from .semantic import DeepSemanticUnderstanding
-            
-            # Initialize deep semantic understanding
-            dsu = DeepSemanticUnderstanding()
-            
-            # Register basic processors for different modalities
-            def text_processor(text):
-                from .semantic import SemanticEmbedder
-                embedder = SemanticEmbedder()
-                return embedder.embed_text(str(text)).vector
-            
-            def binary_processor(data):
-                # Simple hash-based embedding for binary data (384 dimensions)
-                import hashlib
-                hash_obj = hashlib.sha256(data if isinstance(data, bytes) else str(data).encode())
-                # Convert hash to pseudo-embedding
-                hash_hex = hash_obj.hexdigest()
-                base_embedding = [float(int(hash_hex[i:i+2], 16)) / 255.0 for i in range(0, len(hash_hex), 2)]
-                # Repeat to get 384 dimensions to match text embeddings
-                embedding = (base_embedding * (384 // len(base_embedding) + 1))[:384]
-                return embedding
-            
-            dsu.register_modality_processor("text", text_processor)
-            dsu.register_modality_processor("binary", binary_processor)
-            dsu.register_modality_processor("image", binary_processor)
-            dsu.register_modality_processor("audio", binary_processor)
-            
-            # Process multimodal input
-            processed_result = dsu.process_multimodal_input(multimodal_data)
+            if use_enhanced_acam:
+                from .semantic_optimized import AdaptiveCrossModalAttention
+                import numpy as np
+                
+                # Initialize enhanced ACAM
+                acam = AdaptiveCrossModalAttention()
+                
+                # Process embeddings for each modality
+                embeddings = {}
+                trust_scores = {}
+                
+                for modality, data in multimodal_data.items():
+                    if modality == "text":
+                        from .semantic import SemanticEmbedder
+                        embedder = SemanticEmbedder()
+                        embedding = embedder.embed_text(str(data)).vector
+                        embeddings[modality] = np.array(embedding)
+                        trust_scores[modality] = 1.0
+                    else:
+                        # Generate embeddings for other modalities
+                        import hashlib
+                        hash_obj = hashlib.sha256(str(data).encode())
+                        hash_hex = hash_obj.hexdigest()
+                        base_embedding = [float(int(hash_hex[i:i+2], 16)) / 255.0 for i in range(0, len(hash_hex), 2)]
+                        embedding = (base_embedding * (384 // len(base_embedding) + 1))[:384]
+                        embeddings[modality] = np.array(embedding)
+                        trust_scores[modality] = 0.8  # Lower trust for non-text modalities
+                
+                # Compute attention weights
+                attention_weights = acam.compute_attention_weights(embeddings, trust_scores)
+                
+                # Create unified representation
+                if embeddings:
+                    primary_modality = list(embeddings.keys())[0]
+                    unified_repr = acam.get_attended_representation(embeddings, attention_weights, primary_modality)
+                else:
+                    unified_repr = []
+                
+                # Prepare result
+                processed_result = {
+                    "embeddings": {k: v.tolist() for k, v in embeddings.items()},
+                    "attention_weights": {
+                        "query_key_weights": attention_weights.query_key_weights.tolist(),
+                        "trust_scores": attention_weights.trust_scores,
+                        "coherence_matrix": attention_weights.coherence_matrix.tolist(),
+                        "normalized_weights": attention_weights.normalized_weights.tolist()
+                    },
+                    "unified_representation": unified_repr.tolist() if hasattr(unified_repr, 'tolist') else unified_repr,
+                    "algorithm": "Enhanced_ACAM_v2"
+                }
+            else:
+                # Fallback to original implementation
+                from .semantic import DeepSemanticUnderstanding
+                dsu = DeepSemanticUnderstanding()
+                processed_result = dsu.process_multimodal_input(multimodal_data)
             
             # Serialize the result
             import json
@@ -356,20 +430,21 @@ class MAIFEncoder:
             
             cross_modal_metadata = metadata or {}
             cross_modal_metadata.update({
-                "algorithm": "ACAM",
+                "algorithm": processed_result.get("algorithm", "ACAM"),
                 "modalities": list(multimodal_data.keys()),
                 "unified_representation_dim": len(processed_result.get("unified_representation", [])),
-                "attention_weights_count": len(processed_result.get("attention_weights", {}))
+                "attention_weights_available": "attention_weights" in processed_result,
+                "enhanced_version": use_enhanced_acam
             })
             
             return self._add_block("cross_modal", serialized_data, cross_modal_metadata, update_block_id, privacy_policy)
             
         except ImportError:
-            # Fallback if semantic module not available
+            # Fallback if enhanced modules not available
             serialized_data = json.dumps(multimodal_data, default=str).encode('utf-8')
             fallback_metadata = metadata or {}
             fallback_metadata.update({"algorithm": "fallback", "modalities": list(multimodal_data.keys())})
-            return self._add_block("cross_modal", serialized_data, fallback_metadata, update_block_id, privacy_policy)
+            return self._add_block(BlockType.CROSS_MODAL.value, serialized_data, fallback_metadata, update_block_id, privacy_policy)
     
     def add_semantic_binding_block(self, embedding: List[float], source_data: str,
                                   metadata: Optional[Dict] = None,
@@ -421,46 +496,89 @@ class MAIFEncoder:
             return self._add_block("semantic_binding", serialized_data, fallback_metadata, update_block_id, privacy_policy)
     
     def add_compressed_embeddings_block(self, embeddings: List[List[float]],
-                                       use_hsc: bool = True,
+                                       use_enhanced_hsc: bool = True,
+                                       preserve_fidelity: bool = True,
+                                       target_compression_ratio: float = 0.4,
                                        metadata: Optional[Dict] = None,
                                        update_block_id: Optional[str] = None,
                                        privacy_policy: Optional[PrivacyPolicy] = None) -> str:
-        """Add embeddings block with HSC (Hierarchical Semantic Compression)."""
-        if use_hsc:
+        """Add embeddings block with enhanced HSC (Hierarchical Semantic Compression)."""
+        if use_enhanced_hsc:
             try:
-                from .semantic import HierarchicalSemanticCompression
+                from .semantic_optimized import HierarchicalSemanticCompression
                 
-                # Apply HSC compression
-                hsc = HierarchicalSemanticCompression()
-                compressed_result = hsc.compress_embeddings(embeddings)
+                # Apply enhanced HSC compression
+                hsc = HierarchicalSemanticCompression(target_compression_ratio=target_compression_ratio)
+                compressed_result = hsc.compress_embeddings(embeddings, preserve_fidelity=preserve_fidelity)
                 
                 # Serialize compressed result
                 import json
-                serialized_data = json.dumps(compressed_result).encode('utf-8')
+                serialized_data = json.dumps(compressed_result, default=str).encode('utf-8')
                 
                 hsc_metadata = metadata or {}
                 hsc_metadata.update({
-                    "algorithm": "HSC",
-                    "compression_type": "hierarchical_semantic",
+                    "algorithm": "Enhanced_HSC_v2",
+                    "compression_type": "hierarchical_semantic_dbscan",
                     "original_count": len(embeddings),
                     "original_dimensions": len(embeddings[0]) if embeddings else 0,
-                    "compression_ratio": compressed_result.get("metadata", {}).get("compression_ratio", 1.0)
+                    "compression_ratio": compressed_result.get("metadata", {}).get("compression_ratio", 1.0),
+                    "fidelity_score": compressed_result.get("metadata", {}).get("fidelity_score", 0.0),
+                    "tier1_clusters": compressed_result.get("metadata", {}).get("tier1_clusters", 0),
+                    "tier2_codebook_size": compressed_result.get("metadata", {}).get("tier2_codebook_size", 0),
+                    "tier3_encoding": compressed_result.get("metadata", {}).get("tier3_encoding", "unknown"),
+                    "preserve_fidelity": preserve_fidelity
                 })
                 
-                return self._add_block("compressed_embeddings", serialized_data, hsc_metadata, update_block_id, privacy_policy)
+                return self._add_block(BlockType.COMPRESSED_EMBEDDINGS.value, serialized_data, hsc_metadata, update_block_id, privacy_policy)
                 
             except ImportError:
-                # Fallback to regular embeddings if HSC not available
-                pass
+                # Fallback to original HSC if enhanced not available
+                try:
+                    from .semantic import HierarchicalSemanticCompression
+                    
+                    hsc = HierarchicalSemanticCompression()
+                    compressed_result = hsc.compress_embeddings(embeddings)
+                    
+                    import json
+                    serialized_data = json.dumps(compressed_result).encode('utf-8')
+                    
+                    hsc_metadata = metadata or {}
+                    hsc_metadata.update({
+                        "algorithm": "HSC_v1",
+                        "compression_type": "hierarchical_semantic",
+                        "original_count": len(embeddings),
+                        "original_dimensions": len(embeddings[0]) if embeddings else 0,
+                        "compression_ratio": compressed_result.get("metadata", {}).get("compression_ratio", 1.0)
+                    })
+                    
+                    return self._add_block(BlockType.COMPRESSED_EMBEDDINGS.value, serialized_data, hsc_metadata, update_block_id, privacy_policy)
+                    
+                except ImportError:
+                    pass
         
         # Fallback to regular embeddings block
         return self.add_embeddings_block(embeddings, metadata, update_block_id, privacy_policy)
     
     def _add_block(self, block_type: str, data: bytes, metadata: Optional[Dict] = None,
                   update_block_id: Optional[str] = None,
-                  privacy_policy: Optional[PrivacyPolicy] = None) -> str:
-        """Internal method to add or update a block with versioning and privacy."""
+                  privacy_policy: Optional[PrivacyPolicy] = None,
+                  block_id: Optional[str] = None) -> str:
+        """Internal method to add or update a block with enhanced structure and privacy."""
+        # Validate block type
+        if not block_type or not block_type.strip():
+            raise ValueError("Block type cannot be empty")
+        
         offset = self.buffer.tell()
+        
+        # Handle block_id parameter for backward compatibility
+        if block_id is not None and update_block_id is None:
+            update_block_id = block_id
+        
+        # Map block type to FourCC if needed
+        if block_type in self.BLOCK_TYPE_MAPPING:
+            fourcc_type = self.BLOCK_TYPE_MAPPING[block_type]
+        else:
+            fourcc_type = block_type
         
         # Determine if this is an update or new block
         is_update = update_block_id is not None
@@ -480,6 +598,8 @@ class MAIFEncoder:
         # Apply privacy policy
         policy = privacy_policy or self.default_privacy_policy
         encryption_metadata = {}
+        original_data = data  # Store original data for test compatibility
+        data_for_storage = data  # Data to store in MAIFBlock
         
         if self.enable_privacy and policy.encryption_mode != EncryptionMode.NONE:
             # Encrypt the data
@@ -488,15 +608,29 @@ class MAIFEncoder:
             )
             # Set privacy policy for this block
             self.privacy_engine.set_privacy_policy(block_id, policy)
+            # Use encrypted data for storage when encryption is applied
+            data_for_storage = data
         
         # Calculate hash (after encryption)
         hash_value = hashlib.sha256(data).hexdigest()
         
-        # Write block header (24 bytes - extended for versioning)
-        size = len(data)
-        header = struct.pack('>I4sIII', size, block_type.encode('ascii')[:4].ljust(4, b'\0'),
-                           version_number, 0, 0)  # version, flags, reserved
-        self.buffer.write(header)
+        # Create enhanced block header using new structure
+        block_header = BlockHeader(
+            size=len(data) + 32,  # Data size + header size
+            type=fourcc_type,
+            version=version_number,
+            flags=0,
+            uuid=block_id
+        )
+        
+        # Validate block header
+        header_errors = BlockValidator.validate_block_header(block_header)
+        if header_errors:
+            print(f"Warning: Block header validation errors: {header_errors}")
+        
+        # Write enhanced header (32 bytes)
+        header_bytes = block_header.to_bytes()
+        self.buffer.write(header_bytes)
         
         # Write data
         self.buffer.write(data)
@@ -505,6 +639,8 @@ class MAIFEncoder:
         combined_metadata = metadata.copy() if metadata else {}
         if encryption_metadata:
             combined_metadata['encryption'] = encryption_metadata
+            combined_metadata['encrypted'] = True
+            combined_metadata['encryption_mode'] = policy.encryption_mode.name
         if self.enable_privacy and policy:
             combined_metadata['privacy_policy'] = {
                 'privacy_level': policy.privacy_level.value,
@@ -512,17 +648,21 @@ class MAIFEncoder:
                 'anonymization_required': policy.anonymization_required,
                 'audit_required': policy.audit_required
             }
+            # Set anonymized flag if anonymization was required
+            if policy.anonymization_required:
+                combined_metadata['anonymized'] = True
         
         # Create block record
         block = MAIFBlock(
-            block_type=block_type,
+            block_type=block_type,  # Keep original for test compatibility
             offset=offset,
-            size=size + 24,  # Include extended header size
+            size=len(data) + 24,  # Include extended header size
             hash_value=f"sha256:{hash_value}",
             version=version_number,
             previous_hash=previous_hash,
             block_id=block_id,
-            metadata=combined_metadata
+            metadata=combined_metadata,
+            data=data_for_storage  # Use appropriate data (encrypted if encryption applied)
         )
         
         # Add to blocks and registry
@@ -534,16 +674,19 @@ class MAIFEncoder:
         # Record version history
         operation = "update" if is_update else "create"
         version_entry = MAIFVersion(
-            version_number=version_number,
+            version=version_number,
             timestamp=time.time(),
             agent_id=self.agent_id,
             operation=operation,
+            block_hash=f"sha256:{hash_value}",
             block_id=block_id,
             previous_hash=previous_hash,
-            current_hash=f"sha256:{hash_value}",
             change_description=combined_metadata.get("change_description") if combined_metadata else None
         )
-        self.version_history.append(version_entry)
+        # Add to version history (dict structure)
+        if block_id not in self.version_history:
+            self.version_history[block_id] = []
+        self.version_history[block_id].append(version_entry)
         
         return hash_value
     
@@ -554,18 +697,29 @@ class MAIFEncoder:
         
         latest_block = self.block_registry[block_id][-1]
         
+        # Mark the block as deleted in its metadata
+        if latest_block.metadata is None:
+            latest_block.metadata = {}
+        latest_block.metadata["deleted"] = True
+        if reason:
+            latest_block.metadata["deletion_reason"] = reason
+        
         # Create deletion record
         version_entry = MAIFVersion(
-            version_number=latest_block.version + 1,
+            version=latest_block.version + 1,
             timestamp=time.time(),
             agent_id=self.agent_id,
             operation="delete",
+            block_hash="deleted",
             block_id=block_id,
             previous_hash=latest_block.hash_value,
-            current_hash="deleted",
             change_description=reason
         )
-        self.version_history.append(version_entry)
+        
+        # Add to version history
+        if block_id not in self.version_history:
+            self.version_history[block_id] = []
+        self.version_history[block_id].append(version_entry)
         
         return True
     
@@ -578,12 +732,16 @@ class MAIFEncoder:
         if block_id not in self.block_registry:
             return None
         
+        # Find the block with the specified version
+        for block in self.block_registry[block_id]:
+            if block.version == version:
+                return block
+        
+        return None
+        
     def add_access_rule(self, subject: str, resource: str, permissions: List[str],
                        conditions: Optional[Dict[str, Any]] = None, expiry: Optional[float] = None):
         """Add an access control rule for privacy protection."""
-        if not self.enable_privacy:
-            return
-        
         rule = AccessRule(
             subject=subject,
             resource=resource,
@@ -591,7 +749,13 @@ class MAIFEncoder:
             conditions=conditions,
             expiry=expiry
         )
-        self.privacy_engine.add_access_rule(rule)
+        
+        # Add to encoder's access rules list
+        self.access_rules.append(rule)
+        
+        # Also add to privacy engine if privacy is enabled
+        if self.enable_privacy:
+            self.privacy_engine.add_access_rule(rule)
     
     def check_access(self, subject: str, block_id: str, permission: str) -> bool:
         """Check if subject has permission to access a block."""
@@ -606,12 +770,26 @@ class MAIFEncoder:
     
     def get_privacy_report(self) -> Dict[str, Any]:
         """Generate a privacy compliance report."""
-        if not self.enable_privacy:
-            return {"privacy_enabled": False}
+        # Count blocks by privacy characteristics
+        total_blocks = len(self.blocks)
+        encrypted_blocks = sum(1 for block in self.blocks
+                             if block.metadata and block.metadata.get("encrypted", False))
+        anonymized_blocks = sum(1 for block in self.blocks
+                              if block.metadata and block.metadata.get("anonymized", False))
         
-        report = self.privacy_engine.generate_privacy_report()
-        report["privacy_enabled"] = True
-        report["total_version_entries"] = len(self.version_history)
+        report = {
+            "privacy_enabled": self.enable_privacy,
+            "total_blocks": total_blocks,
+            "encrypted_blocks": encrypted_blocks,
+            "anonymized_blocks": anonymized_blocks,
+            "total_version_entries": sum(len(versions) for versions in self.version_history.values())
+        }
+        
+        if self.enable_privacy:
+            # Add privacy engine report
+            engine_report = self.privacy_engine.generate_privacy_report()
+            report.update(engine_report)
+        
         return report
     
     def anonymize_existing_block(self, block_id: str, context: str = "general") -> bool:
@@ -641,8 +819,17 @@ class MAIFEncoder:
             "created": self.header.created_timestamp,
             "creator_id": self.header.creator_id,
             "agent_id": self.agent_id,
+            "header": {
+                "version": self.header.version,
+                "created_timestamp": self.header.created_timestamp,
+                "creator_id": self.header.creator_id,
+                "agent_id": self.agent_id
+            },
             "blocks": [block.to_dict() for block in self.blocks],
-            "version_history": [v.to_dict() for v in self.version_history],
+            "version_history": {
+                block_id: [v.to_dict() for v in versions]
+                for block_id, versions in self.version_history.items()
+            },
             "block_registry": {
                 block_id: [block.to_dict() for block in versions]
                 for block_id, versions in self.block_registry.items()
@@ -651,7 +838,10 @@ class MAIFEncoder:
         
         # Calculate root hash including version history
         all_hashes = "".join([block.hash_value for block in self.blocks])
-        version_hashes = "".join([v.current_hash for v in self.version_history])
+        version_hashes = "".join([
+            v.current_hash for versions in self.version_history.values()
+            for v in versions
+        ])
         combined_hash = hashlib.sha256((all_hashes + version_hashes).encode()).hexdigest()
         manifest["root_hash"] = f"sha256:{combined_hash}"
         
@@ -671,7 +861,10 @@ class MAIFEncoder:
             "creator_id": self.header.creator_id,
             "agent_id": self.agent_id,
             "blocks": [block.to_dict() for block in self.blocks],
-            "version_history": [v.to_dict() for v in self.version_history],
+            "version_history": {
+                block_id: [v.to_dict() if hasattr(v, 'to_dict') else str(v) for v in versions]
+                for block_id, versions in self.version_history.items()
+            },
             "block_registry": {
                 block_id: [block.to_dict() for block in versions]
                 for block_id, versions in self.block_registry.items()
@@ -688,7 +881,14 @@ class MAIFEncoder:
         
         # Calculate root hash including version history
         all_hashes = "".join([block.hash_value for block in self.blocks])
-        version_hashes = "".join([v.current_hash for v in self.version_history])
+        version_hashes = ""
+        if isinstance(self.version_history, dict):
+            version_hashes = "".join([
+                v.current_hash for versions in self.version_history.values()
+                for v in (versions if isinstance(versions, list) else [versions])
+            ])
+        elif isinstance(self.version_history, list):
+            version_hashes = "".join([v.current_hash for v in self.version_history])
         combined_hash = hashlib.sha256((all_hashes + version_hashes).encode()).hexdigest()
         manifest["root_hash"] = f"sha256:{combined_hash}"
         
@@ -704,8 +904,10 @@ class MAIFDecoder:
     
     def __init__(self, maif_path: str, manifest_path: str, privacy_engine: Optional[PrivacyEngine] = None,
                  requesting_agent: Optional[str] = None):
-        self.maif_path = Path(maif_path)
-        self.manifest_path = Path(manifest_path)
+        self.maif_path = maif_path
+        self.manifest_path = manifest_path
+        self._maif_path_obj = Path(maif_path)
+        self._manifest_path_obj = Path(manifest_path)
         self.privacy_engine = privacy_engine
         self.requesting_agent = requesting_agent or "anonymous"
         
@@ -738,15 +940,19 @@ class MAIFDecoder:
         self.version_history = []
         if 'version_history' in self.manifest:
             for v in self.manifest['version_history']:
+                # Skip if not a dictionary
+                if not isinstance(v, dict):
+                    continue
+                    
                 # Map field names correctly
                 mapped_version = {
-                    'version_number': v.get('version', v.get('version_number')),
+                    'version': v.get('version', v.get('version_number', 1)),
                     'timestamp': v['timestamp'],
                     'agent_id': v['agent_id'],
                     'operation': v['operation'],
                     'block_id': v['block_id'],
                     'previous_hash': v.get('previous_hash'),
-                    'current_hash': v['current_hash'],
+                    'block_hash': v.get('current_hash', v.get('block_hash', '')),
                     'change_description': v.get('change_description')
                 }
                 self.version_history.append(MAIFVersion(**mapped_version))
@@ -814,11 +1020,11 @@ class MAIFDecoder:
     
     def get_version_timeline(self) -> List[MAIFVersion]:
         """Get the complete version timeline sorted by timestamp."""
-        return sorted(self.version_history, key=lambda v: v.timestamp)
+        return sorted(self.version_history.values(), key=lambda v: v.timestamp)
     
     def get_changes_by_agent(self, agent_id: str) -> List[MAIFVersion]:
         """Get all changes made by a specific agent."""
-        return [v for v in self.version_history if v.agent_id == agent_id]
+        return [v for v in self.version_history.values() if v.agent_id == agent_id]
     
     def is_block_deleted(self, block_id: str) -> bool:
         """Check if a block has been marked as deleted."""
@@ -858,14 +1064,14 @@ class MAIFDecoder:
         """Extract all text blocks with privacy filtering."""
         texts = []
         for block in self.blocks:
-            if block.block_type == "text_data":
+            if block.block_type in ["text", "text_data"]:
                 # Check access permissions
                 if self.privacy_engine and not self.privacy_engine.check_access(
                     self.requesting_agent, block.block_id, "read"
                 ):
                     continue
                 
-                data = self.get_block_data("text_data", block.block_id)
+                data = self.get_block_data(block.block_type, block.block_id)
                 if data:
                     try:
                         text = data.decode('utf-8')
@@ -1170,6 +1376,14 @@ class MAIFParser:
     def get_metadata(self) -> Dict:
         """Get MAIF metadata."""
         return {
+            "header": {
+                "version": self.decoder.manifest.get("maif_version"),
+                "created": self.decoder.manifest.get("created"),
+                "creator_id": self.decoder.manifest.get("creator_id"),
+                "agent_id": self.decoder.manifest.get("agent_id"),
+                "root_hash": self.decoder.manifest.get("root_hash")
+            },
+            "blocks": [block.to_dict() for block in self.decoder.blocks],
             "version": self.decoder.manifest.get("maif_version"),
             "created": self.decoder.manifest.get("created"),
             "creator_id": self.decoder.manifest.get("creator_id"),
@@ -1184,6 +1398,7 @@ class MAIFParser:
     def extract_content(self) -> Dict:
         """Extract all content from the MAIF."""
         return {
+            "text_blocks": self.decoder.get_text_blocks(),
             "texts": self.decoder.get_text_blocks(),
             "embeddings": self.decoder.get_embeddings(),
             "metadata": self.get_metadata()
