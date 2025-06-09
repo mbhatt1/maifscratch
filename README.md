@@ -345,8 +345,8 @@ Commitment = Hash(embedding || source_data || nonce)
 
 ### Core Documentation
 - **[Academic Paper (README.tex)](README.tex)**: Complete research paper with formal analysis
-- **[Benchmark Summary](BENCHMARK_SUMMARY.md)**: Detailed performance analysis and validation
-- **[Benchmarks](benchmarks/README.md)**: Comprehensive benchmark suite and results
+- **[Benchmark Summary](docs/BENCHMARK_SUMMARY.md)**: Detailed performance analysis and validation
+- **[Benchmarks](docs/benchmarks_README.md)**: Comprehensive benchmark suite and results
 
 ### Implementation Reference
 - **[Core Implementation](maif/core.py)**: [`MAIFEncoder`](maif/core.py:103-952), [`MAIFDecoder`](maif/core.py:954-1638)

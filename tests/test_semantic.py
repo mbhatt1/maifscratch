@@ -747,7 +747,9 @@ class TestSemanticErrorHandling:
         empty_embeddings = {}
         
         weights = self.attention.compute_attention_weights(empty_embeddings, "text")
-        assert weights == {}
+        assert len(weights) == 0
+        assert list(weights.keys()) == []
+        assert list(weights.values()) == []
         
         # Mismatched dimensions
         mismatched_embeddings = {
