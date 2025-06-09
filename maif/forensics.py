@@ -214,7 +214,11 @@ class ForensicAnalyzer:
                             
                             if data_size > 0:
                                 data = f.read(data_size)
-                                computed_hash = hashlib.sha256(data).hexdigest()
+                                # Read header for complete hash calculation
+                                f.seek(block.offset)
+                                header_data = f.read(32)  # Read 32-byte header
+                                f.seek(block.offset + 32)  # Reset to data position
+                                computed_hash = hashlib.sha256(header_data + data).hexdigest()
                                 expected_hash = block.hash_value.replace('sha256:', '')
                                 
                                 if computed_hash != expected_hash:
