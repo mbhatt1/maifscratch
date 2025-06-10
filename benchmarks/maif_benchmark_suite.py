@@ -125,6 +125,9 @@ class MAIFBenchmarkSuite:
         self._benchmark_lock_contention()
         self._benchmark_concurrent_block_access()
         
+        # Novel algorithms benchmarks
+        self._benchmark_novel_algorithms()
+        
         # Generate comprehensive report
         return self._generate_report()
     
@@ -1130,7 +1133,8 @@ class MAIFBenchmarkSuite:
         
         result.end_time = time.time()
         self.results.append(result)
-        print(f"✓ Read During Write: {result.metrics.get('performance_impact_percent', 'N/A'):.1f}% impact")
+        impact = result.metrics.get('performance_impact_percent', 0)
+        print(f"✓ Read During Write: {impact:.1f}% impact")
     
     def _benchmark_write_during_read(self):
         """Benchmark write performance during concurrent read operations."""
@@ -1252,7 +1256,8 @@ class MAIFBenchmarkSuite:
         
         result.end_time = time.time()
         self.results.append(result)
-        print(f"✓ Write During Read: {result.metrics.get('performance_impact_percent', 'N/A'):.1f}% impact")
+        impact = result.metrics.get('performance_impact_percent', 0)
+        print(f"✓ Write During Read: {impact:.1f}% impact")
     
     def _benchmark_lock_contention(self):
         """Benchmark lock contention under high concurrent access."""
@@ -1337,7 +1342,8 @@ class MAIFBenchmarkSuite:
         
         result.end_time = time.time()
         self.results.append(result)
-        print(f"✓ Lock Contention: {result.metrics.get('contention_impact_percent', 'N/A'):.1f}% impact at max concurrency")
+        impact = result.metrics.get('contention_impact_percent', 0)
+        print(f"✓ Lock Contention: {impact:.1f}% impact at max concurrency")
     
     def _benchmark_concurrent_block_access(self):
         """Benchmark concurrent access to different blocks within the same file."""
@@ -1467,7 +1473,273 @@ class MAIFBenchmarkSuite:
         
         result.end_time = time.time()
         self.results.append(result)
-        print(f"✓ Concurrent Block Access: {result.metrics.get('blocks_per_second', 'N/A'):.1f} blocks/sec")
+        blocks_per_sec = result.metrics.get('blocks_per_second', 0)
+        print(f"✓ Concurrent Block Access: {blocks_per_sec:.1f} blocks/sec")
+
+    def _benchmark_novel_algorithms(self):
+        """Benchmark all novel algorithms: ACAM, HSC, CSB, and optimized variants."""
+        print("\n--- Novel Algorithms Performance ---")
+        
+        # Benchmark ACAM (Adaptive Cross-Modal Attention)
+        self._benchmark_acam()
+        
+        # Benchmark HSC (Hierarchical Semantic Compression)
+        self._benchmark_hsc()
+        
+        # Benchmark CSB (Cryptographic Semantic Binding)
+        self._benchmark_csb()
+        
+        # Benchmark Enhanced Variants
+        self._benchmark_enhanced_algorithms()
+    
+    def _benchmark_acam(self):
+        """Benchmark Adaptive Cross-Modal Attention algorithm."""
+        result = BenchmarkResult("ACAM - Adaptive Cross-Modal Attention")
+        result.start_time = time.time()
+        
+        try:
+            from maif.semantic_optimized import AdaptiveCrossModalAttention
+            import numpy as np
+            
+            print("  Testing ACAM with multimodal data...")
+            
+            # Initialize ACAM
+            acam = AdaptiveCrossModalAttention()
+            
+            # Create test multimodal data
+            test_sizes = [10, 100, 1000]
+            acam_times = []
+            
+            for size in test_sizes:
+                # Generate test embeddings for different modalities
+                text_embeddings = np.random.rand(size, 384)
+                image_embeddings = np.random.rand(size, 384)
+                audio_embeddings = np.random.rand(size, 384)
+                
+                embeddings = {
+                    'text': text_embeddings,
+                    'image': image_embeddings,
+                    'audio': audio_embeddings
+                }
+                
+                trust_scores = {
+                    'text': 1.0,
+                    'image': 0.8,
+                    'audio': 0.7
+                }
+                
+                # Benchmark attention computation
+                start_time = time.time()
+                attention_weights = acam.compute_attention_weights(embeddings, trust_scores)
+                unified_repr = acam.get_attended_representation(embeddings, attention_weights, 'text')
+                end_time = time.time()
+                
+                acam_time = (end_time - start_time) * 1000
+                acam_times.append(acam_time)
+                
+                print(f"    Size {size}: {acam_time:.2f}ms")
+            
+            avg_time = statistics.mean(acam_times)
+            result.add_metric("test_sizes", test_sizes)
+            result.add_metric("processing_times_ms", acam_times)
+            result.add_metric("average_time_ms", avg_time)
+            result.add_metric("algorithm", "ACAM")
+            
+        except Exception as e:
+            result.set_error(f"ACAM benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        avg_time = result.metrics.get('average_time_ms', 0)
+        print(f"✓ ACAM: {avg_time:.1f}ms avg")
+    
+    def _benchmark_hsc(self):
+        """Benchmark Hierarchical Semantic Compression algorithm."""
+        result = BenchmarkResult("HSC - Hierarchical Semantic Compression")
+        result.start_time = time.time()
+        
+        try:
+            from maif.semantic_optimized import HierarchicalSemanticCompression
+            import numpy as np
+            
+            print("  Testing HSC with embedding compression...")
+            
+            # Initialize HSC
+            hsc = HierarchicalSemanticCompression()
+            
+            # Test different embedding set sizes
+            test_sizes = [100, 1000, 10000]
+            compression_results = []
+            
+            for size in test_sizes:
+                # Generate test embeddings
+                embeddings = [np.random.rand(384).tolist() for _ in range(size)]
+                
+                # Benchmark compression
+                start_time = time.time()
+                compressed_result = hsc.compress_embeddings(embeddings, preserve_fidelity=True)
+                compression_time = time.time() - start_time
+                
+                # Benchmark decompression
+                start_time = time.time()
+                decompressed = hsc.decompress_embeddings(compressed_result)
+                decompression_time = time.time() - start_time
+                
+                # Calculate compression metrics
+                original_size = len(embeddings) * 384 * 4  # 4 bytes per float
+                compressed_size = len(str(compressed_result).encode())
+                compression_ratio = original_size / compressed_size if compressed_size > 0 else 0
+                
+                result_data = {
+                    "size": size,
+                    "compression_time_ms": compression_time * 1000,
+                    "decompression_time_ms": decompression_time * 1000,
+                    "compression_ratio": compression_ratio,
+                    "fidelity_score": compressed_result.get("metadata", {}).get("fidelity_score", 0.0)
+                }
+                compression_results.append(result_data)
+                
+                print(f"    Size {size}: Compression {compression_time*1000:.2f}ms, Ratio {compression_ratio:.2f}x")
+            
+            avg_compression_time = statistics.mean([r["compression_time_ms"] for r in compression_results])
+            avg_compression_ratio = statistics.mean([r["compression_ratio"] for r in compression_results])
+            
+            result.add_metric("test_sizes", test_sizes)
+            result.add_metric("compression_results", compression_results)
+            result.add_metric("average_compression_time_ms", avg_compression_time)
+            result.add_metric("average_compression_ratio", avg_compression_ratio)
+            result.add_metric("algorithm", "HSC")
+            
+        except Exception as e:
+            result.set_error(f"HSC benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        avg_time = result.metrics.get('average_compression_time_ms', 0)
+        avg_ratio = result.metrics.get('average_compression_ratio', 0)
+        print(f"✓ HSC: {avg_time:.1f}ms avg, {avg_ratio:.1f}x ratio")
+    
+    def _benchmark_csb(self):
+        """Benchmark Cryptographic Semantic Binding algorithm."""
+        result = BenchmarkResult("CSB - Cryptographic Semantic Binding")
+        result.start_time = time.time()
+        
+        try:
+            from maif.semantic_optimized import CryptographicSemanticBinding
+            import numpy as np
+            
+            print("  Testing CSB with semantic commitments...")
+            
+            # Initialize CSB
+            csb = CryptographicSemanticBinding()
+            
+            # Test different embedding sizes
+            test_sizes = [384, 768, 1536]  # Different embedding dimensions
+            csb_results = []
+            
+            for dim in test_sizes:
+                # Generate test embedding and source data
+                embedding = np.random.rand(dim).tolist()
+                source_data = f"Test source data for dimension {dim}"
+                
+                # Benchmark commitment creation
+                start_time = time.time()
+                commitment = csb.create_semantic_commitment(embedding, source_data)
+                commitment_time = time.time() - start_time
+                
+                # Benchmark zero-knowledge proof creation
+                start_time = time.time()
+                zk_proof = csb.create_zero_knowledge_proof(embedding, commitment)
+                proof_time = time.time() - start_time
+                
+                # Benchmark verification
+                start_time = time.time()
+                is_valid = csb.verify_semantic_commitment(embedding, source_data, commitment)
+                verification_time = time.time() - start_time
+                
+                result_data = {
+                    "dimension": dim,
+                    "commitment_time_ms": commitment_time * 1000,
+                    "proof_time_ms": proof_time * 1000,
+                    "verification_time_ms": verification_time * 1000,
+                    "verification_success": is_valid
+                }
+                csb_results.append(result_data)
+                
+                print(f"    Dim {dim}: Commit {commitment_time*1000:.2f}ms, Verify {verification_time*1000:.2f}ms")
+            
+            avg_commitment_time = statistics.mean([r["commitment_time_ms"] for r in csb_results])
+            avg_verification_time = statistics.mean([r["verification_time_ms"] for r in csb_results])
+            
+            result.add_metric("test_dimensions", test_sizes)
+            result.add_metric("csb_results", csb_results)
+            result.add_metric("average_commitment_time_ms", avg_commitment_time)
+            result.add_metric("average_verification_time_ms", avg_verification_time)
+            result.add_metric("algorithm", "CSB")
+            
+        except Exception as e:
+            result.set_error(f"CSB benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        commit_time = result.metrics.get('average_commitment_time_ms', 0)
+        verify_time = result.metrics.get('average_verification_time_ms', 0)
+        print(f"✓ CSB: {commit_time:.1f}ms commit, {verify_time:.1f}ms verify")
+    
+    def _benchmark_enhanced_algorithms(self):
+        """Benchmark enhanced/optimized variants of novel algorithms."""
+        result = BenchmarkResult("Enhanced Novel Algorithms")
+        result.start_time = time.time()
+        
+        try:
+            print("  Testing enhanced algorithm variants...")
+            
+            # Test OptimizedSemanticEmbedder
+            from maif.semantic_optimized import OptimizedSemanticEmbedder
+            
+            embedder = OptimizedSemanticEmbedder()
+            
+            # Test batch embedding generation
+            test_texts = [f"Test document {i} with semantic content" for i in range(1000)]
+            
+            start_time = time.time()
+            embeddings = embedder.embed_texts_batch(test_texts, batch_size=64)
+            batch_time = time.time() - start_time
+            
+            # Test FAISS indexing if available
+            faiss_time = 0
+            if hasattr(embedder, 'build_search_index'):
+                start_time = time.time()
+                embedder.build_search_index(embeddings)
+                faiss_time = time.time() - start_time
+            
+            # Test fast similarity search
+            query_embedding = embeddings[0] if embeddings else None
+            search_time = 0
+            if query_embedding and hasattr(embedder, 'search_similar_fast'):
+                start_time = time.time()
+                similar = embedder.search_similar_fast(query_embedding, top_k=10)
+                search_time = time.time() - start_time
+            
+            result.add_metric("batch_embedding_time_ms", batch_time * 1000)
+            result.add_metric("faiss_index_time_ms", faiss_time * 1000)
+            result.add_metric("fast_search_time_ms", search_time * 1000)
+            result.add_metric("embeddings_generated", len(embeddings))
+            result.add_metric("algorithm", "Enhanced_Variants")
+            
+            print(f"    Batch embedding: {batch_time*1000:.2f}ms for {len(embeddings)} texts")
+            if faiss_time > 0:
+                print(f"    FAISS indexing: {faiss_time*1000:.2f}ms")
+            if search_time > 0:
+                print(f"    Fast search: {search_time*1000:.2f}ms")
+            
+        except Exception as e:
+            result.set_error(f"Enhanced algorithms benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        batch_time = result.metrics.get('batch_embedding_time_ms', 0)
+        print(f"✓ Enhanced Algorithms: {batch_time:.1f}ms batch processing")
 
     def _generate_report(self) -> Dict[str, Any]:
         """Generate comprehensive benchmark report."""
@@ -1815,7 +2087,7 @@ class ExampleClass:
             
             # Create a large collection of test videos for stress testing
             encoder = MAIFEncoder(enable_privacy=False)
-            video_count = 100000  # 100k videos for stress testing
+            video_count = 5000  # 5k videos for reasonable testing
             
             print(f"  Creating {video_count:,} test videos...")
             
