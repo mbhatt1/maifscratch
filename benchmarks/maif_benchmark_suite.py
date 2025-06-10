@@ -1564,7 +1564,8 @@ class MAIFBenchmarkSuite:
             
             print("  Testing HSC with embedding compression...")
             
-            # Initialize HSC
+            # Initialize HSC from semantic.py (has decompress_embeddings method)
+            from maif.semantic import HierarchicalSemanticCompression
             hsc = HierarchicalSemanticCompression()
             
             # Test different embedding set sizes
@@ -1625,7 +1626,7 @@ class MAIFBenchmarkSuite:
         result.start_time = time.time()
         
         try:
-            from maif.semantic_optimized import CryptographicSemanticBinding
+            from maif.semantic import CryptographicSemanticBinding
             import numpy as np
             
             print("  Testing CSB with semantic commitments...")
@@ -1654,7 +1655,7 @@ class MAIFBenchmarkSuite:
                 
                 # Benchmark verification
                 start_time = time.time()
-                is_valid = csb.verify_semantic_commitment(embedding, source_data, commitment)
+                is_valid = csb.verify_semantic_binding(embedding, source_data, commitment)
                 verification_time = time.time() - start_time
                 
                 result_data = {
