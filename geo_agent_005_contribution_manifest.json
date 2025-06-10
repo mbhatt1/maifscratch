@@ -1,0 +1,313 @@
+{
+  "maif_version": "0.1.0",
+  "created": 1749524554.683928,
+  "creator_id": null,
+  "agent_id": "geo_agent_005",
+  "header": {
+    "version": "0.1.0",
+    "created_timestamp": 1749524554.683928,
+    "creator_id": null,
+    "agent_id": "geo_agent_005"
+  },
+  "blocks": [
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 0,
+      "size": 514,
+      "hash": "sha256:a0ed9a857c0b97da4d63503498ff546171ad1203e4563095563c477f1b20e373",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "4402d64a-cefb-452d-b751-f3d16a60e321",
+      "metadata": {
+        "type": "agent_profile",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "none",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "cross_modal",
+      "block_type": "cross_modal",
+      "offset": 514,
+      "size": 32510,
+      "hash": "sha256:04a9c9cb15f55cacecae99e4a0c0f72c06b42ff4e13e471206145569c9e05032",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "219d7479-b38f-4ef4-b285-7778f66ed37d",
+      "metadata": {
+        "title": "geographical_route_analysis by geo_agent_005",
+        "algorithm": "Enhanced_ACAM_v2",
+        "modalities": [
+          "text",
+          "agent_metadata",
+          "content_structure"
+        ],
+        "unified_representation_dim": 384,
+        "attention_weights_available": true,
+        "enhanced_version": true,
+        "encryption": {
+          "iv": "p6cCx78lYUAwUdw/",
+          "tag": "SOihD0cRxNkffe/r7KEerg==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "CEMB",
+      "block_type": "CEMB",
+      "offset": 33024,
+      "size": 11200,
+      "hash": "sha256:c5bb7c3af66efe95d3d7fc08750b218761797fbe41351f25c885a6beb65bfa15",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "4138a726-3d3f-493e-a687-f4fa9fcd7100",
+      "metadata": {
+        "model": "geo_agent_005_embedder",
+        "compressed": true,
+        "algorithm": "Enhanced_HSC_v2",
+        "compression_type": "hierarchical_semantic_dbscan",
+        "original_count": 3,
+        "original_dimensions": 384,
+        "compression_ratio": 4608.0,
+        "fidelity_score": 0.8885255692020073,
+        "tier1_clusters": 1,
+        "tier2_codebook_size": 1,
+        "tier3_encoding": "run_length",
+        "preserve_fidelity": true,
+        "encryption": {
+          "iv": "vxoKpKNEtcMSmNUk",
+          "tag": "NqP+jmJdNP+7epnzNNKYzQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 44224,
+      "size": 388,
+      "hash": "sha256:f632313c8926aa44da4ab230c4bd130ab96c34e425759ce756b9680eb425da7d",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "a71eb113-4218-4c92-98b4-79c3cc36483e",
+      "metadata": {
+        "type": "knowledge_triple",
+        "encryption": {
+          "iv": "xtzblj/JfLSK0stq",
+          "tag": "MN1xBTHwGVKXCLk9rNTUIw==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    }
+  ],
+  "version_history": {
+    "4402d64a-cefb-452d-b751-f3d16a60e321": [
+      {
+        "version": 1,
+        "timestamp": 1749524554.762103,
+        "agent_id": "geo_agent_005",
+        "operation": "create",
+        "block_id": "4402d64a-cefb-452d-b751-f3d16a60e321",
+        "previous_hash": null,
+        "current_hash": "sha256:a0ed9a857c0b97da4d63503498ff546171ad1203e4563095563c477f1b20e373",
+        "block_hash": "sha256:a0ed9a857c0b97da4d63503498ff546171ad1203e4563095563c477f1b20e373",
+        "change_description": null
+      }
+    ],
+    "219d7479-b38f-4ef4-b285-7778f66ed37d": [
+      {
+        "version": 1,
+        "timestamp": 1749524565.103476,
+        "agent_id": "geo_agent_005",
+        "operation": "create",
+        "block_id": "219d7479-b38f-4ef4-b285-7778f66ed37d",
+        "previous_hash": null,
+        "current_hash": "sha256:04a9c9cb15f55cacecae99e4a0c0f72c06b42ff4e13e471206145569c9e05032",
+        "block_hash": "sha256:04a9c9cb15f55cacecae99e4a0c0f72c06b42ff4e13e471206145569c9e05032",
+        "change_description": null
+      }
+    ],
+    "4138a726-3d3f-493e-a687-f4fa9fcd7100": [
+      {
+        "version": 1,
+        "timestamp": 1749524565.1055,
+        "agent_id": "geo_agent_005",
+        "operation": "create",
+        "block_id": "4138a726-3d3f-493e-a687-f4fa9fcd7100",
+        "previous_hash": null,
+        "current_hash": "sha256:c5bb7c3af66efe95d3d7fc08750b218761797fbe41351f25c885a6beb65bfa15",
+        "block_hash": "sha256:c5bb7c3af66efe95d3d7fc08750b218761797fbe41351f25c885a6beb65bfa15",
+        "change_description": null
+      }
+    ],
+    "a71eb113-4218-4c92-98b4-79c3cc36483e": [
+      {
+        "version": 1,
+        "timestamp": 1749524565.105578,
+        "agent_id": "geo_agent_005",
+        "operation": "create",
+        "block_id": "a71eb113-4218-4c92-98b4-79c3cc36483e",
+        "previous_hash": null,
+        "current_hash": "sha256:f632313c8926aa44da4ab230c4bd130ab96c34e425759ce756b9680eb425da7d",
+        "block_hash": "sha256:f632313c8926aa44da4ab230c4bd130ab96c34e425759ce756b9680eb425da7d",
+        "change_description": null
+      }
+    ]
+  },
+  "block_registry": {
+    "4402d64a-cefb-452d-b751-f3d16a60e321": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 0,
+        "size": 514,
+        "hash": "sha256:a0ed9a857c0b97da4d63503498ff546171ad1203e4563095563c477f1b20e373",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "4402d64a-cefb-452d-b751-f3d16a60e321",
+        "metadata": {
+          "type": "agent_profile",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "none",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "219d7479-b38f-4ef4-b285-7778f66ed37d": [
+      {
+        "type": "cross_modal",
+        "block_type": "cross_modal",
+        "offset": 514,
+        "size": 32510,
+        "hash": "sha256:04a9c9cb15f55cacecae99e4a0c0f72c06b42ff4e13e471206145569c9e05032",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "219d7479-b38f-4ef4-b285-7778f66ed37d",
+        "metadata": {
+          "title": "geographical_route_analysis by geo_agent_005",
+          "algorithm": "Enhanced_ACAM_v2",
+          "modalities": [
+            "text",
+            "agent_metadata",
+            "content_structure"
+          ],
+          "unified_representation_dim": 384,
+          "attention_weights_available": true,
+          "enhanced_version": true,
+          "encryption": {
+            "iv": "p6cCx78lYUAwUdw/",
+            "tag": "SOihD0cRxNkffe/r7KEerg==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "4138a726-3d3f-493e-a687-f4fa9fcd7100": [
+      {
+        "type": "CEMB",
+        "block_type": "CEMB",
+        "offset": 33024,
+        "size": 11200,
+        "hash": "sha256:c5bb7c3af66efe95d3d7fc08750b218761797fbe41351f25c885a6beb65bfa15",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "4138a726-3d3f-493e-a687-f4fa9fcd7100",
+        "metadata": {
+          "model": "geo_agent_005_embedder",
+          "compressed": true,
+          "algorithm": "Enhanced_HSC_v2",
+          "compression_type": "hierarchical_semantic_dbscan",
+          "original_count": 3,
+          "original_dimensions": 384,
+          "compression_ratio": 4608.0,
+          "fidelity_score": 0.8885255692020073,
+          "tier1_clusters": 1,
+          "tier2_codebook_size": 1,
+          "tier3_encoding": "run_length",
+          "preserve_fidelity": true,
+          "encryption": {
+            "iv": "vxoKpKNEtcMSmNUk",
+            "tag": "NqP+jmJdNP+7epnzNNKYzQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "a71eb113-4218-4c92-98b4-79c3cc36483e": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 44224,
+        "size": 388,
+        "hash": "sha256:f632313c8926aa44da4ab230c4bd130ab96c34e425759ce756b9680eb425da7d",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "a71eb113-4218-4c92-98b4-79c3cc36483e",
+        "metadata": {
+          "type": "knowledge_triple",
+          "encryption": {
+            "iv": "xtzblj/JfLSK0stq",
+            "tag": "MN1xBTHwGVKXCLk9rNTUIw==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ]
+  },
+  "root_hash": "sha256:78de732ff4f529870a97b14e30d79e893e0a5f8411cbc997aeb076527e2aea1d"
+}

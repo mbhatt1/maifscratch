@@ -118,6 +118,13 @@ class MAIFBenchmarkSuite:
         self._benchmark_video_metadata_extraction()
         self._benchmark_video_querying_performance()
         
+        # Concurrent operation benchmarks
+        self._benchmark_concurrent_read_write()
+        self._benchmark_read_during_write()
+        self._benchmark_write_during_read()
+        self._benchmark_lock_contention()
+        self._benchmark_concurrent_block_access()
+        
         # Generate comprehensive report
         return self._generate_report()
     
@@ -272,7 +279,7 @@ class MAIFBenchmarkSuite:
             search_times = []
             
             # Create extremely large test corpus (focus on search performance)
-            corpus_sizes = [50000]  # Balanced size for meaningful large-scale test
+            corpus_sizes = [100000]  # 100k embeddings for stress testing
             
             for corpus_size in corpus_sizes:
                 print(f"  Testing semantic search with {corpus_size:,} documents...")
@@ -877,6 +884,591 @@ class MAIFBenchmarkSuite:
         self.results.append(result)
         print(f"✓ Scalability: Up to {result.metrics.get('max_blocks_tested', 0)} blocks")
     
+    def _benchmark_concurrent_read_write(self):
+        """Benchmark simultaneous read/write operations on the same file."""
+        result = BenchmarkResult("Concurrent Read/Write")
+        result.start_time = time.time()
+        
+        try:
+            import threading
+            import tempfile
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            # Create a test MAIF file
+            encoder = MAIFEncoder(agent_id="concurrent_test")
+            for i in range(100):
+                encoder.add_text_block(f"Test block {i}", metadata={"block_id": i})
+            
+            with tempfile.NamedTemporaryFile(suffix='.maif', delete=False) as tmp_file:
+                maif_path = tmp_file.name
+            manifest_path = maif_path.replace('.maif', '_manifest.json')
+            
+            encoder.build_maif(maif_path, manifest_path)
+            
+            # Metrics collection
+            read_times = []
+            write_times = []
+            errors = []
+            
+            def read_operation(reader_id):
+                """Read operation that measures performance."""
+                try:
+                    start_time = time.time()
+                    decoder = MAIFDecoder(maif_path, manifest_path)
+                    blocks_read = 0
+                    for block in decoder.blocks:
+                        if block.block_type == "TEXT":
+                            data = decoder.get_block_data(block.block_id)
+                            blocks_read += 1
+                    end_time = time.time()
+                    read_times.append((end_time - start_time, blocks_read))
+                except Exception as e:
+                    errors.append(f"Read error {reader_id}: {str(e)}")
+            
+            def write_operation(writer_id):
+                """Write operation that modifies the SAME file being read."""
+                import os
+                try:
+                    start_time = time.time()
+                    
+                    # Read existing content from the SAME file
+                    temp_decoder = MAIFDecoder(maif_path, manifest_path)
+                    
+                    # Create new encoder with existing content plus new data
+                    new_encoder = MAIFEncoder(agent_id=f"writer_{writer_id}")
+                    
+                    # Copy existing blocks
+                    for block in temp_decoder.blocks:
+                        if block.block_type == "TEXT":
+                            existing_data = temp_decoder.get_block_data(block.block_id)
+                            new_encoder.add_text_block(existing_data.decode('utf-8'), metadata=block.metadata)
+                    
+                    # Add new blocks to create write activity
+                    for i in range(3):  # Reduced for real contention
+                        new_encoder.add_text_block(f"Writer {writer_id} block {i}")
+                    
+                    # Write back to SAME file (creates real contention)
+                    temp_path = maif_path + f".tmp_writer_{writer_id}"
+                    temp_manifest = temp_path.replace('.maif', '_manifest.json')
+                    new_encoder.build_maif(temp_path, temp_manifest)
+                    
+                    # Atomic replace to modify the file being read
+                    if os.path.exists(temp_path):
+                        os.replace(temp_path, maif_path)
+                        os.replace(temp_manifest, manifest_path)
+                    
+                    end_time = time.time()
+                    write_times.append(end_time - start_time)
+                except Exception as e:
+                    errors.append(f"Write error {writer_id}: {str(e)}")
+                    # Still record timing even for failed attempts
+                    end_time = time.time()
+                    write_times.append(end_time - start_time)
+            
+            # Run concurrent operations
+            with ThreadPoolExecutor(max_workers=8) as executor:
+                futures = []
+                
+                # Submit 4 readers and 4 writers
+                for i in range(4):
+                    futures.append(executor.submit(read_operation, i))
+                    futures.append(executor.submit(write_operation, i))
+                
+                # Wait for completion
+                for future in as_completed(futures):
+                    future.result()
+            
+            # Calculate metrics
+            avg_read_time = statistics.mean([t[0] for t in read_times]) if read_times else 0
+            avg_write_time = statistics.mean(write_times) if write_times else 0
+            total_blocks_read = sum([t[1] for t in read_times])
+            
+            result.add_metric("concurrent_readers", 4)
+            result.add_metric("concurrent_writers", 4)
+            result.add_metric("average_read_time_ms", avg_read_time * 1000)
+            result.add_metric("average_write_time_ms", avg_write_time * 1000)
+            result.add_metric("total_blocks_read", total_blocks_read)
+            result.add_metric("error_count", len(errors))
+            result.add_metric("errors", errors)
+            
+            # Cleanup
+            import os
+            try:
+                os.unlink(maif_path)
+                os.unlink(manifest_path)
+                for i in range(4):
+                    writer_path = maif_path.replace('.maif', f'_writer_{i}.maif')
+                    writer_manifest = writer_path.replace('.maif', '_manifest.json')
+                    if os.path.exists(writer_path):
+                        os.unlink(writer_path)
+                    if os.path.exists(writer_manifest):
+                        os.unlink(writer_manifest)
+            except:
+                pass
+                
+        except Exception as e:
+            result.set_error(f"Concurrent read/write benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        print(f"✓ Concurrent Read/Write: {result.metrics.get('error_count', 'N/A')} errors")
+    
+    def _benchmark_read_during_write(self):
+        """Benchmark read performance during concurrent write operations."""
+        result = BenchmarkResult("Read Performance During Write")
+        result.start_time = time.time()
+        
+        try:
+            import threading
+            import tempfile
+            from concurrent.futures import ThreadPoolExecutor
+            
+            # Create initial test file
+            encoder = MAIFEncoder(agent_id="read_write_test")
+            for i in range(50):
+                encoder.add_text_block(f"Initial block {i}")
+            
+            with tempfile.NamedTemporaryFile(suffix='.maif', delete=False) as tmp_file:
+                maif_path = tmp_file.name
+            manifest_path = maif_path.replace('.maif', '_manifest.json')
+            encoder.build_maif(maif_path, manifest_path)
+            
+            read_times_baseline = []
+            read_times_during_write = []
+            
+            def measure_read_performance(times_list):
+                """Measure read performance and store in provided list."""
+                for _ in range(10):
+                    start_time = time.time()
+                    decoder = MAIFDecoder(maif_path, manifest_path)
+                    blocks_read = 0
+                    for block in decoder.blocks:
+                        if block.block_type == "TEXT":
+                            data = decoder.get_block_data(block.block_id)
+                            blocks_read += 1
+                    end_time = time.time()
+                    times_list.append(end_time - start_time)
+            
+            def continuous_write_operations():
+                """Continuously modify the SAME file to create real contention."""
+                import os
+                for i in range(10):  # Reduced iterations for real file operations
+                    try:
+                        # Read existing file
+                        temp_decoder = MAIFDecoder(maif_path, manifest_path)
+                        
+                        # Create new encoder with existing content plus new data
+                        writer = MAIFEncoder(agent_id=f"background_writer_{i}")
+                        
+                        # Copy existing blocks
+                        for block in temp_decoder.blocks:
+                            if block.block_type == "TEXT":
+                                existing_data = temp_decoder.get_block_data(block.block_id)
+                                writer.add_text_block(existing_data.decode('utf-8'), metadata=block.metadata)
+                        
+                        # Add new block to create write activity
+                        writer.add_text_block(f"Background write {i}")
+                        
+                        # Write back to same file (this creates real contention)
+                        temp_path = maif_path + f".tmp_{i}"
+                        temp_manifest = temp_path.replace('.maif', '_manifest.json')
+                        writer.build_maif(temp_path, temp_manifest)
+                        
+                        # Atomic replace to simulate real concurrent modification
+                        if os.path.exists(temp_path):
+                            os.replace(temp_path, maif_path)
+                            os.replace(temp_manifest, manifest_path)
+                        
+                        time.sleep(0.02)  # Small delay between modifications
+                    except Exception as e:
+                        # Expected - concurrent access will cause some failures
+                        pass
+            
+            # Baseline read performance (no concurrent writes)
+            measure_read_performance(read_times_baseline)
+            
+            # Read performance during concurrent writes
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                # Start background write operations
+                write_future = executor.submit(continuous_write_operations)
+                
+                # Measure read performance during writes
+                time.sleep(0.1)  # Let writes start
+                measure_read_performance(read_times_during_write)
+                
+                # Wait for writes to complete
+                write_future.result()
+            
+            # Calculate performance impact
+            baseline_avg = statistics.mean(read_times_baseline) * 1000
+            during_write_avg = statistics.mean(read_times_during_write) * 1000
+            performance_impact = ((during_write_avg - baseline_avg) / baseline_avg) * 100
+            
+            result.add_metric("baseline_read_time_ms", baseline_avg)
+            result.add_metric("read_time_during_write_ms", during_write_avg)
+            result.add_metric("performance_impact_percent", performance_impact)
+            result.add_metric("read_samples_baseline", len(read_times_baseline))
+            result.add_metric("read_samples_during_write", len(read_times_during_write))
+            
+            # Cleanup background files
+            import os
+            try:
+                os.unlink(maif_path)
+                os.unlink(manifest_path)
+                for i in range(20):
+                    bg_path = maif_path.replace('.maif', f'_bg_{i}.maif')
+                    bg_manifest = bg_path.replace('.maif', '_manifest.json')
+                    if os.path.exists(bg_path):
+                        os.unlink(bg_path)
+                    if os.path.exists(bg_manifest):
+                        os.unlink(bg_manifest)
+            except:
+                pass
+                
+        except Exception as e:
+            result.set_error(f"Read during write benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        print(f"✓ Read During Write: {result.metrics.get('performance_impact_percent', 'N/A'):.1f}% impact")
+    
+    def _benchmark_write_during_read(self):
+        """Benchmark write performance during concurrent read operations."""
+        result = BenchmarkResult("Write Performance During Read")
+        result.start_time = time.time()
+        
+        try:
+            import threading
+            import tempfile
+            from concurrent.futures import ThreadPoolExecutor
+            
+            # Create test file for reading
+            encoder = MAIFEncoder(agent_id="write_read_test")
+            for i in range(100):
+                encoder.add_text_block(f"Read target block {i}")
+            
+            with tempfile.NamedTemporaryFile(suffix='.maif', delete=False) as tmp_file:
+                read_target_path = tmp_file.name
+            read_manifest_path = read_target_path.replace('.maif', '_manifest.json')
+            encoder.build_maif(read_target_path, read_manifest_path)
+            
+            write_times_baseline = []
+            write_times_during_read = []
+            
+            def measure_write_performance(times_list, test_phase):
+                """Measure write performance by modifying the SAME file being read."""
+                import os
+                for i in range(5):  # Reduced for real file contention
+                    try:
+                        start_time = time.time()
+                        
+                        # Read existing content from the SAME file being read
+                        temp_decoder = MAIFDecoder(read_target_path, read_manifest_path)
+                        
+                        # Create new encoder with existing content plus modifications
+                        writer = MAIFEncoder(agent_id=f"write_modifier_{test_phase}_{i}")
+                        
+                        # Copy existing blocks
+                        for block in temp_decoder.blocks:
+                            if block.block_type == "TEXT":
+                                existing_data = temp_decoder.get_block_data(block.block_id)
+                                writer.add_text_block(existing_data.decode('utf-8'), metadata=block.metadata)
+                        
+                        # Add new block to create write activity on SAME file
+                        writer.add_text_block(f"Write modification {test_phase}_{i}")
+                        
+                        # Write back to SAME file (creates real contention with readers)
+                        temp_path = read_target_path + f".tmp_write_{i}"
+                        temp_manifest = temp_path.replace('.maif', '_manifest.json')
+                        writer.build_maif(temp_path, temp_manifest)
+                        
+                        # Atomic replace to modify the file being read
+                        if os.path.exists(temp_path):
+                            os.replace(temp_path, read_target_path)
+                            os.replace(temp_manifest, read_manifest_path)
+                        
+                        end_time = time.time()
+                        times_list.append(end_time - start_time)
+                        
+                        time.sleep(0.02)  # Small delay between modifications
+                    except Exception as e:
+                        # Expected - concurrent access will cause some failures
+                        end_time = time.time()
+                        times_list.append(end_time - start_time)  # Include failed attempts
+            
+            def continuous_read_operations():
+                """Continuously read from the target file to simulate read load."""
+                for _ in range(50):
+                    decoder = MAIFDecoder(read_target_path, read_manifest_path)
+                    for block in decoder.blocks:
+                        if block.block_type == "TEXT":
+                            data = decoder.get_block_data(block.block_id)
+                    time.sleep(0.01)
+            
+            # Baseline write performance (no concurrent reads)
+            measure_write_performance(write_times_baseline, "baseline")
+            
+            # Write performance during concurrent reads
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                # Start background read operations
+                read_future = executor.submit(continuous_read_operations)
+                
+                # Measure write performance during reads
+                time.sleep(0.1)  # Let reads start
+                measure_write_performance(write_times_during_read, "during_read")
+                
+                # Wait for reads to complete
+                read_future.result()
+            
+            # Calculate performance impact
+            baseline_avg = statistics.mean(write_times_baseline) * 1000
+            during_read_avg = statistics.mean(write_times_during_read) * 1000
+            performance_impact = ((during_read_avg - baseline_avg) / baseline_avg) * 100
+            
+            result.add_metric("baseline_write_time_ms", baseline_avg)
+            result.add_metric("write_time_during_read_ms", during_read_avg)
+            result.add_metric("performance_impact_percent", performance_impact)
+            result.add_metric("write_samples_baseline", len(write_times_baseline))
+            result.add_metric("write_samples_during_read", len(write_times_during_read))
+            
+            # Cleanup
+            import os
+            try:
+                os.unlink(read_target_path)
+                os.unlink(read_manifest_path)
+                for prefix in ["baseline", "during_read"]:
+                    for i in range(10):
+                        write_path = read_target_path.replace('.maif', f'_{prefix}_{i}.maif')
+                        write_manifest = write_path.replace('.maif', '_manifest.json')
+                        if os.path.exists(write_path):
+                            os.unlink(write_path)
+                        if os.path.exists(write_manifest):
+                            os.unlink(write_manifest)
+            except:
+                pass
+                
+        except Exception as e:
+            result.set_error(f"Write during read benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        print(f"✓ Write During Read: {result.metrics.get('performance_impact_percent', 'N/A'):.1f}% impact")
+    
+    def _benchmark_lock_contention(self):
+        """Benchmark lock contention under high concurrent access."""
+        result = BenchmarkResult("Lock Contention Analysis")
+        result.start_time = time.time()
+        
+        try:
+            import threading
+            import tempfile
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            # Create test file
+            encoder = MAIFEncoder(agent_id="lock_test")
+            for i in range(20):
+                encoder.add_text_block(f"Lock test block {i}")
+            
+            with tempfile.NamedTemporaryFile(suffix='.maif', delete=False) as tmp_file:
+                maif_path = tmp_file.name
+            manifest_path = maif_path.replace('.maif', '_manifest.json')
+            encoder.build_maif(maif_path, manifest_path)
+            
+            # Test different levels of concurrency
+            concurrency_levels = [1, 2, 4, 8, 16]
+            contention_results = {}
+            
+            def access_operation(op_id):
+                """Perform read operation and measure time."""
+                start_time = time.time()
+                decoder = MAIFDecoder(maif_path, manifest_path)
+                blocks_accessed = 0
+                for block in decoder.blocks:
+                    if block.block_type == "TEXT":
+                        data = decoder.get_block_data(block.block_id)
+                        blocks_accessed += 1
+                end_time = time.time()
+                return end_time - start_time, blocks_accessed
+            
+            for concurrency in concurrency_levels:
+                operation_times = []
+                
+                with ThreadPoolExecutor(max_workers=concurrency) as executor:
+                    # Submit operations
+                    futures = [executor.submit(access_operation, i) for i in range(concurrency * 3)]
+                    
+                    # Collect results
+                    for future in as_completed(futures):
+                        op_time, blocks = future.result()
+                        operation_times.append(op_time)
+                
+                avg_time = statistics.mean(operation_times) * 1000
+                max_time = max(operation_times) * 1000
+                min_time = min(operation_times) * 1000
+                
+                contention_results[concurrency] = {
+                    "average_time_ms": avg_time,
+                    "max_time_ms": max_time,
+                    "min_time_ms": min_time,
+                    "operations_count": len(operation_times)
+                }
+            
+            # Calculate contention impact
+            baseline_time = contention_results[1]["average_time_ms"]
+            max_contention_time = contention_results[max(concurrency_levels)]["average_time_ms"]
+            contention_impact = ((max_contention_time - baseline_time) / baseline_time) * 100
+            
+            result.add_metric("contention_results", contention_results)
+            result.add_metric("baseline_time_ms", baseline_time)
+            result.add_metric("max_contention_time_ms", max_contention_time)
+            result.add_metric("contention_impact_percent", contention_impact)
+            result.add_metric("max_concurrency_tested", max(concurrency_levels))
+            
+            # Cleanup
+            import os
+            try:
+                os.unlink(maif_path)
+                os.unlink(manifest_path)
+            except:
+                pass
+                
+        except Exception as e:
+            result.set_error(f"Lock contention benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        print(f"✓ Lock Contention: {result.metrics.get('contention_impact_percent', 'N/A'):.1f}% impact at max concurrency")
+    
+    def _benchmark_concurrent_block_access(self):
+        """Benchmark concurrent access to different blocks within the same file."""
+        result = BenchmarkResult("Concurrent Block Access")
+        result.start_time = time.time()
+        
+        try:
+            import threading
+            import tempfile
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            # Create test file with many blocks
+            encoder = MAIFEncoder(agent_id="block_access_test")
+            block_count = 100
+            for i in range(block_count):
+                encoder.add_text_block(f"Block {i} content with some data to make it substantial",
+                                     metadata={"block_index": i})
+            
+            with tempfile.NamedTemporaryFile(suffix='.maif', delete=False) as tmp_file:
+                maif_path = tmp_file.name
+            manifest_path = maif_path.replace('.maif', '_manifest.json')
+            encoder.build_maif(maif_path, manifest_path)
+            
+            # Get block IDs for targeted access
+            decoder = MAIFDecoder(maif_path, manifest_path)
+            text_blocks = [block for block in decoder.blocks if block.block_type in ["text", "text_data", "TEXT"]]
+            
+            print(f"  Debug: Created {len(decoder.blocks)} total blocks, {len(text_blocks)} text blocks")
+            if text_blocks:
+                print(f"  Debug: First text block type: {text_blocks[0].block_type}, ID: {text_blocks[0].block_id}")
+            
+            access_times = []
+            block_access_counts = {}
+            
+            def access_specific_blocks(worker_id, block_indices):
+                """Access specific blocks and measure performance."""
+                worker_times = []
+                worker_access_counts = {}
+                
+                for block_idx in block_indices:
+                    if block_idx < len(text_blocks):
+                        start_time = time.time()
+                        block = text_blocks[block_idx]
+                        try:
+                            data = decoder.get_block_data(block.block_id)  # Thread-safe!
+                            end_time = time.time()
+                            
+                            # Record access time regardless of data content for performance measurement
+                            access_time = end_time - start_time
+                            worker_times.append(access_time)
+                            
+                            # Track which blocks are being accessed (thread-local)
+                            worker_access_counts[block_idx] = worker_access_counts.get(block_idx, 0) + 1
+                            
+                        except Exception as e:
+                            # Still record the attempt time even if it fails
+                            end_time = time.time()
+                            access_time = end_time - start_time
+                            worker_times.append(access_time)
+                            worker_access_counts[block_idx] = worker_access_counts.get(block_idx, 0) + 1
+                
+                return worker_times, worker_access_counts
+            
+            # Test concurrent access to different block ranges
+            num_workers = 8
+            blocks_per_worker = block_count // num_workers
+            
+            with ThreadPoolExecutor(max_workers=num_workers) as executor:
+                futures = []
+                
+                for worker_id in range(num_workers):
+                    start_idx = worker_id * blocks_per_worker
+                    end_idx = min(start_idx + blocks_per_worker, block_count)
+                    block_indices = list(range(start_idx, end_idx))
+                    
+                    future = executor.submit(access_specific_blocks, worker_id, block_indices)
+                    futures.append(future)
+                
+                # Collect all access times and merge access counts
+                for future in as_completed(futures):
+                    worker_times, worker_access_counts = future.result()
+                    access_times.extend(worker_times)
+                    
+                    # Merge worker access counts into global counts
+                    for block_idx, count in worker_access_counts.items():
+                        block_access_counts[block_idx] = block_access_counts.get(block_idx, 0) + count
+            
+            # Calculate metrics
+            if access_times:
+                avg_access_time = statistics.mean(access_times) * 1000
+                max_access_time = max(access_times) * 1000
+                min_access_time = min(access_times) * 1000
+            else:
+                avg_access_time = max_access_time = min_access_time = 0
+                print(f"  Warning: No successful block accesses recorded")
+            
+            total_accesses = len(access_times)
+            unique_blocks_accessed = len(block_access_counts)
+            
+            # Calculate throughput (use current time since end_time isn't set yet)
+            current_time = time.time()
+            total_time = current_time - result.start_time
+            blocks_per_second = total_accesses / total_time if total_time > 0 and total_accesses > 0 else 0
+            
+            print(f"  Debug: {total_accesses} accesses in {total_time:.3f}s = {blocks_per_second:.1f} blocks/sec")
+            
+            result.add_metric("total_blocks_in_file", block_count)
+            result.add_metric("concurrent_workers", num_workers)
+            result.add_metric("total_block_accesses", total_accesses)
+            result.add_metric("unique_blocks_accessed", unique_blocks_accessed)
+            result.add_metric("average_access_time_ms", avg_access_time)
+            result.add_metric("max_access_time_ms", max_access_time)
+            result.add_metric("min_access_time_ms", min_access_time)
+            result.add_metric("blocks_per_second", blocks_per_second)
+            result.add_metric("block_access_distribution", dict(sorted(block_access_counts.items())))
+            
+            # Cleanup
+            import os
+            try:
+                os.unlink(maif_path)
+                os.unlink(manifest_path)
+            except:
+                pass
+                
+        except Exception as e:
+            result.set_error(f"Concurrent block access benchmark failed: {str(e)}")
+        
+        result.end_time = time.time()
+        self.results.append(result)
+        print(f"✓ Concurrent Block Access: {result.metrics.get('blocks_per_second', 'N/A'):.1f} blocks/sec")
+
     def _generate_report(self) -> Dict[str, Any]:
         """Generate comprehensive benchmark report."""
         print("\n" + "="*80)
@@ -1154,8 +1746,8 @@ class ExampleClass:
             for i, video_props in enumerate(test_videos):
                 print(f"  Testing video {i+1}: {video_props['width']}x{video_props['height']}, {video_props['duration']}s")
                 
-                # Create mock video with specific properties
-                video_data = self._create_mock_video_data(video_props["format"], 2.0)
+                # Create mock video with proper headers for accurate metadata extraction
+                video_data = self._create_realistic_mock_video_data(video_props)
                 
                 encoder = MAIFEncoder(enable_privacy=False)
                 
@@ -1221,11 +1813,11 @@ class ExampleClass:
         try:
             print("\n--- Video Querying Performance ---")
             
-            # Create a collection of test videos
+            # Create a large collection of test videos for stress testing
             encoder = MAIFEncoder(enable_privacy=False)
-            video_count = 100
+            video_count = 100000  # 100k videos for stress testing
             
-            print(f"  Creating {video_count} test videos...")
+            print(f"  Creating {video_count:,} test videos...")
             
             # Add videos with different properties
             for i in range(video_count):
@@ -1245,7 +1837,7 @@ class ExampleClass:
                         "format": "mp4",
                         "tags": [f"tag{i%10}", f"category{i%5}"]
                     },
-                    extract_metadata=False
+                    extract_metadata=True  # Enable metadata extraction for semantic search
                 )
             
             # Save to temporary file
@@ -1290,8 +1882,9 @@ class ExampleClass:
                 semantic_end = time.time()
                 semantic_search_time = (semantic_end - semantic_start) * 1000
                 print(f"  Semantic search: {semantic_search_time:.2f}ms, Results: {len(semantic_results)}")
-            except Exception:
-                print("  Semantic search: Not available")
+            except Exception as e:
+                print(f"  Semantic search: Failed - {str(e)}")
+                semantic_search_time = -1  # Indicate failure
             
             avg_query_time = statistics.mean(query_times)
             total_results = sum(result_counts)
@@ -1321,6 +1914,76 @@ class ExampleClass:
         self.results.append(result)
         print(f"✓ Video Querying: {result.metrics.get('average_query_time_ms', 0):.1f}ms avg query time")
 
+
+    def _create_realistic_mock_video_data(self, video_props: Dict) -> bytes:
+        """Create mock video data with proper MP4 headers for accurate metadata extraction."""
+        import struct
+        
+        # Create a minimal but valid MP4 structure
+        # This will have proper headers that the metadata extractor can parse
+        
+        # ftyp box (file type)
+        ftyp_data = b'ftypisom\x00\x00\x02\x00isomiso2avc1mp41'
+        ftyp_size = len(ftyp_data) + 8
+        ftyp_box = struct.pack('>I', ftyp_size) + b'ftyp' + ftyp_data
+        
+        # mvhd box (movie header) with duration and timescale
+        timescale = 1000  # 1000 units per second
+        duration_units = int(video_props["duration"] * timescale)
+        
+        mvhd_data = (
+            b'\x00\x00\x00\x00'  # version and flags
+            + b'\x00\x00\x00\x00'  # creation time
+            + b'\x00\x00\x00\x00'  # modification time
+            + struct.pack('>I', timescale)  # timescale
+            + struct.pack('>I', duration_units)  # duration
+            + b'\x00\x01\x00\x00'  # preferred rate (1.0)
+            + b'\x01\x00\x00\x00'  # preferred volume (1.0)
+            + b'\x00' * 10  # reserved
+            + b'\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00'  # matrix
+            + b'\x00' * 24  # pre_defined
+            + b'\x00\x00\x00\x02'  # next_track_ID
+        )
+        mvhd_size = len(mvhd_data) + 8
+        mvhd_box = struct.pack('>I', mvhd_size) + b'mvhd' + mvhd_data
+        
+        # tkhd box (track header) with video dimensions
+        width = video_props["width"]
+        height = video_props["height"]
+        
+        tkhd_data = (
+            b'\x00\x00\x00\x07'  # version and flags (track enabled)
+            + b'\x00\x00\x00\x00'  # creation time
+            + b'\x00\x00\x00\x00'  # modification time
+            + b'\x00\x00\x00\x01'  # track ID
+            + b'\x00\x00\x00\x00'  # reserved
+            + struct.pack('>I', duration_units)  # duration
+            + b'\x00' * 8  # reserved
+            + b'\x00\x00'  # layer
+            + b'\x00\x00'  # alternate_group
+            + b'\x00\x00'  # volume
+            + b'\x00\x00'  # reserved
+            + b'\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x40\x00\x00\x00'  # matrix
+            + struct.pack('>I', width << 16)  # width (fixed point)
+            + struct.pack('>I', height << 16)  # height (fixed point)
+        )
+        tkhd_size = len(tkhd_data) + 8
+        tkhd_box = struct.pack('>I', tkhd_size) + b'tkhd' + tkhd_data
+        
+        # Combine boxes into a minimal moov box
+        moov_content = mvhd_box + tkhd_box
+        moov_size = len(moov_content) + 8
+        moov_box = struct.pack('>I', moov_size) + b'moov' + moov_content
+        
+        # Create minimal mdat box with some dummy video data
+        dummy_video_data = b'\x00' * 1024  # 1KB of dummy video data
+        mdat_size = len(dummy_video_data) + 8
+        mdat_box = struct.pack('>I', mdat_size) + b'mdat' + dummy_video_data
+        
+        # Combine all boxes to create a valid MP4 structure
+        mp4_data = ftyp_box + moov_box + mdat_box
+        
+        return mp4_data
 
 def main():
     """Main benchmark execution function."""

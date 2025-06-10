@@ -1,12 +1,12 @@
 {
-  "timestamp": 1749457252.388001,
-  "total_benchmarks": 15,
-  "successful_benchmarks": 15,
+  "timestamp": 1749532271.887527,
+  "total_benchmarks": 20,
+  "successful_benchmarks": 20,
   "failed_benchmarks": 0,
   "results": {
     "Compression Ratios": {
       "success": true,
-      "duration": 0.10745406150817871,
+      "duration": 0.10510468482971191,
       "metrics": {
         "compression_results": {
           "lorem_ipsum_zlib": {
@@ -28,22 +28,22 @@
             "reduction_percent": 95.76
           },
           "json_data_zlib": {
-            "original_size": 161851,
-            "compressed_size": 18590,
-            "ratio": 8.706347498655191,
-            "reduction_percent": 88.51412719105845
+            "original_size": 162593,
+            "compressed_size": 18608,
+            "ratio": 8.73780094582975,
+            "reduction_percent": 88.55547286783563
           },
           "json_data_brotli": {
-            "original_size": 161851,
-            "compressed_size": 15681,
-            "ratio": 10.321471844907851,
-            "reduction_percent": 90.31145930516338
+            "original_size": 162593,
+            "compressed_size": 15689,
+            "ratio": 10.36350309133788,
+            "reduction_percent": 90.35075310745235
           },
           "json_data_lzma": {
-            "original_size": 161851,
-            "compressed_size": 13564,
-            "ratio": 11.932394573872013,
-            "reduction_percent": 91.61945245936077
+            "original_size": 162593,
+            "compressed_size": 13584,
+            "ratio": 11.969449352179033,
+            "reduction_percent": 91.64539678829962
           },
           "code_sample_zlib": {
             "original_size": 5000,
@@ -83,9 +83,9 @@
           },
           "random_text_zlib": {
             "original_size": 10000,
-            "compressed_size": 7581,
-            "ratio": 1.3190871916633689,
-            "reduction_percent": 24.19
+            "compressed_size": 7584,
+            "ratio": 1.3185654008438819,
+            "reduction_percent": 24.160000000000004
           },
           "random_text_brotli": {
             "original_size": 10000,
@@ -95,17 +95,17 @@
           },
           "random_text_lzma": {
             "original_size": 10000,
-            "compressed_size": 7920,
-            "ratio": 1.2626262626262625,
-            "reduction_percent": 20.799999999999997
+            "compressed_size": 7916,
+            "ratio": 1.263264274886306,
+            "reduction_percent": 20.840000000000003
           }
         },
-        "average_ratio": 64.2231306571892,
+        "average_ratio": 64.23050770341268,
         "max_ratio": 480.0,
-        "min_ratio": 1.2626262626262625,
+        "min_ratio": 1.263264274886306,
         "claim_validation": {
           "paper_claim": "2.5-5\u00d7 compression ratios",
-          "achieved_avg": 64.2231306571892,
+          "achieved_avg": 64.23050770341268,
           "achieved_max": 480.0,
           "meets_claim": true
         }
@@ -114,23 +114,23 @@
     },
     "Semantic Search Performance": {
       "success": true,
-      "duration": 2.9057250022888184,
+      "duration": 2.7898380756378174,
       "metrics": {
         "search_times_ms": [
-          30.426979064941406,
-          29.70099449157715,
-          35.45689582824707,
-          29.902219772338867,
-          30.61699867248535
+          31.497955322265625,
+          28.955936431884766,
+          28.63001823425293,
+          31.18896484375,
+          29.440879821777344
         ],
-        "average_search_time_ms": 31.22081756591797,
-        "max_search_time_ms": 35.45689582824707,
-        "min_search_time_ms": 29.70099449157715,
+        "average_search_time_ms": 29.942750930786133,
+        "max_search_time_ms": 31.497955322265625,
+        "min_search_time_ms": 28.63001823425293,
         "corpus_size": 1000,
         "claim_validation": {
           "paper_claim": "Sub-50ms semantic search",
-          "achieved_avg": 31.22081756591797,
-          "achieved_max": 35.45689582824707,
+          "achieved_avg": 29.942750930786133,
+          "achieved_max": 31.497955322265625,
           "meets_claim": true
         }
       },
@@ -138,47 +138,47 @@
     },
     "Large-Scale Semantic Search": {
       "success": true,
-      "duration": 32.352630853652954,
+      "duration": 34.0501172542572,
       "metrics": {
         "corpus_50000_search_times_ms": [
-          2.3260116577148438,
-          1.6520023345947266,
-          1.3399124145507812,
-          1.7809867858886719,
-          1.3270378112792969,
-          0.9632110595703125,
-          1.2569427490234375,
-          1.1401176452636719,
-          1.3060569763183594,
-          1.0709762573242188
+          2.031087875366211,
+          1.1849403381347656,
+          1.4400482177734375,
+          1.7709732055664062,
+          1.5399456024169922,
+          1.3461112976074219,
+          1.5523433685302734,
+          1.2347698211669922,
+          1.3070106506347656,
+          1.0828971862792969
         ],
-        "corpus_50000_avg_search_ms": 1.416325569152832,
-        "corpus_50000_max_search_ms": 2.3260116577148438,
-        "corpus_50000_min_search_ms": 0.9632110595703125,
-        "corpus_50000_embedding_time_s": 30.075181007385254,
-        "corpus_50000_docs_per_sec": 1662.500384876221,
+        "corpus_50000_avg_search_ms": 1.4490127563476562,
+        "corpus_50000_max_search_ms": 2.031087875366211,
+        "corpus_50000_min_search_ms": 1.0828971862792969,
+        "corpus_50000_embedding_time_s": 31.726186990737915,
+        "corpus_50000_docs_per_sec": 1575.9851637575266,
         "overall_search_times_ms": [
-          2.3260116577148438,
-          1.6520023345947266,
-          1.3399124145507812,
-          1.7809867858886719,
-          1.3270378112792969,
-          0.9632110595703125,
-          1.2569427490234375,
-          1.1401176452636719,
-          1.3060569763183594,
-          1.0709762573242188
+          2.031087875366211,
+          1.1849403381347656,
+          1.4400482177734375,
+          1.7709732055664062,
+          1.5399456024169922,
+          1.3461112976074219,
+          1.5523433685302734,
+          1.2347698211669922,
+          1.3070106506347656,
+          1.0828971862792969
         ],
-        "overall_average_search_time_ms": 1.416325569152832,
-        "overall_max_search_time_ms": 2.3260116577148438,
-        "overall_min_search_time_ms": 0.9632110595703125,
+        "overall_average_search_time_ms": 1.4490127563476562,
+        "overall_max_search_time_ms": 2.031087875366211,
+        "overall_min_search_time_ms": 1.0828971862792969,
         "total_documents_tested": 50000,
         "total_queries_executed": 10,
         "scaling_efficiency": [],
         "claim_validation": {
           "paper_claim": "Sub-50ms semantic search on large corpora",
-          "achieved_avg": 1.416325569152832,
-          "achieved_max": 2.3260116577148438,
+          "achieved_avg": 1.4490127563476562,
+          "achieved_max": 2.031087875366211,
           "largest_corpus": 50000,
           "meets_claim_avg": true,
           "meets_claim_max": true
@@ -188,14 +188,14 @@
     },
     "Streaming Throughput": {
       "success": true,
-      "duration": 4.315557956695557,
+      "duration": 4.372443199157715,
       "metrics": {
         "total_bytes_read": 10485760,
-        "duration_seconds": 0.01491403579711914,
-        "throughput_mbps": 670.5093199475654,
+        "duration_seconds": 0.018172025680541992,
+        "throughput_mbps": 550.2963827916924,
         "claim_validation": {
           "paper_claim": "500+ MB/s streaming",
-          "achieved": 670.5093199475654,
+          "achieved": 550.2963827916924,
           "meets_claim": true
         }
       },
@@ -203,58 +203,58 @@
     },
     "Cryptographic Overhead": {
       "success": true,
-      "duration": 0.013004064559936523,
+      "duration": 0.012836933135986328,
       "metrics": {
-        "no_crypto_avg_time": 4.358291625976563e-05,
-        "crypto_avg_time": 6.878376007080078e-05,
-        "overhead_percent": 57.82275711159737,
+        "no_crypto_avg_time": 4.413127899169922e-05,
+        "crypto_avg_time": 7.243156433105469e-05,
+        "overhead_percent": 64.12749864937872,
         "no_crypto_times": [
+          4.100799560546875e-05,
           4.100799560546875e-05,
           4.124641418457031e-05,
           4.124641418457031e-05,
           4.1961669921875e-05,
-          4.1961669921875e-05,
-          4.1961669921875e-05,
-          4.1961669921875e-05,
-          4.1961669921875e-05,
-          4.1961669921875e-05,
           4.220008850097656e-05,
+          4.2438507080078125e-05,
+          4.291534423828125e-05,
           4.291534423828125e-05,
           4.38690185546875e-05,
           4.482269287109375e-05,
-          4.696846008300781e-05,
-          4.7206878662109375e-05,
-          4.7206878662109375e-05,
+          4.506111145019531e-05,
+          4.506111145019531e-05,
+          4.601478576660156e-05,
+          4.601478576660156e-05,
+          4.6253204345703125e-05,
           4.792213439941406e-05,
-          5.1975250244140625e-05,
-          5.698204040527344e-05,
-          7.605552673339844e-05
+          4.982948303222656e-05,
+          5.507469177246094e-05,
+          7.510185241699219e-05
         ],
         "crypto_times": [
-          6.413459777832031e-05,
-          6.508827209472656e-05,
+          6.461143493652344e-05,
+          6.580352783203125e-05,
           6.604194641113281e-05,
           6.604194641113281e-05,
           6.604194641113281e-05,
-          6.67572021484375e-05,
-          6.699562072753906e-05,
-          6.699562072753906e-05,
-          6.699562072753906e-05,
-          6.818771362304688e-05,
-          6.818771362304688e-05,
-          6.985664367675781e-05,
-          6.985664367675781e-05,
-          7.009506225585938e-05,
+          6.723403930664062e-05,
+          6.794929504394531e-05,
+          7.128715515136719e-05,
+          7.176399230957031e-05,
+          7.224082946777344e-05,
+          7.295608520507812e-05,
+          7.295608520507812e-05,
           7.390975952148438e-05,
-          7.605552673339844e-05,
-          8.082389831542969e-05,
-          8.511543273925781e-05,
-          0.00010800361633300781,
-          0.006498098373413086
+          7.700920104980469e-05,
+          7.700920104980469e-05,
+          8.7738037109375e-05,
+          9.393692016601562e-05,
+          0.00010323524475097656,
+          0.00011324882507324219,
+          0.0061817169189453125
         ],
         "claim_validation": {
           "paper_claim": "<15% cryptographic overhead",
-          "achieved": 57.82275711159737,
+          "achieved": 64.12749864937872,
           "meets_claim": false
         }
       },
@@ -262,118 +262,118 @@
     },
     "Tamper Detection": {
       "success": true,
-      "duration": 0.04637432098388672,
+      "duration": 0.04483199119567871,
       "metrics": {
         "detection_times_ms": [
-          0.14901161193847656,
-          0.10585784912109375,
-          0.09799003601074219,
-          0.09393692016601562,
-          0.09179115295410156,
-          0.09179115295410156,
-          0.09107589721679688,
-          0.09012222290039062,
-          0.09107589721679688,
-          0.08869171142578125,
-          0.09799003601074219,
-          0.08916854858398438,
-          0.08916854858398438,
-          0.09703636169433594,
-          0.19502639770507812,
-          0.11587142944335938,
-          0.11205673217773438,
-          0.11706352233886719,
-          0.1010894775390625,
-          0.10395050048828125,
-          0.102996826171875,
-          0.10275840759277344,
-          0.09608268737792969,
-          0.10418891906738281,
-          0.09703636169433594,
-          0.09298324584960938,
-          0.10180473327636719,
-          0.09703636169433594,
-          0.10609626770019531,
-          0.09799003601074219,
-          0.09799003601074219,
-          0.09489059448242188,
+          0.15997886657714844,
+          0.11897087097167969,
+          0.10800361633300781,
           0.1068115234375,
-          0.12421607971191406,
-          0.10633468627929688,
-          0.09894371032714844,
-          0.09512901306152344,
-          0.09083747863769531,
-          0.1380443572998047,
           0.09799003601074219,
           0.10395050048828125,
-          0.09202957153320312,
-          0.09274482727050781,
+          0.10275840759277344,
           0.09393692016601562,
-          0.10085105895996094,
-          0.09202957153320312,
-          0.09298324584960938,
-          0.09512901306152344,
-          0.09202957153320312,
-          0.09298324584960938,
-          0.10013580322265625,
           0.09703636169433594,
-          0.08988380432128906,
-          0.11301040649414062,
-          0.09298324584960938,
-          0.09083747863769531,
-          0.09703636169433594,
-          0.09202957153320312,
-          0.08988380432128906,
-          0.09202957153320312,
-          0.09083747863769531,
-          0.08988380432128906,
-          0.09012222290039062,
-          0.08916854858398438,
-          0.08797645568847656,
-          0.087738037109375,
-          0.08916854858398438,
-          0.09012222290039062,
-          0.09012222290039062,
-          0.08988380432128906,
-          0.08916854858398438,
-          0.09202957153320312,
-          0.087738037109375,
-          0.08869171142578125,
-          0.09775161743164062,
-          0.09584426879882812,
-          0.08916854858398438,
-          0.09584426879882812,
-          0.09202957153320312,
-          0.09083747863769531,
-          0.15497207641601562,
-          0.10013580322265625,
-          0.1049041748046875,
-          0.10085105895996094,
-          0.09608268737792969,
-          0.09799003601074219,
-          0.09107589721679688,
-          0.09489059448242188,
-          0.09226799011230469,
-          0.09489059448242188,
-          0.09298324584960938,
-          0.09489059448242188,
+          0.09918212890625,
           0.09894371032714844,
-          0.1049041748046875,
+          0.09822845458984375,
+          0.09608268737792969,
+          0.09703636169433594,
+          0.09512901306152344,
+          0.09393692016601562,
+          0.13518333435058594,
+          0.09894371032714844,
+          0.09202957153320312,
+          0.09393692016601562,
+          0.09489059448242188,
           0.09083747863769531,
-          0.09989738464355469,
-          0.24080276489257812,
+          0.09202957153320312,
+          0.10585784912109375,
+          0.10991096496582031,
+          0.102996826171875,
+          0.09608268737792969,
+          0.10085105895996094,
           0.09799003601074219,
+          0.09298324584960938,
+          0.09417533874511719,
+          0.09512901306152344,
+          0.09393692016601562,
+          0.09393692016601562,
+          0.09608268737792969,
+          0.09393692016601562,
+          0.09512901306152344,
+          0.09393692016601562,
+          0.10704994201660156,
+          0.09393692016601562,
+          0.08988380432128906,
+          0.09202957153320312,
+          0.09393692016601562,
+          0.09202957153320312,
+          0.09107589721679688,
+          0.08988380432128906,
+          0.09107589721679688,
+          0.08988380432128906,
+          0.09107589721679688,
           0.09179115295410156,
-          0.09298324584960938
+          0.09012222290039062,
+          0.09083747863769531,
+          0.09083747863769531,
+          0.09298324584960938,
+          0.09202957153320312,
+          0.09107589721679688,
+          0.09107589721679688,
+          0.08988380432128906,
+          0.09202957153320312,
+          0.09608268737792969,
+          0.09179115295410156,
+          0.09202957153320312,
+          0.09012222290039062,
+          0.09298324584960938,
+          0.09107589721679688,
+          0.09179115295410156,
+          0.09083747863769531,
+          0.09012222290039062,
+          0.09107589721679688,
+          0.09107589721679688,
+          0.09083747863769531,
+          0.09179115295410156,
+          0.09107589721679688,
+          0.09012222290039062,
+          0.09083747863769531,
+          0.09274482727050781,
+          0.09679794311523438,
+          0.08988380432128906,
+          0.08988380432128906,
+          0.09083747863769531,
+          0.09298324584960938,
+          0.09775161743164062,
+          0.11682510375976562,
+          0.1010894775390625,
+          0.09703636169433594,
+          0.09393692016601562,
+          0.09489059448242188,
+          0.09393692016601562,
+          0.09012222290039062,
+          0.09083747863769531,
+          0.09202957153320312,
+          0.08893013000488281,
+          0.09703636169433594,
+          0.08893013000488281,
+          0.09012222290039062,
+          0.09179115295410156,
+          0.08916854858398438,
+          0.09012222290039062,
+          0.09274482727050781,
+          0.09107589721679688
         ],
-        "average_detection_time_ms": 0.10011672973632812,
-        "max_detection_time_ms": 0.24080276489257812,
+        "average_detection_time_ms": 0.09568452835083008,
+        "max_detection_time_ms": 0.15997886657714844,
         "detection_rate_percent": 100.0,
         "total_tests": 100,
         "claim_validation": {
           "paper_claim": "100% detection within 1ms",
           "achieved_rate": 100.0,
-          "achieved_time": 0.10011672973632812,
+          "achieved_time": 0.09568452835083008,
           "meets_claim": true
         }
       },
@@ -381,13 +381,13 @@
     },
     "Integrity Verification": {
       "success": true,
-      "duration": 4.806354999542236,
+      "duration": 4.778143882751465,
       "metrics": {
         "verification_times": [
-          0.0001437664031982422,
-          0.0004439353942871094,
-          0.0033447742462158203,
-          0.03227400779724121
+          0.00013899803161621094,
+          0.0004208087921142578,
+          0.003420114517211914,
+          0.03216695785522461
         ],
         "file_sizes": [
           10272,
@@ -396,18 +396,18 @@
           10240032
         ],
         "throughputs_bps": [
-          71449238.28855722,
-          230736276.7604726,
-          306158779.22360826,
-          317284176.9244203
+          73900327.0806175,
+          243416967.3246459,
+          299414535.63806206,
+          318340081.95887876
         ],
-        "average_throughput_mbps": 220.68702487875422
+        "average_throughput_mbps": 222.9385166173468
       },
       "error": null
     },
     "Multimodal Integration": {
       "success": true,
-      "duration": 0.0010390281677246094,
+      "duration": 0.0010199546813964844,
       "metrics": {
         "text_blocks_count": 1,
         "embeddings_count": 2,
@@ -418,7 +418,7 @@
     },
     "Provenance Chains": {
       "success": true,
-      "duration": 0.1797327995300293,
+      "duration": 0.19519782066345215,
       "metrics": {
         "chain_length": 100,
         "chain_valid": false,
@@ -428,7 +428,7 @@
     },
     "Privacy Features": {
       "success": true,
-      "duration": 0.0010287761688232422,
+      "duration": 0.0009360313415527344,
       "metrics": {
         "encryption_successful": true,
         "anonymization_applied": true,
@@ -438,7 +438,7 @@
     },
     "Repair Capabilities": {
       "success": true,
-      "duration": 0.0323331356048584,
+      "duration": 0.030610322952270508,
       "metrics": {
         "total_repair_attempts": 50,
         "successful_repairs": 50,
@@ -453,27 +453,27 @@
     },
     "Scalability": {
       "success": true,
-      "duration": 3.22725510597229,
+      "duration": 3.1681997776031494,
       "metrics": {
         "scalability_results": {
           "100": {
-            "encode_time": 0.0016446113586425781,
-            "build_time": 0.0046961307525634766,
-            "parse_time": 0.003804922103881836,
+            "encode_time": 0.001622915267944336,
+            "build_time": 0.004240989685058594,
+            "parse_time": 0.003419160842895508,
             "file_size": 4790,
             "blocks_retrieved": 100
           },
           "1000": {
-            "encode_time": 0.015827178955078125,
-            "build_time": 0.04140019416809082,
-            "parse_time": 0.054839134216308594,
+            "encode_time": 0.014466047286987305,
+            "build_time": 0.04017996788024902,
+            "parse_time": 0.052477121353149414,
             "file_size": 48890,
             "blocks_retrieved": 1000
           },
           "10000": {
-            "encode_time": 0.15437889099121094,
-            "build_time": 0.395885705947876,
-            "parse_time": 2.552899122238159,
+            "encode_time": 0.13974595069885254,
+            "build_time": 0.39720916748046875,
+            "parse_time": 2.5132830142974854,
             "file_size": 498890,
             "blocks_retrieved": 10000
           }
@@ -493,25 +493,25 @@
           25
         ],
         "storage_times_ms": [
-          6.145954132080078,
-          27.943849563598633,
-          56.71119689941406,
-          139.7998332977295
+          147.72486686706543,
+          739.7758960723877,
+          1486.8550300598145,
+          3715.617895126343
         ],
         "extraction_times_ms": [
-          0.0011920928955078125,
-          0.004291534423828125,
-          0.0059604644775390625,
-          0.005245208740234375
+          0.0,
+          0.0069141387939453125,
+          0.0069141387939453125,
+          0.0069141387939453125
         ],
-        "average_storage_time_ms": 57.650208473205566,
-        "average_extraction_time_ms": 0.004172325134277344,
-        "storage_throughput_mbs": 177.7964082257214,
+        "average_storage_time_ms": 1522.4934220314026,
+        "average_extraction_time_ms": 0.005185604095458984,
+        "storage_throughput_mbs": 6.732377198926634,
         "claim_validation": {
           "video_storage_claim": "Efficient video storage with metadata extraction",
-          "achieved_throughput": 177.7964082257214,
-          "average_storage_time": 57.650208473205566,
-          "meets_expectation": true
+          "achieved_throughput": 6.732377198926634,
+          "average_storage_time": 1522.4934220314026,
+          "meets_expectation": false
         }
       },
       "error": null
@@ -541,22 +541,22 @@
           }
         ],
         "extraction_times_ms": [
-          11.999845504760742,
-          31.848907470703125,
-          18.38207244873047
+          0.335693359375,
+          0.28324127197265625,
+          0.27489662170410156
         ],
         "accuracy_scores": [
-          0.5,
-          0.5,
-          0.5
+          0.75,
+          0.75,
+          0.75
         ],
-        "average_extraction_time_ms": 20.743608474731445,
-        "average_accuracy": 0.5,
+        "average_extraction_time_ms": 0.2979437510172526,
+        "average_accuracy": 0.75,
         "claim_validation": {
           "metadata_extraction_claim": "Accurate video metadata extraction",
-          "achieved_accuracy": 0.5,
-          "average_extraction_time": 20.743608474731445,
-          "meets_expectation": false
+          "achieved_accuracy": 0.75,
+          "average_extraction_time": 0.2979437510172526,
+          "meets_expectation": true
         }
       },
       "error": null
@@ -574,28 +574,125 @@
           "Size Filter"
         ],
         "query_times_ms": [
-          0.0629425048828125,
-          0.16689300537109375,
-          0.09608268737792969,
-          0.0858306884765625,
-          0.09393692016601562
+          0.031948089599609375,
+          0.02288818359375,
+          0.02193450927734375,
+          0.08416175842285156,
+          0.11420249938964844
         ],
         "result_counts": [
-          31,
-          42,
-          9,
+          0,
+          0,
+          0,
           100,
           100
         ],
-        "average_query_time_ms": 0.10113716125488281,
-        "semantic_search_time_ms": 1204.559087753296,
-        "total_results_found": 282,
+        "average_query_time_ms": 0.055027008056640625,
+        "semantic_search_time_ms": 1232.4960231781006,
+        "total_results_found": 200,
         "claim_validation": {
           "video_querying_claim": "Fast video querying and search",
-          "achieved_avg_query_time": 0.10113716125488281,
-          "semantic_search_time": 1204.559087753296,
+          "achieved_avg_query_time": 0.055027008056640625,
+          "semantic_search_time": 1232.4960231781006,
           "meets_expectation": true
         }
+      },
+      "error": null
+    },
+    "Concurrent Read/Write": {
+      "success": true,
+      "duration": 0.08373808860778809,
+      "metrics": {
+        "concurrent_readers": 4,
+        "concurrent_writers": 4,
+        "average_read_time_ms": 4.804790019989014,
+        "average_write_time_ms": 10.846972465515137,
+        "total_blocks_read": 0,
+        "error_count": 0,
+        "errors": []
+      },
+      "error": null
+    },
+    "Read Performance During Write": {
+      "success": true,
+      "duration": 0.2569880485534668,
+      "metrics": {
+        "baseline_read_time_ms": 0.598907470703125,
+        "read_time_during_write_ms": 0.07410049438476562,
+        "performance_impact_percent": -87.62738853503184,
+        "read_samples_baseline": 10,
+        "read_samples_during_write": 10
+      },
+      "error": null
+    },
+    "Write Performance During Read": {
+      "success": true,
+      "duration": 0.7320623397827148,
+      "metrics": {
+        "baseline_write_time_ms": 0.8954524993896484,
+        "write_time_during_read_ms": 0.6249427795410156,
+        "performance_impact_percent": -30.209276319292826,
+        "write_samples_baseline": 5,
+        "write_samples_during_read": 5
+      },
+      "error": null
+    },
+    "Lock Contention Analysis": {
+      "success": true,
+      "duration": 0.03609299659729004,
+      "metrics": {
+        "contention_results": {
+          "1": {
+            "average_time_ms": 0.31495094299316406,
+            "max_time_ms": 0.3478527069091797,
+            "min_time_ms": 0.28204917907714844,
+            "operations_count": 3
+          },
+          "2": {
+            "average_time_ms": 0.5983114242553711,
+            "max_time_ms": 0.9319782257080078,
+            "min_time_ms": 0.3292560577392578,
+            "operations_count": 6
+          },
+          "4": {
+            "average_time_ms": 1.2241800626118977,
+            "max_time_ms": 2.0990371704101562,
+            "min_time_ms": 0.6868839263916016,
+            "operations_count": 12
+          },
+          "8": {
+            "average_time_ms": 2.237925926844279,
+            "max_time_ms": 3.641843795776367,
+            "min_time_ms": 0.6520748138427734,
+            "operations_count": 24
+          },
+          "16": {
+            "average_time_ms": 3.7131855885187783,
+            "max_time_ms": 9.654998779296875,
+            "min_time_ms": 0.9329319000244141,
+            "operations_count": 48
+          }
+        },
+        "baseline_time_ms": 0.31495094299316406,
+        "max_contention_time_ms": 3.7131855885187783,
+        "contention_impact_percent": 1078.9726848347211,
+        "max_concurrency_tested": 16
+      },
+      "error": null
+    },
+    "Concurrent Block Access": {
+      "success": true,
+      "duration": 0.008203983306884766,
+      "metrics": {
+        "total_blocks_in_file": 100,
+        "concurrent_workers": 8,
+        "total_block_accesses": 0,
+        "unique_blocks_accessed": 0,
+        "average_access_time_ms": 0,
+        "max_access_time_ms": 0,
+        "min_access_time_ms": 0,
+        "blocks_per_second": 0.0,
+        "block_access_distribution": {}
       },
       "error": null
     }
@@ -603,38 +700,38 @@
   "paper_claims_validation": {
     "Compression Ratios": {
       "paper_claim": "2.5-5\u00d7 compression ratios",
-      "achieved_avg": 64.2231306571892,
+      "achieved_avg": 64.23050770341268,
       "achieved_max": 480.0,
       "meets_claim": true
     },
     "Semantic Search Performance": {
       "paper_claim": "Sub-50ms semantic search",
-      "achieved_avg": 31.22081756591797,
-      "achieved_max": 35.45689582824707,
+      "achieved_avg": 29.942750930786133,
+      "achieved_max": 31.497955322265625,
       "meets_claim": true
     },
     "Large-Scale Semantic Search": {
       "paper_claim": "Sub-50ms semantic search on large corpora",
-      "achieved_avg": 1.416325569152832,
-      "achieved_max": 2.3260116577148438,
+      "achieved_avg": 1.4490127563476562,
+      "achieved_max": 2.031087875366211,
       "largest_corpus": 50000,
       "meets_claim_avg": true,
       "meets_claim_max": true
     },
     "Streaming Throughput": {
       "paper_claim": "500+ MB/s streaming",
-      "achieved": 670.5093199475654,
+      "achieved": 550.2963827916924,
       "meets_claim": true
     },
     "Cryptographic Overhead": {
       "paper_claim": "<15% cryptographic overhead",
-      "achieved": 57.82275711159737,
+      "achieved": 64.12749864937872,
       "meets_claim": false
     },
     "Tamper Detection": {
       "paper_claim": "100% detection within 1ms",
       "achieved_rate": 100.0,
-      "achieved_time": 0.10011672973632812,
+      "achieved_time": 0.09568452835083008,
       "meets_claim": true
     },
     "Repair Capabilities": {
@@ -644,20 +741,20 @@
     },
     "Video Storage Performance": {
       "video_storage_claim": "Efficient video storage with metadata extraction",
-      "achieved_throughput": 177.7964082257214,
-      "average_storage_time": 57.650208473205566,
-      "meets_expectation": true
+      "achieved_throughput": 6.732377198926634,
+      "average_storage_time": 1522.4934220314026,
+      "meets_expectation": false
     },
     "Video Metadata Extraction": {
       "metadata_extraction_claim": "Accurate video metadata extraction",
-      "achieved_accuracy": 0.5,
-      "average_extraction_time": 20.743608474731445,
-      "meets_expectation": false
+      "achieved_accuracy": 0.75,
+      "average_extraction_time": 0.2979437510172526,
+      "meets_expectation": true
     },
     "Video Querying Performance": {
       "video_querying_claim": "Fast video querying and search",
-      "achieved_avg_query_time": 0.10113716125488281,
-      "semantic_search_time": 1204.559087753296,
+      "achieved_avg_query_time": 0.055027008056640625,
+      "semantic_search_time": 1232.4960231781006,
       "meets_expectation": true
     }
   },

@@ -32,6 +32,18 @@ except ImportError:
 # High-performance numpy-based similarity search
 def fast_cosine_similarity_batch(query_vectors, database_vectors):
     """Fast batch cosine similarity computation using numpy."""
+    # Ensure inputs are numpy arrays
+    if not isinstance(query_vectors, np.ndarray):
+        query_vectors = np.array(query_vectors)
+    if not isinstance(database_vectors, np.ndarray):
+        database_vectors = np.array(database_vectors)
+    
+    # Handle single vector case
+    if query_vectors.ndim == 1:
+        query_vectors = query_vectors.reshape(1, -1)
+    if database_vectors.ndim == 1:
+        database_vectors = database_vectors.reshape(1, -1)
+    
     # Normalize vectors
     query_norm = np.linalg.norm(query_vectors, axis=1, keepdims=True)
     db_norm = np.linalg.norm(database_vectors, axis=1, keepdims=True)
@@ -281,9 +293,44 @@ class SemanticEmbedder:
         return dot_product / (norm1 * norm2)
     
     def search_similar(self, query_embedding: SemanticEmbedding, top_k: int = 5) -> List[Tuple[SemanticEmbedding, float]]:
-        """Find most similar embeddings to a query."""
-        similarities = []
+        """Find most similar embeddings to a query using optimized batch computation."""
+        if not self.embeddings:
+            return []
         
+        # Use optimized batch computation for better performance
+        if len(self.embeddings) > 10:  # Use batch for larger collections
+            try:
+                # Prepare vectors for batch computation
+                query_vector = np.array(query_embedding.vector).reshape(1, -1)
+                database_vectors = np.array([emb.vector for emb in self.embeddings])
+                
+                # Compute similarities in batch
+                similarities_matrix = fast_cosine_similarity_batch(query_vector, database_vectors)
+                similarities_scores = similarities_matrix[0]  # Get first (and only) row
+                
+                # Get top k indices
+                if top_k >= len(similarities_scores):
+                    top_indices = np.argsort(similarities_scores)[::-1]
+                else:
+                    top_indices = np.argpartition(similarities_scores, -top_k)[-top_k:]
+                    top_indices = top_indices[np.argsort(similarities_scores[top_indices])[::-1]]
+                
+                # Return results
+                results = []
+                for idx in top_indices:
+                    if idx < len(self.embeddings):
+                        embedding = self.embeddings[idx]
+                        similarity = float(similarities_scores[idx])
+                        results.append((embedding, similarity))
+                
+                return results
+                
+            except Exception:
+                # Fallback to individual computation
+                pass
+        
+        # Fallback: individual similarity computation
+        similarities = []
         for embedding in self.embeddings:
             similarity = self.compute_similarity(query_embedding, embedding)
             similarities.append((embedding, similarity))

@@ -1,0 +1,313 @@
+{
+  "maif_version": "0.1.0",
+  "created": 1749524555.5241868,
+  "creator_id": null,
+  "agent_id": "devils_advocate_001",
+  "header": {
+    "version": "0.1.0",
+    "created_timestamp": 1749524555.5241868,
+    "creator_id": null,
+    "agent_id": "devils_advocate_001"
+  },
+  "blocks": [
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 0,
+      "size": 543,
+      "hash": "sha256:edd2a3974dfb6f872acc92038f5a20ed0aa1c99d637c09cce7eee3c4dd7c2269",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "d01ab81d-8f6f-474c-9c8c-bee9a2ad266c",
+      "metadata": {
+        "type": "agent_profile",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "none",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "cross_modal",
+      "block_type": "cross_modal",
+      "offset": 543,
+      "size": 32155,
+      "hash": "sha256:ab8565be1ecc3df9606b89b795fdab3174253c06c8f8b4ff0a09d220d64bd82e",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "f290f816-9447-4379-acf9-9ee027ebce42",
+      "metadata": {
+        "title": "comprehensive_critical_analysis by devils_advocate_001",
+        "algorithm": "Enhanced_ACAM_v2",
+        "modalities": [
+          "text",
+          "agent_metadata",
+          "content_structure"
+        ],
+        "unified_representation_dim": 384,
+        "attention_weights_available": true,
+        "enhanced_version": true,
+        "encryption": {
+          "iv": "CJCrv8U4711GwSDx",
+          "tag": "k/Z98zpfGvZSJ+L6KspLtA==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "CEMB",
+      "block_type": "CEMB",
+      "offset": 32698,
+      "size": 11430,
+      "hash": "sha256:1c4f173626aca388724658f876295f22624a8b1bc09054c481421cdeb57ec666",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "0f86ab0e-53af-46bc-81a1-a8f2fa98608d",
+      "metadata": {
+        "model": "devils_advocate_001_embedder",
+        "compressed": true,
+        "algorithm": "Enhanced_HSC_v2",
+        "compression_type": "hierarchical_semantic_dbscan",
+        "original_count": 3,
+        "original_dimensions": 384,
+        "compression_ratio": 4608.0,
+        "fidelity_score": 0.8871626959577584,
+        "tier1_clusters": 1,
+        "tier2_codebook_size": 1,
+        "tier3_encoding": "run_length",
+        "preserve_fidelity": true,
+        "encryption": {
+          "iv": "7/Wt4jjHEQ/qPKHu",
+          "tag": "6YsN+66vAhCWwu5nqdLrWQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 44128,
+      "size": 407,
+      "hash": "sha256:d569a9ee3d4114c5786c2dacbb5cabd5b414a86f22f814e8beb28e34a149a7f1",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "2e485df2-9f85-4ec3-941a-1a5705d18a4d",
+      "metadata": {
+        "type": "knowledge_triple",
+        "encryption": {
+          "iv": "k0TqEiI5T1Ne7bXm",
+          "tag": "xl59R4onDqKe1vcZxyTtBA==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    }
+  ],
+  "version_history": {
+    "d01ab81d-8f6f-474c-9c8c-bee9a2ad266c": [
+      {
+        "version": 1,
+        "timestamp": 1749524555.567557,
+        "agent_id": "devils_advocate_001",
+        "operation": "create",
+        "block_id": "d01ab81d-8f6f-474c-9c8c-bee9a2ad266c",
+        "previous_hash": null,
+        "current_hash": "sha256:edd2a3974dfb6f872acc92038f5a20ed0aa1c99d637c09cce7eee3c4dd7c2269",
+        "block_hash": "sha256:edd2a3974dfb6f872acc92038f5a20ed0aa1c99d637c09cce7eee3c4dd7c2269",
+        "change_description": null
+      }
+    ],
+    "f290f816-9447-4379-acf9-9ee027ebce42": [
+      {
+        "version": 1,
+        "timestamp": 1749524581.1493719,
+        "agent_id": "devils_advocate_001",
+        "operation": "create",
+        "block_id": "f290f816-9447-4379-acf9-9ee027ebce42",
+        "previous_hash": null,
+        "current_hash": "sha256:ab8565be1ecc3df9606b89b795fdab3174253c06c8f8b4ff0a09d220d64bd82e",
+        "block_hash": "sha256:ab8565be1ecc3df9606b89b795fdab3174253c06c8f8b4ff0a09d220d64bd82e",
+        "change_description": null
+      }
+    ],
+    "0f86ab0e-53af-46bc-81a1-a8f2fa98608d": [
+      {
+        "version": 1,
+        "timestamp": 1749524581.151357,
+        "agent_id": "devils_advocate_001",
+        "operation": "create",
+        "block_id": "0f86ab0e-53af-46bc-81a1-a8f2fa98608d",
+        "previous_hash": null,
+        "current_hash": "sha256:1c4f173626aca388724658f876295f22624a8b1bc09054c481421cdeb57ec666",
+        "block_hash": "sha256:1c4f173626aca388724658f876295f22624a8b1bc09054c481421cdeb57ec666",
+        "change_description": null
+      }
+    ],
+    "2e485df2-9f85-4ec3-941a-1a5705d18a4d": [
+      {
+        "version": 1,
+        "timestamp": 1749524581.151433,
+        "agent_id": "devils_advocate_001",
+        "operation": "create",
+        "block_id": "2e485df2-9f85-4ec3-941a-1a5705d18a4d",
+        "previous_hash": null,
+        "current_hash": "sha256:d569a9ee3d4114c5786c2dacbb5cabd5b414a86f22f814e8beb28e34a149a7f1",
+        "block_hash": "sha256:d569a9ee3d4114c5786c2dacbb5cabd5b414a86f22f814e8beb28e34a149a7f1",
+        "change_description": null
+      }
+    ]
+  },
+  "block_registry": {
+    "d01ab81d-8f6f-474c-9c8c-bee9a2ad266c": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 0,
+        "size": 543,
+        "hash": "sha256:edd2a3974dfb6f872acc92038f5a20ed0aa1c99d637c09cce7eee3c4dd7c2269",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "d01ab81d-8f6f-474c-9c8c-bee9a2ad266c",
+        "metadata": {
+          "type": "agent_profile",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "none",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "f290f816-9447-4379-acf9-9ee027ebce42": [
+      {
+        "type": "cross_modal",
+        "block_type": "cross_modal",
+        "offset": 543,
+        "size": 32155,
+        "hash": "sha256:ab8565be1ecc3df9606b89b795fdab3174253c06c8f8b4ff0a09d220d64bd82e",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "f290f816-9447-4379-acf9-9ee027ebce42",
+        "metadata": {
+          "title": "comprehensive_critical_analysis by devils_advocate_001",
+          "algorithm": "Enhanced_ACAM_v2",
+          "modalities": [
+            "text",
+            "agent_metadata",
+            "content_structure"
+          ],
+          "unified_representation_dim": 384,
+          "attention_weights_available": true,
+          "enhanced_version": true,
+          "encryption": {
+            "iv": "CJCrv8U4711GwSDx",
+            "tag": "k/Z98zpfGvZSJ+L6KspLtA==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "0f86ab0e-53af-46bc-81a1-a8f2fa98608d": [
+      {
+        "type": "CEMB",
+        "block_type": "CEMB",
+        "offset": 32698,
+        "size": 11430,
+        "hash": "sha256:1c4f173626aca388724658f876295f22624a8b1bc09054c481421cdeb57ec666",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "0f86ab0e-53af-46bc-81a1-a8f2fa98608d",
+        "metadata": {
+          "model": "devils_advocate_001_embedder",
+          "compressed": true,
+          "algorithm": "Enhanced_HSC_v2",
+          "compression_type": "hierarchical_semantic_dbscan",
+          "original_count": 3,
+          "original_dimensions": 384,
+          "compression_ratio": 4608.0,
+          "fidelity_score": 0.8871626959577584,
+          "tier1_clusters": 1,
+          "tier2_codebook_size": 1,
+          "tier3_encoding": "run_length",
+          "preserve_fidelity": true,
+          "encryption": {
+            "iv": "7/Wt4jjHEQ/qPKHu",
+            "tag": "6YsN+66vAhCWwu5nqdLrWQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "2e485df2-9f85-4ec3-941a-1a5705d18a4d": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 44128,
+        "size": 407,
+        "hash": "sha256:d569a9ee3d4114c5786c2dacbb5cabd5b414a86f22f814e8beb28e34a149a7f1",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "2e485df2-9f85-4ec3-941a-1a5705d18a4d",
+        "metadata": {
+          "type": "knowledge_triple",
+          "encryption": {
+            "iv": "k0TqEiI5T1Ne7bXm",
+            "tag": "xl59R4onDqKe1vcZxyTtBA==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ]
+  },
+  "root_hash": "sha256:3c832a127fe52c657133e89c0e9abcec9cd04ccfaedb357674a6bb1a6056683c"
+}

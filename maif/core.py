@@ -312,89 +312,323 @@ class MAIFEncoder:
         return metadata
     
     def _extract_mp4_metadata(self, video_data: bytes) -> Dict[str, Any]:
-        """Extract basic metadata from MP4 video data."""
+        """Extract metadata from MP4 video data with improved accuracy."""
         metadata = {}
         
         try:
-            # Look for common MP4 atoms/boxes
+            # Enhanced MP4 box parsing with better error handling
             pos = 0
+            boxes_found = []
+            
             while pos < len(video_data) - 8:
-                if pos + 8 > len(video_data):
-                    break
+                try:
+                    # Read box size and type safely
+                    if pos + 8 > len(video_data):
+                        break
+                        
+                    box_size = struct.unpack('>I', video_data[pos:pos+4])[0]
+                    box_type = video_data[pos+4:pos+8]
                     
-                # Read box size and type
-                box_size = struct.unpack('>I', video_data[pos:pos+4])[0]
-                box_type = video_data[pos+4:pos+8]
-                
-                if box_size == 0 or box_size > len(video_data) - pos:
-                    break
-                
-                # Look for mvhd (movie header) box for duration
-                if box_type == b'mvhd':
-                    try:
-                        # Skip version and flags (4 bytes)
-                        # Skip creation and modification time (8 bytes)
-                        timescale_pos = pos + 8 + 8
-                        if timescale_pos + 8 <= len(video_data):
-                            timescale = struct.unpack('>I', video_data[timescale_pos:timescale_pos+4])[0]
-                            duration_units = struct.unpack('>I', video_data[timescale_pos+4:timescale_pos+8])[0]
-                            if timescale > 0:
-                                metadata["duration"] = duration_units / timescale
-                                metadata["timescale"] = timescale
-                    except (struct.error, IndexError):
-                        pass
-                
-                # Look for tkhd (track header) for video dimensions
-                elif box_type == b'tkhd' and box_size >= 84:
-                    try:
-                        # Track header contains width and height at the end
-                        if pos + box_size <= len(video_data):
-                            width_pos = pos + box_size - 8
-                            if width_pos + 8 <= len(video_data):
-                                width = struct.unpack('>I', video_data[width_pos:width_pos+4])[0] >> 16
-                                height = struct.unpack('>I', video_data[width_pos+4:width_pos+8])[0] >> 16
-                                if width > 0 and height > 0:
-                                    metadata["resolution"] = f"{width}x{height}"
-                                    metadata["width"] = width
-                                    metadata["height"] = height
-                    except (struct.error, IndexError):
-                        pass
-                
-                pos += box_size
+                    # Validate box size
+                    if box_size < 8:  # Minimum box size
+                        pos += 4  # Try next position
+                        continue
+                    
+                    if box_size > len(video_data) - pos:
+                        # Box extends beyond data, try to extract what we can
+                        box_size = len(video_data) - pos
+                    
+                    boxes_found.append(box_type.decode('ascii', errors='ignore'))
+                    
+                    # Enhanced mvhd parsing for duration
+                    if box_type == b'mvhd':
+                        metadata.update(self._parse_mvhd_box(video_data, pos, box_size))
+                    
+                    # Enhanced tkhd parsing for dimensions
+                    elif box_type == b'tkhd':
+                        metadata.update(self._parse_tkhd_box(video_data, pos, box_size))
+                    
+                    # Look for additional metadata boxes
+                    elif box_type == b'mdhd':  # Media header
+                        metadata.update(self._parse_mdhd_box(video_data, pos, box_size))
+                    
+                    elif box_type == b'hdlr':  # Handler reference
+                        metadata.update(self._parse_hdlr_box(video_data, pos, box_size))
+                    
+                    pos += box_size
+                    
+                except (struct.error, IndexError, UnicodeDecodeError) as e:
+                    # Skip problematic box and continue
+                    pos += 4
+                    continue
+            
+            metadata["boxes_found"] = boxes_found
+            metadata["extraction_method"] = "enhanced_mp4"
+            
+            # Apply heuristics if direct parsing failed
+            if not metadata.get("duration") and not metadata.get("resolution"):
+                metadata.update(self._apply_mp4_heuristics(video_data))
                 
         except Exception as e:
             metadata["mp4_extraction_error"] = str(e)
+            # Try fallback heuristics even on error
+            try:
+                metadata.update(self._apply_mp4_heuristics(video_data))
+            except:
+                pass
+        
+        return metadata
+    
+    def _parse_mvhd_box(self, video_data: bytes, pos: int, box_size: int) -> Dict[str, Any]:
+        """Parse movie header box for duration and timescale."""
+        metadata = {}
+        try:
+            # mvhd box structure varies by version
+            if pos + 20 <= len(video_data):
+                version = video_data[pos + 8]  # First byte after box header
+                
+                if version == 0:
+                    # Version 0: 32-bit values
+                    if pos + 32 <= len(video_data):
+                        timescale = struct.unpack('>I', video_data[pos+20:pos+24])[0]
+                        duration_units = struct.unpack('>I', video_data[pos+24:pos+28])[0]
+                        if timescale > 0:
+                            metadata["duration"] = duration_units / timescale
+                            metadata["timescale"] = timescale
+                elif version == 1:
+                    # Version 1: 64-bit values
+                    if pos + 44 <= len(video_data):
+                        timescale = struct.unpack('>I', video_data[pos+28:pos+32])[0]
+                        duration_units = struct.unpack('>Q', video_data[pos+32:pos+40])[0]
+                        if timescale > 0:
+                            metadata["duration"] = duration_units / timescale
+                            metadata["timescale"] = timescale
+        except (struct.error, IndexError):
+            pass
+        return metadata
+    
+    def _parse_tkhd_box(self, video_data: bytes, pos: int, box_size: int) -> Dict[str, Any]:
+        """Parse track header box for video dimensions."""
+        metadata = {}
+        try:
+            if pos + box_size <= len(video_data) and box_size >= 84:
+                # Width and height are at the end of tkhd box (last 8 bytes)
+                width_pos = pos + box_size - 8
+                if width_pos + 8 <= len(video_data):
+                    width = struct.unpack('>I', video_data[width_pos:width_pos+4])[0] >> 16
+                    height = struct.unpack('>I', video_data[width_pos+4:width_pos+8])[0] >> 16
+                    if width > 0 and height > 0 and width < 10000 and height < 10000:  # Sanity check
+                        metadata["resolution"] = f"{width}x{height}"
+                        metadata["width"] = width
+                        metadata["height"] = height
+        except (struct.error, IndexError):
+            pass
+        return metadata
+    
+    def _parse_mdhd_box(self, video_data: bytes, pos: int, box_size: int) -> Dict[str, Any]:
+        """Parse media header box for additional timing info."""
+        metadata = {}
+        try:
+            if pos + 24 <= len(video_data):
+                version = video_data[pos + 8]
+                if version == 0 and pos + 32 <= len(video_data):
+                    media_timescale = struct.unpack('>I', video_data[pos+20:pos+24])[0]
+                    media_duration = struct.unpack('>I', video_data[pos+24:pos+28])[0]
+                    if media_timescale > 0:
+                        metadata["media_duration"] = media_duration / media_timescale
+                        metadata["media_timescale"] = media_timescale
+        except (struct.error, IndexError):
+            pass
+        return metadata
+    
+    def _parse_hdlr_box(self, video_data: bytes, pos: int, box_size: int) -> Dict[str, Any]:
+        """Parse handler reference box for track type."""
+        metadata = {}
+        try:
+            if pos + 24 <= len(video_data):
+                handler_type = video_data[pos+16:pos+20]
+                if handler_type == b'vide':
+                    metadata["has_video_track"] = True
+                elif handler_type == b'soun':
+                    metadata["has_audio_track"] = True
+        except (struct.error, IndexError):
+            pass
+        return metadata
+    
+    def _apply_mp4_heuristics(self, video_data: bytes) -> Dict[str, Any]:
+        """Apply heuristic analysis when direct parsing fails."""
+        metadata = {}
+        
+        # Look for common resolution patterns in the data
+        common_resolutions = [
+            (1920, 1080), (1280, 720), (3840, 2160), (1024, 768),
+            (640, 480), (854, 480), (1366, 768), (2560, 1440)
+        ]
+        
+        for width, height in common_resolutions:
+            # Look for these dimensions encoded in various ways
+            width_bytes = struct.pack('>I', width << 16)
+            height_bytes = struct.pack('>I', height << 16)
+            
+            if width_bytes in video_data and height_bytes in video_data:
+                metadata["resolution"] = f"{width}x{height}"
+                metadata["width"] = width
+                metadata["height"] = height
+                metadata["extraction_method"] = "heuristic"
+                break
+        
+        # Estimate duration based on file size (very rough heuristic)
+        if len(video_data) > 1000000:  # > 1MB
+            # Assume ~1Mbps average bitrate for estimation
+            estimated_duration = len(video_data) / (1024 * 1024 / 8)  # Very rough estimate
+            if estimated_duration < 3600:  # Less than 1 hour seems reasonable
+                metadata["estimated_duration"] = estimated_duration
+                metadata["duration_estimation_method"] = "size_based"
         
         return metadata
     
     def _generate_video_embeddings(self, video_data: bytes) -> Optional[List[float]]:
-        """Generate semantic embeddings for video content."""
+        """Generate semantic embeddings for video content using optimized approach."""
         try:
-            # Placeholder for video semantic analysis
-            # In a real implementation, this would:
-            # 1. Extract key frames
-            # 2. Run visual feature extraction (CNN-based)
-            # 3. Generate semantic embeddings
+            # Use optimized semantic processing if available
+            try:
+                from .semantic import fast_cosine_similarity_batch
+                use_optimized = True
+            except ImportError:
+                use_optimized = False
             
-            # For now, generate a simple hash-based embedding
-            import hashlib
-            video_hash = hashlib.sha256(video_data).hexdigest()
+            # Extract basic visual features from video data
+            # This is a simplified approach - in production would use CNN features
+            features = self._extract_video_features(video_data)
             
-            # Convert hash to embedding vector (384 dimensions)
-            embedding = []
-            for i in range(0, min(len(video_hash), 96), 2):
-                hex_val = video_hash[i:i+2]
-                normalized_val = int(hex_val, 16) / 255.0
-                embedding.extend([normalized_val] * 4)  # Repeat to get 384 dims
+            # Generate semantic embedding from features
+            if use_optimized:
+                # Use optimized embedding generation
+                embedding = self._generate_optimized_video_embedding(features)
+            else:
+                # Fallback to basic embedding
+                embedding = self._generate_basic_video_embedding(features)
             
-            # Pad to 384 dimensions if needed
-            while len(embedding) < 384:
-                embedding.append(0.0)
+            return embedding
             
-            return embedding[:384]
-            
-        except Exception:
-            return None
+        except Exception as e:
+            # Return a deterministic fallback embedding based on content
+            return self._generate_fallback_embedding(video_data)
+    
+    def _extract_video_features(self, video_data: bytes) -> Dict[str, Any]:
+        """Extract basic visual features from video data."""
+        features = {
+            'size': len(video_data),
+            'format_signature': video_data[:16] if len(video_data) >= 16 else video_data,
+            'content_hash': hashlib.sha256(video_data).hexdigest(),
+            'data_distribution': self._analyze_data_distribution(video_data)
+        }
+        return features
+    
+    def _analyze_data_distribution(self, video_data: bytes) -> List[float]:
+        """Analyze byte distribution in video data for feature extraction."""
+        if len(video_data) == 0:
+            return [0.0] * 16
+        
+        # Calculate byte frequency distribution
+        byte_counts = [0] * 256
+        sample_size = min(len(video_data), 10000)  # Sample for performance
+        step = max(1, len(video_data) // sample_size)
+        
+        for i in range(0, len(video_data), step):
+            byte_counts[video_data[i]] += 1
+        
+        # Normalize and create feature vector
+        total = sum(byte_counts)
+        if total == 0:
+            return [0.0] * 16
+        
+        # Group into 16 bins for feature vector
+        features = []
+        bin_size = 256 // 16
+        for i in range(16):
+            start_idx = i * bin_size
+            end_idx = start_idx + bin_size
+            bin_sum = sum(byte_counts[start_idx:end_idx])
+            features.append(bin_sum / total)
+        
+        return features
+    
+    def _generate_optimized_video_embedding(self, features: Dict[str, Any]) -> List[float]:
+        """Generate optimized video embedding from features."""
+        import numpy as np
+        
+        # Create base embedding from content hash
+        content_hash = features['content_hash']
+        base_embedding = []
+        
+        # Convert hash to numerical features (more sophisticated than simple conversion)
+        for i in range(0, len(content_hash), 2):
+            hex_val = content_hash[i:i+2]
+            val = int(hex_val, 16) / 255.0
+            # Apply non-linear transformation for better distribution
+            transformed_val = np.tanh(val * 2 - 1)  # Map to [-1, 1] with tanh
+            base_embedding.append(transformed_val)
+        
+        # Incorporate data distribution features
+        dist_features = features['data_distribution']
+        
+        # Create 384-dimensional embedding
+        embedding = []
+        base_len = len(base_embedding)
+        dist_len = len(dist_features)
+        
+        # Interleave base embedding and distribution features
+        for i in range(384):
+            if i % 3 == 0 and i // 3 < base_len:
+                embedding.append(base_embedding[i // 3])
+            elif i % 3 == 1 and (i // 3) % dist_len < dist_len:
+                embedding.append(dist_features[(i // 3) % dist_len])
+            else:
+                # Fill with derived features
+                idx = i % (base_len + dist_len)
+                if idx < base_len:
+                    embedding.append(base_embedding[idx] * 0.5)
+                else:
+                    embedding.append(dist_features[idx - base_len] * 0.7)
+        
+        return embedding[:384]
+    
+    def _generate_basic_video_embedding(self, features: Dict[str, Any]) -> List[float]:
+        """Generate basic video embedding from features."""
+        content_hash = features['content_hash']
+        
+        # Convert hash to embedding vector (384 dimensions)
+        embedding = []
+        for i in range(0, min(len(content_hash), 96), 2):
+            hex_val = content_hash[i:i+2]
+            normalized_val = int(hex_val, 16) / 255.0
+            embedding.extend([normalized_val] * 4)  # Repeat to get 384 dims
+        
+        # Pad to 384 dimensions if needed
+        while len(embedding) < 384:
+            embedding.append(0.0)
+        
+        return embedding[:384]
+    
+    def _generate_fallback_embedding(self, video_data: bytes) -> List[float]:
+        """Generate fallback embedding when other methods fail."""
+        if len(video_data) == 0:
+            return [0.0] * 384
+        
+        # Simple but deterministic embedding based on data
+        import hashlib
+        hash_obj = hashlib.sha256(video_data)
+        hash_bytes = hash_obj.digest()
+        
+        # Convert to 384-dimensional vector
+        embedding = []
+        for i in range(384):
+            byte_idx = i % len(hash_bytes)
+            val = hash_bytes[byte_idx] / 255.0
+            embedding.append(val)
+        
+        return embedding
     
     def add_cross_modal_block(self, multimodal_data: Dict[str, Any], metadata: Optional[Dict] = None,
                              update_block_id: Optional[str] = None,
@@ -959,7 +1193,7 @@ class MAIFDecoder:
     """Decodes MAIF files with versioning and privacy support."""
     
     def __init__(self, maif_path: str, manifest_path: Optional[str] = None, privacy_engine: Optional[PrivacyEngine] = None,
-                 requesting_agent: Optional[str] = None):
+                 requesting_agent: Optional[str] = None, preload_semantic: bool = True):
         # Check if MAIF file exists
         if not os.path.exists(maif_path):
             raise FileNotFoundError(f"MAIF file not found: {maif_path}")
@@ -974,6 +1208,7 @@ class MAIFDecoder:
         self._manifest_path_obj = Path(manifest_path) if manifest_path else None
         self.privacy_engine = privacy_engine
         self.requesting_agent = requesting_agent or "anonymous"
+        self._cached_embedder = None
         
         if manifest_path and os.path.exists(manifest_path):
             with open(manifest_path, 'r') as f:
@@ -1068,6 +1303,21 @@ class MAIFDecoder:
                     }
                     mapped_blocks.append(MAIFBlock(**mapped_data))
                 self.block_registry[block_id] = mapped_blocks
+        
+        # Pre-load semantic embedder for faster video searches
+        if preload_semantic:
+            self._preload_semantic_embedder()
+    
+    def _preload_semantic_embedder(self):
+        """Pre-load the semantic embedder to avoid initialization delay on first search."""
+        try:
+            from .semantic import SemanticEmbedder
+            self._cached_embedder = SemanticEmbedder()
+            # Warm up the model with a dummy embedding
+            self._cached_embedder.embed_text("initialization")
+        except Exception:
+            # If semantic embedder fails to load, searches will fall back to creating it on demand
+            self._cached_embedder = None
     
     def verify_integrity(self) -> bool:
         """Verify all block hashes match stored values."""
@@ -1559,48 +1809,127 @@ class MAIFDecoder:
         return self.get_block_data(block_id)
     
     def search_videos_by_content(self, query_text: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Search videos by semantic content using embeddings."""
+        """Search videos by semantic content using optimized embeddings."""
         try:
-            from .semantic import SemanticEmbedder
+            # Import optimized functions from main semantic module
+            from .semantic import SemanticEmbedder, fast_cosine_similarity_batch
+            import numpy as np
+            use_optimized = True
+            
+            # Use cached embedder if available, otherwise create new one
+            if not hasattr(self, '_cached_embedder'):
+                self._cached_embedder = SemanticEmbedder()
             
             # Generate query embedding
-            embedder = SemanticEmbedder()
-            query_embedding = embedder.embed_text(query_text)
+            query_embedding = self._cached_embedder.embed_text(query_text)
+            
+            # Handle different embedding formats
+            if hasattr(query_embedding, 'vector'):
+                query_vector = np.array(query_embedding.vector)
+            elif isinstance(query_embedding, list):
+                query_vector = np.array(query_embedding)
+            else:
+                # Fallback for other formats
+                query_vector = np.array([0.0] * 384)
             
             # Get video blocks with semantic embeddings
             video_blocks = self.get_video_blocks()
-            similarities = []
+            
+            if not video_blocks:
+                return []
+            
+            # Collect all video embeddings for batch processing
+            valid_blocks = []
+            video_embeddings_list = []
             
             for block in video_blocks:
                 if not block.metadata or not block.metadata.get("has_semantic_analysis"):
                     continue
                 
                 video_embeddings = block.metadata.get("semantic_embeddings")
-                if video_embeddings:
-                    # Calculate similarity
-                    similarity = embedder.compute_similarity(query_embedding,
-                                                           type('obj', (object,), {'vector': video_embeddings})())
-                    similarities.append((block, similarity))
+                if video_embeddings and len(video_embeddings) > 0:
+                    valid_blocks.append(block)
+                    video_embeddings_list.append(video_embeddings)
             
-            # Sort by similarity and return top k
-            similarities.sort(key=lambda x: x[1], reverse=True)
+            if not video_embeddings_list:
+                return []
             
-            results = []
-            for block, similarity in similarities[:top_k]:
-                result = {
-                    "block_id": block.block_id,
-                    "metadata": block.metadata,
-                    "similarity_score": similarity,
-                    "duration": block.metadata.get("duration"),
-                    "resolution": block.metadata.get("resolution"),
-                    "format": block.metadata.get("format")
-                }
-                results.append(result)
+            # Compute similarities efficiently
+            if use_optimized and len(video_embeddings_list) > 1:
+                # Use optimized batch computation
+                video_matrix = np.array(video_embeddings_list)
+                query_matrix = query_vector.reshape(1, -1)
+                similarities_matrix = fast_cosine_similarity_batch(query_matrix, video_matrix)
+                similarities_scores = similarities_matrix[0]
+                
+                # Get top k indices
+                if top_k >= len(similarities_scores):
+                    top_indices = np.argsort(similarities_scores)[::-1]
+                else:
+                    top_indices = np.argpartition(similarities_scores, -top_k)[-top_k:]
+                    top_indices = top_indices[np.argsort(similarities_scores[top_indices])[::-1]]
+                
+                results = []
+                for idx in top_indices:
+                    if idx < len(valid_blocks):
+                        block = valid_blocks[idx]
+                        similarity = float(similarities_scores[idx])
+                        
+                        result = {
+                            "block_id": block.block_id,
+                            "metadata": block.metadata,
+                            "similarity_score": similarity,
+                            "duration": block.metadata.get("duration"),
+                            "resolution": block.metadata.get("resolution"),
+                            "format": block.metadata.get("format")
+                        }
+                        results.append(result)
+                
+                return results
             
-            return results
+            else:
+                # Fallback to individual similarity computation with numpy optimization
+                similarities = []
+                
+                for i, block in enumerate(valid_blocks):
+                    video_embeddings = video_embeddings_list[i]
+                    
+                    # Calculate cosine similarity manually for better performance
+                    video_vector = np.array(video_embeddings)
+                    
+                    # Normalize vectors
+                    query_norm = np.linalg.norm(query_vector)
+                    video_norm = np.linalg.norm(video_vector)
+                    
+                    if query_norm > 0 and video_norm > 0:
+                        similarity = np.dot(query_vector, video_vector) / (query_norm * video_norm)
+                    else:
+                        similarity = 0.0
+                    
+                    similarities.append((block, float(similarity)))
+                
+                # Sort by similarity and return top k
+                similarities.sort(key=lambda x: x[1], reverse=True)
+                
+                results = []
+                for block, similarity in similarities[:top_k]:
+                    result = {
+                        "block_id": block.block_id,
+                        "metadata": block.metadata,
+                        "similarity_score": similarity,
+                        "duration": block.metadata.get("duration"),
+                        "resolution": block.metadata.get("resolution"),
+                        "format": block.metadata.get("format")
+                    }
+                    results.append(result)
+                
+                return results
             
         except ImportError:
             # Fallback without semantic search
+            return []
+        except Exception as e:
+            # Return empty results on error but don't crash
             return []
     
     def get_video_frames_at_timestamps(self, block_id: str, timestamps: List[float]) -> List[bytes]:
