@@ -1,0 +1,102 @@
+{
+  "timestamp": 1749615399.474427,
+  "system_info": {
+    "cpu_count": 12,
+    "memory_gb": 96.0,
+    "python_version": "3.x"
+  },
+  "results": [
+    {
+      "test_name": "Compression Ratios",
+      "duration_seconds": 0.02056574821472168,
+      "operations_count": 5,
+      "throughput_ops_per_sec": 243.12268864698177,
+      "memory_usage_mb": 3.203125,
+      "cpu_usage_percent": 5.100000000000001,
+      "additional_metrics": {
+        "overall_compression_ratio": 0.9979109212237257,
+        "max_ratio": 0.9994357433699846,
+        "min_ratio": 0.8759623609923011,
+        "avg_ratio": 0.9660185679245558,
+        "paper_claimed_ratio": 480,
+        "ratio_achievement_percent": 0.2078981085882762,
+        "detailed_results": [
+          {
+            "original_size": 1024,
+            "compressed_size": 1169,
+            "ratio": 0.8759623609923011,
+            "algorithm": "lz4"
+          },
+          {
+            "original_size": 4096,
+            "compressed_size": 4241,
+            "ratio": 0.9658099504833766,
+            "algorithm": "lz4"
+          },
+          {
+            "original_size": 16384,
+            "compressed_size": 16531,
+            "ratio": 0.9911076159941927,
+            "algorithm": "lz4"
+          },
+          {
+            "original_size": 65536,
+            "compressed_size": 65682,
+            "ratio": 0.9977771687829238,
+            "algorithm": "lz4"
+          },
+          {
+            "original_size": 262144,
+            "compressed_size": 262292,
+            "ratio": 0.9994357433699846,
+            "algorithm": "lz4"
+          }
+        ]
+      }
+    },
+    {
+      "test_name": "Write Throughput",
+      "duration_seconds": 0.11678194999694824,
+      "operations_count": 500,
+      "throughput_ops_per_sec": 6296.373467678257,
+      "memory_usage_mb": 1.953125,
+      "cpu_usage_percent": 50.7,
+      "additional_metrics": {
+        "paper_claimed_tps": 100000,
+        "actual_tps": 6296.373467678257,
+        "tps_achievement_percent": 6.296373467678257,
+        "avg_operation_time_ms": 0.15882158279418945,
+        "write_duration_seconds": 0.07941079139709473
+      }
+    },
+    {
+      "test_name": "Cryptographic Overhead",
+      "duration_seconds": 0.01739811897277832,
+      "operations_count": 500,
+      "throughput_ops_per_sec": 28738.738985652228,
+      "memory_usage_mb": 0.03125,
+      "cpu_usage_percent": 16.7,
+      "additional_metrics": {
+        "avg_hash_time_ms": 0.0035396240000011847,
+        "max_hash_time_ms": 0.02250000000003638,
+        "total_crypto_overhead_ms": 1.7698120000005924,
+        "crypto_ops_per_second": 282515.8830428501
+      }
+    },
+    {
+      "test_name": "Serialization Performance",
+      "duration_seconds": 0.4436917304992676,
+      "operations_count": 1000,
+      "throughput_ops_per_sec": 2253.8170789767532,
+      "memory_usage_mb": 16.59375,
+      "cpu_usage_percent": 16.2,
+      "additional_metrics": {
+        "avg_serialize_time_ms": 0.009785754000000146,
+        "avg_deserialize_time_ms": 0.0039307100000025574,
+        "max_serialize_time_ms": 0.11316700000008062,
+        "max_deserialize_time_ms": 0.029208999999918994,
+        "total_serialization_time_ms": 6.858232000001352
+      }
+    }
+  ]
+}
