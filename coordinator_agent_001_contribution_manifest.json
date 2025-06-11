@@ -1,0 +1,1341 @@
+{
+  "maif_version": "0.1.0",
+  "created": 1749516252.461254,
+  "creator_id": null,
+  "agent_id": "coordinator_agent_001",
+  "header": {
+    "version": "0.1.0",
+    "created_timestamp": 1749516252.461254,
+    "creator_id": null,
+    "agent_id": "coordinator_agent_001"
+  },
+  "blocks": [
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 0,
+      "size": 522,
+      "hash": "sha256:f86214b9e0ca9a022e9cad4db45576365b7c5e2d1e08ae7af8f60875214f1cae",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "252a4648-6582-4360-b297-047eb025284c",
+      "metadata": {
+        "type": "agent_profile",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "none",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 522,
+      "size": 471,
+      "hash": "sha256:e7a05280b49101773124a7c999fbe9ece0543d06bc28f160211c151d893ba165",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "4a58171c-ed8b-46f8-80d1-96e570b7627d",
+      "metadata": {
+        "type": "coordinator_config",
+        "encryption": {
+          "iv": "Fua66MvLG4vp1SWn",
+          "tag": "fzslyu270qMo0ZUFUsgdnA==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 993,
+      "size": 430,
+      "hash": "sha256:832edc19dcfd1b9c2e8533bf017a52fec5c99e458ae46994974c36065936f9e6",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "f85cb376-5d88-4c25-a638-be8a75026716",
+      "metadata": {
+        "type": "collaboration_round",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "none",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "cross_modal",
+      "block_type": "cross_modal",
+      "offset": 1423,
+      "size": 31898,
+      "hash": "sha256:056ea059fe93ab83074016662acefb70459ccea1018c255a9e8648ef055803d2",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "f8860525-6668-483f-af20-9ea939505cf9",
+      "metadata": {
+        "title": "synthesized_consortium_artifact by coordinator_agent_001",
+        "algorithm": "Enhanced_ACAM_v2",
+        "modalities": [
+          "text",
+          "agent_metadata",
+          "content_structure"
+        ],
+        "unified_representation_dim": 384,
+        "attention_weights_available": true,
+        "enhanced_version": true,
+        "encryption": {
+          "iv": "BaXOXI30mla1R70H",
+          "tag": "ycv2kAk4cjfOp3IETfmIyQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "CEMB",
+      "block_type": "CEMB",
+      "offset": 33321,
+      "size": 11146,
+      "hash": "sha256:b0dde5065e066c44c35d973caa04260d87ea5ff5e73aa701c276b7b0d085daf5",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "a5cf8645-284c-44e8-8c13-49c80aade48b",
+      "metadata": {
+        "model": "coordinator_agent_001_embedder",
+        "compressed": true,
+        "algorithm": "Enhanced_HSC_v2",
+        "compression_type": "hierarchical_semantic_dbscan",
+        "original_count": 3,
+        "original_dimensions": 384,
+        "compression_ratio": 4608.0,
+        "fidelity_score": 0.8879832437337741,
+        "tier1_clusters": 1,
+        "tier2_codebook_size": 1,
+        "tier3_encoding": "run_length",
+        "preserve_fidelity": true,
+        "encryption": {
+          "iv": "ifkhbyxzECwNoboy",
+          "tag": "f5r2fTGhLFLhdhpCH8TjCQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 44467,
+      "size": 403,
+      "hash": "sha256:1fdb35e0940d600c911a53a9a167d847b9a761c7b37c68178473463c9afa1384",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "684a828d-b7cd-4385-96df-16552fe2e61a",
+      "metadata": {
+        "type": "knowledge_triple",
+        "encryption": {
+          "iv": "3SKR+83Yl76d47xL",
+          "tag": "TlLmr9MnpWdvpeyb2zioNQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "cross_modal",
+      "block_type": "cross_modal",
+      "offset": 44870,
+      "size": 32556,
+      "hash": "sha256:9db2b70e2dd7b8dc635bf090776eb2785c476aca285af13a9a89d8ad4c1c8278",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "8bce8c63-6cf4-4c61-b61a-545b600f0333",
+      "metadata": {
+        "title": "synthesized_consortium_artifact_refined by coordinator_agent_001",
+        "algorithm": "Enhanced_ACAM_v2",
+        "modalities": [
+          "text",
+          "agent_metadata",
+          "content_structure"
+        ],
+        "unified_representation_dim": 384,
+        "attention_weights_available": true,
+        "enhanced_version": true,
+        "encryption": {
+          "iv": "POOM7IA+3DTvLxcD",
+          "tag": "GxYUCiKyCuKV0uxuZed1yA==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "CEMB",
+      "block_type": "CEMB",
+      "offset": 77426,
+      "size": 11146,
+      "hash": "sha256:5d6204a01fae06e030476bd15fbc15f0e36f6abe4405dbcf203bc7da9dfb6b52",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "ad1a20c3-14e6-442b-9583-fd1c95951655",
+      "metadata": {
+        "model": "coordinator_agent_001_embedder",
+        "compressed": true,
+        "algorithm": "Enhanced_HSC_v2",
+        "compression_type": "hierarchical_semantic_dbscan",
+        "original_count": 3,
+        "original_dimensions": 384,
+        "compression_ratio": 4608.0,
+        "fidelity_score": 0.8879832437337741,
+        "tier1_clusters": 1,
+        "tier2_codebook_size": 1,
+        "tier3_encoding": "run_length",
+        "preserve_fidelity": true,
+        "encryption": {
+          "iv": "qjK5B1KWxWPuZbGg",
+          "tag": "ZRJb4FJ5r3rrSIXaftr8LA==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 88572,
+      "size": 412,
+      "hash": "sha256:162059b6c9f59caf9adf4d468b3b2238efc56144575c6a35cfc9a58a366661a7",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "93e357e7-86fd-4d21-9039-2dfec0134d7f",
+      "metadata": {
+        "type": "knowledge_triple",
+        "encryption": {
+          "iv": "8wYHm2GjJsAA9g6t",
+          "tag": "s9nnXPBhAeX/Vx0/qUWjrQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "cross_modal",
+      "block_type": "cross_modal",
+      "offset": 88984,
+      "size": 32354,
+      "hash": "sha256:ad6935960d21517183d293d2dd350eeb743404b29c546f1a456c3a38037234e0",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "78a4db06-05fe-4904-8cbc-82c724a209bc",
+      "metadata": {
+        "title": "synthesized_consortium_artifact by coordinator_agent_001",
+        "algorithm": "Enhanced_ACAM_v2",
+        "modalities": [
+          "text",
+          "agent_metadata",
+          "content_structure"
+        ],
+        "unified_representation_dim": 384,
+        "attention_weights_available": true,
+        "enhanced_version": true,
+        "encryption": {
+          "iv": "BiwnO5DozTPADghH",
+          "tag": "Ll7WiXthH9HN71rqCkl7Yw==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "CEMB",
+      "block_type": "CEMB",
+      "offset": 121338,
+      "size": 11146,
+      "hash": "sha256:58e620a46730645a728175e445bce53d09ade66ae993240b247361b2063ed210",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "81e774ac-6193-4cb1-a826-8e1cabe27dce",
+      "metadata": {
+        "model": "coordinator_agent_001_embedder",
+        "compressed": true,
+        "algorithm": "Enhanced_HSC_v2",
+        "compression_type": "hierarchical_semantic_dbscan",
+        "original_count": 3,
+        "original_dimensions": 384,
+        "compression_ratio": 4608.0,
+        "fidelity_score": 0.8879832437337741,
+        "tier1_clusters": 1,
+        "tier2_codebook_size": 1,
+        "tier3_encoding": "run_length",
+        "preserve_fidelity": true,
+        "encryption": {
+          "iv": "2D7Bf0aggQFo5biw",
+          "tag": "4+PBI7zivnntdEOiiL9d/w==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 132484,
+      "size": 403,
+      "hash": "sha256:6d383a767ee003b8e49440beece6d7c58d9e70faa657ea4551206f58973841c7",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "2d923658-0f78-489f-bbc9-4c46182ffc90",
+      "metadata": {
+        "type": "knowledge_triple",
+        "encryption": {
+          "iv": "GP0IXbHAbk9aIEcE",
+          "tag": "Zbz5cPd2abaq0dAAh43okA==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "text",
+      "block_type": "text",
+      "offset": 132887,
+      "size": 221,
+      "hash": "sha256:888dbf05c1c64028a3684d97d3372041fe9f73c5f7b0990a30b9c669ce6102fc",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "da9cf418-235b-4550-a1bc-3c974e01c7eb",
+      "metadata": {
+        "language": "en",
+        "title": "Reference to geo_agent_001 contribution",
+        "encryption": {
+          "iv": "xi8nbktQji747KZb",
+          "tag": "3MiayflCHF4SSrY4YCV1nA==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "text",
+      "block_type": "text",
+      "offset": 133108,
+      "size": 224,
+      "hash": "sha256:395d0d0c6563a6b97004032fc32706c93cccfba899f534c2debe0a5e06b9f224",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "d589f3ab-a551-4f07-9738-b5da3c492b9c",
+      "metadata": {
+        "language": "en",
+        "title": "Reference to culture_agent_001 contribution",
+        "encryption": {
+          "iv": "oVUw8zZ0z0T6nxaG",
+          "tag": "fEoeINKccYrJRjcwlYR0Vg==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "text",
+      "block_type": "text",
+      "offset": 133332,
+      "size": 227,
+      "hash": "sha256:c0aea9d394f9a2b9a683da247b6a24ef876b0b15e5454c609cf23c9f78d994ec",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "4cd1fbd2-4b5f-4450-b611-98ced12b7783",
+      "metadata": {
+        "language": "en",
+        "title": "Reference to logistics_agent_001 contribution",
+        "encryption": {
+          "iv": "Ry68exg74BiI2ZLn",
+          "tag": "uBrs8k/HlhHmHLzMmdbaRw==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "text",
+      "block_type": "text",
+      "offset": 133559,
+      "size": 228,
+      "hash": "sha256:0d21c4c09f2a161051c4323ac63419adb024aafe163307d00cbb183f1773e3c6",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "bb310f12-12dd-42e6-806f-d0f76f99f8fd",
+      "metadata": {
+        "language": "en",
+        "title": "Reference to safety_agent_001 contribution",
+        "encryption": {
+          "iv": "LnZcJ+TcNRnOJGCs",
+          "tag": "RG6PESG3LuJ2xYeWLYcmWQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "cross_modal",
+      "block_type": "cross_modal",
+      "offset": 133787,
+      "size": 23192,
+      "hash": "sha256:b243deb57f8e20522cfadea0529f41f382ce357c22a4901c98bddd2aaeb51447",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "2e3686e1-93f1-476d-8728-64c162ddd1f7",
+      "metadata": {
+        "title": "Consortium Metadata",
+        "algorithm": "Enhanced_ACAM_v2",
+        "modalities": [
+          "metadata",
+          "artifact_type"
+        ],
+        "unified_representation_dim": 384,
+        "attention_weights_available": true,
+        "enhanced_version": true,
+        "encryption": {
+          "iv": "3IhzK82JsLkaKkkw",
+          "tag": "HFcCMv8S6PogkARdNDyNwQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 156979,
+      "size": 930,
+      "hash": "sha256:f8a97d9dde14a39162c0ec9bff64b71295ab801cdf8605e8b74661d943b09102",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "0b8001ed-81fe-411c-bcd8-a7ceedbfc806",
+      "metadata": {
+        "type": "final_summary",
+        "encryption": {
+          "iv": "4eNCZW7oVHGhnrrb",
+          "tag": "N6GgCEFufLNjoSbpRWF4+Q==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    }
+  ],
+  "version_history": {
+    "252a4648-6582-4360-b297-047eb025284c": [
+      {
+        "version": 1,
+        "timestamp": 1749516252.5740402,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "252a4648-6582-4360-b297-047eb025284c",
+        "previous_hash": null,
+        "current_hash": "sha256:f86214b9e0ca9a022e9cad4db45576365b7c5e2d1e08ae7af8f60875214f1cae",
+        "block_hash": "sha256:f86214b9e0ca9a022e9cad4db45576365b7c5e2d1e08ae7af8f60875214f1cae",
+        "change_description": null
+      }
+    ],
+    "4a58171c-ed8b-46f8-80d1-96e570b7627d": [
+      {
+        "version": 1,
+        "timestamp": 1749516252.5771708,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "4a58171c-ed8b-46f8-80d1-96e570b7627d",
+        "previous_hash": null,
+        "current_hash": "sha256:e7a05280b49101773124a7c999fbe9ece0543d06bc28f160211c151d893ba165",
+        "block_hash": "sha256:e7a05280b49101773124a7c999fbe9ece0543d06bc28f160211c151d893ba165",
+        "change_description": null
+      }
+    ],
+    "f85cb376-5d88-4c25-a638-be8a75026716": [
+      {
+        "version": 1,
+        "timestamp": 1749516320.466395,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "f85cb376-5d88-4c25-a638-be8a75026716",
+        "previous_hash": null,
+        "current_hash": "sha256:832edc19dcfd1b9c2e8533bf017a52fec5c99e458ae46994974c36065936f9e6",
+        "block_hash": "sha256:832edc19dcfd1b9c2e8533bf017a52fec5c99e458ae46994974c36065936f9e6",
+        "change_description": null
+      }
+    ],
+    "f8860525-6668-483f-af20-9ea939505cf9": [
+      {
+        "version": 1,
+        "timestamp": 1749516321.5588338,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "f8860525-6668-483f-af20-9ea939505cf9",
+        "previous_hash": null,
+        "current_hash": "sha256:056ea059fe93ab83074016662acefb70459ccea1018c255a9e8648ef055803d2",
+        "block_hash": "sha256:056ea059fe93ab83074016662acefb70459ccea1018c255a9e8648ef055803d2",
+        "change_description": null
+      }
+    ],
+    "a5cf8645-284c-44e8-8c13-49c80aade48b": [
+      {
+        "version": 1,
+        "timestamp": 1749516321.5625331,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "a5cf8645-284c-44e8-8c13-49c80aade48b",
+        "previous_hash": null,
+        "current_hash": "sha256:b0dde5065e066c44c35d973caa04260d87ea5ff5e73aa701c276b7b0d085daf5",
+        "block_hash": "sha256:b0dde5065e066c44c35d973caa04260d87ea5ff5e73aa701c276b7b0d085daf5",
+        "change_description": null
+      }
+    ],
+    "684a828d-b7cd-4385-96df-16552fe2e61a": [
+      {
+        "version": 1,
+        "timestamp": 1749516321.562618,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "684a828d-b7cd-4385-96df-16552fe2e61a",
+        "previous_hash": null,
+        "current_hash": "sha256:1fdb35e0940d600c911a53a9a167d847b9a761c7b37c68178473463c9afa1384",
+        "block_hash": "sha256:1fdb35e0940d600c911a53a9a167d847b9a761c7b37c68178473463c9afa1384",
+        "change_description": null
+      }
+    ],
+    "8bce8c63-6cf4-4c61-b61a-545b600f0333": [
+      {
+        "version": 1,
+        "timestamp": 1749516323.027223,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "8bce8c63-6cf4-4c61-b61a-545b600f0333",
+        "previous_hash": null,
+        "current_hash": "sha256:9db2b70e2dd7b8dc635bf090776eb2785c476aca285af13a9a89d8ad4c1c8278",
+        "block_hash": "sha256:9db2b70e2dd7b8dc635bf090776eb2785c476aca285af13a9a89d8ad4c1c8278",
+        "change_description": null
+      }
+    ],
+    "ad1a20c3-14e6-442b-9583-fd1c95951655": [
+      {
+        "version": 1,
+        "timestamp": 1749516323.0292401,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "ad1a20c3-14e6-442b-9583-fd1c95951655",
+        "previous_hash": null,
+        "current_hash": "sha256:5d6204a01fae06e030476bd15fbc15f0e36f6abe4405dbcf203bc7da9dfb6b52",
+        "block_hash": "sha256:5d6204a01fae06e030476bd15fbc15f0e36f6abe4405dbcf203bc7da9dfb6b52",
+        "change_description": null
+      }
+    ],
+    "93e357e7-86fd-4d21-9039-2dfec0134d7f": [
+      {
+        "version": 1,
+        "timestamp": 1749516323.0293162,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "93e357e7-86fd-4d21-9039-2dfec0134d7f",
+        "previous_hash": null,
+        "current_hash": "sha256:162059b6c9f59caf9adf4d468b3b2238efc56144575c6a35cfc9a58a366661a7",
+        "block_hash": "sha256:162059b6c9f59caf9adf4d468b3b2238efc56144575c6a35cfc9a58a366661a7",
+        "change_description": null
+      }
+    ],
+    "78a4db06-05fe-4904-8cbc-82c724a209bc": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.160657,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "78a4db06-05fe-4904-8cbc-82c724a209bc",
+        "previous_hash": null,
+        "current_hash": "sha256:ad6935960d21517183d293d2dd350eeb743404b29c546f1a456c3a38037234e0",
+        "block_hash": "sha256:ad6935960d21517183d293d2dd350eeb743404b29c546f1a456c3a38037234e0",
+        "change_description": null
+      }
+    ],
+    "81e774ac-6193-4cb1-a826-8e1cabe27dce": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.16272,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "81e774ac-6193-4cb1-a826-8e1cabe27dce",
+        "previous_hash": null,
+        "current_hash": "sha256:58e620a46730645a728175e445bce53d09ade66ae993240b247361b2063ed210",
+        "block_hash": "sha256:58e620a46730645a728175e445bce53d09ade66ae993240b247361b2063ed210",
+        "change_description": null
+      }
+    ],
+    "2d923658-0f78-489f-bbc9-4c46182ffc90": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.1627982,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "2d923658-0f78-489f-bbc9-4c46182ffc90",
+        "previous_hash": null,
+        "current_hash": "sha256:6d383a767ee003b8e49440beece6d7c58d9e70faa657ea4551206f58973841c7",
+        "block_hash": "sha256:6d383a767ee003b8e49440beece6d7c58d9e70faa657ea4551206f58973841c7",
+        "change_description": null
+      }
+    ],
+    "da9cf418-235b-4550-a1bc-3c974e01c7eb": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.162892,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "da9cf418-235b-4550-a1bc-3c974e01c7eb",
+        "previous_hash": null,
+        "current_hash": "sha256:888dbf05c1c64028a3684d97d3372041fe9f73c5f7b0990a30b9c669ce6102fc",
+        "block_hash": "sha256:888dbf05c1c64028a3684d97d3372041fe9f73c5f7b0990a30b9c669ce6102fc",
+        "change_description": null
+      }
+    ],
+    "d589f3ab-a551-4f07-9738-b5da3c492b9c": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.1629498,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "d589f3ab-a551-4f07-9738-b5da3c492b9c",
+        "previous_hash": null,
+        "current_hash": "sha256:395d0d0c6563a6b97004032fc32706c93cccfba899f534c2debe0a5e06b9f224",
+        "block_hash": "sha256:395d0d0c6563a6b97004032fc32706c93cccfba899f534c2debe0a5e06b9f224",
+        "change_description": null
+      }
+    ],
+    "4cd1fbd2-4b5f-4450-b611-98ced12b7783": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.163002,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "4cd1fbd2-4b5f-4450-b611-98ced12b7783",
+        "previous_hash": null,
+        "current_hash": "sha256:c0aea9d394f9a2b9a683da247b6a24ef876b0b15e5454c609cf23c9f78d994ec",
+        "block_hash": "sha256:c0aea9d394f9a2b9a683da247b6a24ef876b0b15e5454c609cf23c9f78d994ec",
+        "change_description": null
+      }
+    ],
+    "bb310f12-12dd-42e6-806f-d0f76f99f8fd": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.163054,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "bb310f12-12dd-42e6-806f-d0f76f99f8fd",
+        "previous_hash": null,
+        "current_hash": "sha256:0d21c4c09f2a161051c4323ac63419adb024aafe163307d00cbb183f1773e3c6",
+        "block_hash": "sha256:0d21c4c09f2a161051c4323ac63419adb024aafe163307d00cbb183f1773e3c6",
+        "change_description": null
+      }
+    ],
+    "2e3686e1-93f1-476d-8728-64c162ddd1f7": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.1749382,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "2e3686e1-93f1-476d-8728-64c162ddd1f7",
+        "previous_hash": null,
+        "current_hash": "sha256:b243deb57f8e20522cfadea0529f41f382ce357c22a4901c98bddd2aaeb51447",
+        "block_hash": "sha256:b243deb57f8e20522cfadea0529f41f382ce357c22a4901c98bddd2aaeb51447",
+        "change_description": null
+      }
+    ],
+    "0b8001ed-81fe-411c-bcd8-a7ceedbfc806": [
+      {
+        "version": 1,
+        "timestamp": 1749516324.449722,
+        "agent_id": "coordinator_agent_001",
+        "operation": "create",
+        "block_id": "0b8001ed-81fe-411c-bcd8-a7ceedbfc806",
+        "previous_hash": null,
+        "current_hash": "sha256:f8a97d9dde14a39162c0ec9bff64b71295ab801cdf8605e8b74661d943b09102",
+        "block_hash": "sha256:f8a97d9dde14a39162c0ec9bff64b71295ab801cdf8605e8b74661d943b09102",
+        "change_description": null
+      }
+    ]
+  },
+  "block_registry": {
+    "252a4648-6582-4360-b297-047eb025284c": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 0,
+        "size": 522,
+        "hash": "sha256:f86214b9e0ca9a022e9cad4db45576365b7c5e2d1e08ae7af8f60875214f1cae",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "252a4648-6582-4360-b297-047eb025284c",
+        "metadata": {
+          "type": "agent_profile",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "none",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "4a58171c-ed8b-46f8-80d1-96e570b7627d": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 522,
+        "size": 471,
+        "hash": "sha256:e7a05280b49101773124a7c999fbe9ece0543d06bc28f160211c151d893ba165",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "4a58171c-ed8b-46f8-80d1-96e570b7627d",
+        "metadata": {
+          "type": "coordinator_config",
+          "encryption": {
+            "iv": "Fua66MvLG4vp1SWn",
+            "tag": "fzslyu270qMo0ZUFUsgdnA==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "f85cb376-5d88-4c25-a638-be8a75026716": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 993,
+        "size": 430,
+        "hash": "sha256:832edc19dcfd1b9c2e8533bf017a52fec5c99e458ae46994974c36065936f9e6",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "f85cb376-5d88-4c25-a638-be8a75026716",
+        "metadata": {
+          "type": "collaboration_round",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "none",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "f8860525-6668-483f-af20-9ea939505cf9": [
+      {
+        "type": "cross_modal",
+        "block_type": "cross_modal",
+        "offset": 1423,
+        "size": 31898,
+        "hash": "sha256:056ea059fe93ab83074016662acefb70459ccea1018c255a9e8648ef055803d2",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "f8860525-6668-483f-af20-9ea939505cf9",
+        "metadata": {
+          "title": "synthesized_consortium_artifact by coordinator_agent_001",
+          "algorithm": "Enhanced_ACAM_v2",
+          "modalities": [
+            "text",
+            "agent_metadata",
+            "content_structure"
+          ],
+          "unified_representation_dim": 384,
+          "attention_weights_available": true,
+          "enhanced_version": true,
+          "encryption": {
+            "iv": "BaXOXI30mla1R70H",
+            "tag": "ycv2kAk4cjfOp3IETfmIyQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "a5cf8645-284c-44e8-8c13-49c80aade48b": [
+      {
+        "type": "CEMB",
+        "block_type": "CEMB",
+        "offset": 33321,
+        "size": 11146,
+        "hash": "sha256:b0dde5065e066c44c35d973caa04260d87ea5ff5e73aa701c276b7b0d085daf5",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "a5cf8645-284c-44e8-8c13-49c80aade48b",
+        "metadata": {
+          "model": "coordinator_agent_001_embedder",
+          "compressed": true,
+          "algorithm": "Enhanced_HSC_v2",
+          "compression_type": "hierarchical_semantic_dbscan",
+          "original_count": 3,
+          "original_dimensions": 384,
+          "compression_ratio": 4608.0,
+          "fidelity_score": 0.8879832437337741,
+          "tier1_clusters": 1,
+          "tier2_codebook_size": 1,
+          "tier3_encoding": "run_length",
+          "preserve_fidelity": true,
+          "encryption": {
+            "iv": "ifkhbyxzECwNoboy",
+            "tag": "f5r2fTGhLFLhdhpCH8TjCQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "684a828d-b7cd-4385-96df-16552fe2e61a": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 44467,
+        "size": 403,
+        "hash": "sha256:1fdb35e0940d600c911a53a9a167d847b9a761c7b37c68178473463c9afa1384",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "684a828d-b7cd-4385-96df-16552fe2e61a",
+        "metadata": {
+          "type": "knowledge_triple",
+          "encryption": {
+            "iv": "3SKR+83Yl76d47xL",
+            "tag": "TlLmr9MnpWdvpeyb2zioNQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "8bce8c63-6cf4-4c61-b61a-545b600f0333": [
+      {
+        "type": "cross_modal",
+        "block_type": "cross_modal",
+        "offset": 44870,
+        "size": 32556,
+        "hash": "sha256:9db2b70e2dd7b8dc635bf090776eb2785c476aca285af13a9a89d8ad4c1c8278",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "8bce8c63-6cf4-4c61-b61a-545b600f0333",
+        "metadata": {
+          "title": "synthesized_consortium_artifact_refined by coordinator_agent_001",
+          "algorithm": "Enhanced_ACAM_v2",
+          "modalities": [
+            "text",
+            "agent_metadata",
+            "content_structure"
+          ],
+          "unified_representation_dim": 384,
+          "attention_weights_available": true,
+          "enhanced_version": true,
+          "encryption": {
+            "iv": "POOM7IA+3DTvLxcD",
+            "tag": "GxYUCiKyCuKV0uxuZed1yA==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "ad1a20c3-14e6-442b-9583-fd1c95951655": [
+      {
+        "type": "CEMB",
+        "block_type": "CEMB",
+        "offset": 77426,
+        "size": 11146,
+        "hash": "sha256:5d6204a01fae06e030476bd15fbc15f0e36f6abe4405dbcf203bc7da9dfb6b52",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "ad1a20c3-14e6-442b-9583-fd1c95951655",
+        "metadata": {
+          "model": "coordinator_agent_001_embedder",
+          "compressed": true,
+          "algorithm": "Enhanced_HSC_v2",
+          "compression_type": "hierarchical_semantic_dbscan",
+          "original_count": 3,
+          "original_dimensions": 384,
+          "compression_ratio": 4608.0,
+          "fidelity_score": 0.8879832437337741,
+          "tier1_clusters": 1,
+          "tier2_codebook_size": 1,
+          "tier3_encoding": "run_length",
+          "preserve_fidelity": true,
+          "encryption": {
+            "iv": "qjK5B1KWxWPuZbGg",
+            "tag": "ZRJb4FJ5r3rrSIXaftr8LA==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "93e357e7-86fd-4d21-9039-2dfec0134d7f": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 88572,
+        "size": 412,
+        "hash": "sha256:162059b6c9f59caf9adf4d468b3b2238efc56144575c6a35cfc9a58a366661a7",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "93e357e7-86fd-4d21-9039-2dfec0134d7f",
+        "metadata": {
+          "type": "knowledge_triple",
+          "encryption": {
+            "iv": "8wYHm2GjJsAA9g6t",
+            "tag": "s9nnXPBhAeX/Vx0/qUWjrQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "78a4db06-05fe-4904-8cbc-82c724a209bc": [
+      {
+        "type": "cross_modal",
+        "block_type": "cross_modal",
+        "offset": 88984,
+        "size": 32354,
+        "hash": "sha256:ad6935960d21517183d293d2dd350eeb743404b29c546f1a456c3a38037234e0",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "78a4db06-05fe-4904-8cbc-82c724a209bc",
+        "metadata": {
+          "title": "synthesized_consortium_artifact by coordinator_agent_001",
+          "algorithm": "Enhanced_ACAM_v2",
+          "modalities": [
+            "text",
+            "agent_metadata",
+            "content_structure"
+          ],
+          "unified_representation_dim": 384,
+          "attention_weights_available": true,
+          "enhanced_version": true,
+          "encryption": {
+            "iv": "BiwnO5DozTPADghH",
+            "tag": "Ll7WiXthH9HN71rqCkl7Yw==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "81e774ac-6193-4cb1-a826-8e1cabe27dce": [
+      {
+        "type": "CEMB",
+        "block_type": "CEMB",
+        "offset": 121338,
+        "size": 11146,
+        "hash": "sha256:58e620a46730645a728175e445bce53d09ade66ae993240b247361b2063ed210",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "81e774ac-6193-4cb1-a826-8e1cabe27dce",
+        "metadata": {
+          "model": "coordinator_agent_001_embedder",
+          "compressed": true,
+          "algorithm": "Enhanced_HSC_v2",
+          "compression_type": "hierarchical_semantic_dbscan",
+          "original_count": 3,
+          "original_dimensions": 384,
+          "compression_ratio": 4608.0,
+          "fidelity_score": 0.8879832437337741,
+          "tier1_clusters": 1,
+          "tier2_codebook_size": 1,
+          "tier3_encoding": "run_length",
+          "preserve_fidelity": true,
+          "encryption": {
+            "iv": "2D7Bf0aggQFo5biw",
+            "tag": "4+PBI7zivnntdEOiiL9d/w==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "2d923658-0f78-489f-bbc9-4c46182ffc90": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 132484,
+        "size": 403,
+        "hash": "sha256:6d383a767ee003b8e49440beece6d7c58d9e70faa657ea4551206f58973841c7",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "2d923658-0f78-489f-bbc9-4c46182ffc90",
+        "metadata": {
+          "type": "knowledge_triple",
+          "encryption": {
+            "iv": "GP0IXbHAbk9aIEcE",
+            "tag": "Zbz5cPd2abaq0dAAh43okA==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "da9cf418-235b-4550-a1bc-3c974e01c7eb": [
+      {
+        "type": "text",
+        "block_type": "text",
+        "offset": 132887,
+        "size": 221,
+        "hash": "sha256:888dbf05c1c64028a3684d97d3372041fe9f73c5f7b0990a30b9c669ce6102fc",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "da9cf418-235b-4550-a1bc-3c974e01c7eb",
+        "metadata": {
+          "language": "en",
+          "title": "Reference to geo_agent_001 contribution",
+          "encryption": {
+            "iv": "xi8nbktQji747KZb",
+            "tag": "3MiayflCHF4SSrY4YCV1nA==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "d589f3ab-a551-4f07-9738-b5da3c492b9c": [
+      {
+        "type": "text",
+        "block_type": "text",
+        "offset": 133108,
+        "size": 224,
+        "hash": "sha256:395d0d0c6563a6b97004032fc32706c93cccfba899f534c2debe0a5e06b9f224",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "d589f3ab-a551-4f07-9738-b5da3c492b9c",
+        "metadata": {
+          "language": "en",
+          "title": "Reference to culture_agent_001 contribution",
+          "encryption": {
+            "iv": "oVUw8zZ0z0T6nxaG",
+            "tag": "fEoeINKccYrJRjcwlYR0Vg==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "4cd1fbd2-4b5f-4450-b611-98ced12b7783": [
+      {
+        "type": "text",
+        "block_type": "text",
+        "offset": 133332,
+        "size": 227,
+        "hash": "sha256:c0aea9d394f9a2b9a683da247b6a24ef876b0b15e5454c609cf23c9f78d994ec",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "4cd1fbd2-4b5f-4450-b611-98ced12b7783",
+        "metadata": {
+          "language": "en",
+          "title": "Reference to logistics_agent_001 contribution",
+          "encryption": {
+            "iv": "Ry68exg74BiI2ZLn",
+            "tag": "uBrs8k/HlhHmHLzMmdbaRw==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "bb310f12-12dd-42e6-806f-d0f76f99f8fd": [
+      {
+        "type": "text",
+        "block_type": "text",
+        "offset": 133559,
+        "size": 228,
+        "hash": "sha256:0d21c4c09f2a161051c4323ac63419adb024aafe163307d00cbb183f1773e3c6",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "bb310f12-12dd-42e6-806f-d0f76f99f8fd",
+        "metadata": {
+          "language": "en",
+          "title": "Reference to safety_agent_001 contribution",
+          "encryption": {
+            "iv": "LnZcJ+TcNRnOJGCs",
+            "tag": "RG6PESG3LuJ2xYeWLYcmWQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "2e3686e1-93f1-476d-8728-64c162ddd1f7": [
+      {
+        "type": "cross_modal",
+        "block_type": "cross_modal",
+        "offset": 133787,
+        "size": 23192,
+        "hash": "sha256:b243deb57f8e20522cfadea0529f41f382ce357c22a4901c98bddd2aaeb51447",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "2e3686e1-93f1-476d-8728-64c162ddd1f7",
+        "metadata": {
+          "title": "Consortium Metadata",
+          "algorithm": "Enhanced_ACAM_v2",
+          "modalities": [
+            "metadata",
+            "artifact_type"
+          ],
+          "unified_representation_dim": 384,
+          "attention_weights_available": true,
+          "enhanced_version": true,
+          "encryption": {
+            "iv": "3IhzK82JsLkaKkkw",
+            "tag": "HFcCMv8S6PogkARdNDyNwQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "0b8001ed-81fe-411c-bcd8-a7ceedbfc806": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 156979,
+        "size": 930,
+        "hash": "sha256:f8a97d9dde14a39162c0ec9bff64b71295ab801cdf8605e8b74661d943b09102",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "0b8001ed-81fe-411c-bcd8-a7ceedbfc806",
+        "metadata": {
+          "type": "final_summary",
+          "encryption": {
+            "iv": "4eNCZW7oVHGhnrrb",
+            "tag": "N6GgCEFufLNjoSbpRWF4+Q==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ]
+  },
+  "root_hash": "sha256:a12a98db5a4263206b8b521a63af61196a31944579b2ac297e595c280f6ad897"
+}

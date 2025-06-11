@@ -1,0 +1,313 @@
+{
+  "maif_version": "0.1.0",
+  "created": 1749524555.4398458,
+  "creator_id": null,
+  "agent_id": "logistics_agent_001",
+  "header": {
+    "version": "0.1.0",
+    "created_timestamp": 1749524555.4398458,
+    "creator_id": null,
+    "agent_id": "logistics_agent_001"
+  },
+  "blocks": [
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 0,
+      "size": 525,
+      "hash": "sha256:1a67fbee83163b69f8b5df5e315d3613d3e4a24793fa41faa8c8c64ee8ea0f76",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "31346c09-5cdd-4bef-a837-cf7c08f37697",
+      "metadata": {
+        "type": "agent_profile",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "none",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "cross_modal",
+      "block_type": "cross_modal",
+      "offset": 525,
+      "size": 32664,
+      "hash": "sha256:33552dbbc4c31bc61dcbf0ecdffc49883885d494823f97d3267f3eb59504f841",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "0075041a-3389-4d5d-bd2e-77992192fabc",
+      "metadata": {
+        "title": "logistics_optimization_plan by logistics_agent_005",
+        "algorithm": "Enhanced_ACAM_v2",
+        "modalities": [
+          "text",
+          "agent_metadata",
+          "content_structure"
+        ],
+        "unified_representation_dim": 384,
+        "attention_weights_available": true,
+        "enhanced_version": true,
+        "encryption": {
+          "iv": "F4Pe6jWXv0/S7SZb",
+          "tag": "/BNVaeQGg4s2sP+jQLCfnQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "CEMB",
+      "block_type": "CEMB",
+      "offset": 33189,
+      "size": 11284,
+      "hash": "sha256:818c0be85c7e6c5d9fb39d6378402a923f4f258ec746f668e9fc6cea497bdb2a",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "427894ca-cf98-47aa-88b9-38e849210def",
+      "metadata": {
+        "model": "logistics_agent_005_embedder",
+        "compressed": true,
+        "algorithm": "Enhanced_HSC_v2",
+        "compression_type": "hierarchical_semantic_dbscan",
+        "original_count": 3,
+        "original_dimensions": 384,
+        "compression_ratio": 4608.0,
+        "fidelity_score": 0.8882042098277214,
+        "tier1_clusters": 1,
+        "tier2_codebook_size": 1,
+        "tier3_encoding": "run_length",
+        "preserve_fidelity": true,
+        "encryption": {
+          "iv": "Lr7MdfnzWChpXP7R",
+          "tag": "RqaOEHEqh6pwmmpQzRjzOg==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 44473,
+      "size": 396,
+      "hash": "sha256:2b6398ff9de832c909e13d7301f96b07f452ffd657f751cddee873a573f2327a",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "113eef28-3ea2-4758-a6cb-a3fdad95edb4",
+      "metadata": {
+        "type": "knowledge_triple",
+        "encryption": {
+          "iv": "UFiyK7ps0U06DFzF",
+          "tag": "bvv0SmdJA8F50t52oLXvkQ==",
+          "algorithm": "AES-GCM"
+        },
+        "encrypted": true,
+        "encryption_mode": "AES_GCM",
+        "privacy_policy": {
+          "privacy_level": "internal",
+          "encryption_mode": "aes_gcm",
+          "anonymization_required": false,
+          "audit_required": true
+        }
+      }
+    }
+  ],
+  "version_history": {
+    "31346c09-5cdd-4bef-a837-cf7c08f37697": [
+      {
+        "version": 1,
+        "timestamp": 1749524555.4748,
+        "agent_id": "logistics_agent_001",
+        "operation": "create",
+        "block_id": "31346c09-5cdd-4bef-a837-cf7c08f37697",
+        "previous_hash": null,
+        "current_hash": "sha256:1a67fbee83163b69f8b5df5e315d3613d3e4a24793fa41faa8c8c64ee8ea0f76",
+        "block_hash": "sha256:1a67fbee83163b69f8b5df5e315d3613d3e4a24793fa41faa8c8c64ee8ea0f76",
+        "change_description": null
+      }
+    ],
+    "0075041a-3389-4d5d-bd2e-77992192fabc": [
+      {
+        "version": 1,
+        "timestamp": 1749524578.6163719,
+        "agent_id": "logistics_agent_001",
+        "operation": "create",
+        "block_id": "0075041a-3389-4d5d-bd2e-77992192fabc",
+        "previous_hash": null,
+        "current_hash": "sha256:33552dbbc4c31bc61dcbf0ecdffc49883885d494823f97d3267f3eb59504f841",
+        "block_hash": "sha256:33552dbbc4c31bc61dcbf0ecdffc49883885d494823f97d3267f3eb59504f841",
+        "change_description": null
+      }
+    ],
+    "427894ca-cf98-47aa-88b9-38e849210def": [
+      {
+        "version": 1,
+        "timestamp": 1749524578.618384,
+        "agent_id": "logistics_agent_001",
+        "operation": "create",
+        "block_id": "427894ca-cf98-47aa-88b9-38e849210def",
+        "previous_hash": null,
+        "current_hash": "sha256:818c0be85c7e6c5d9fb39d6378402a923f4f258ec746f668e9fc6cea497bdb2a",
+        "block_hash": "sha256:818c0be85c7e6c5d9fb39d6378402a923f4f258ec746f668e9fc6cea497bdb2a",
+        "change_description": null
+      }
+    ],
+    "113eef28-3ea2-4758-a6cb-a3fdad95edb4": [
+      {
+        "version": 1,
+        "timestamp": 1749524578.618458,
+        "agent_id": "logistics_agent_001",
+        "operation": "create",
+        "block_id": "113eef28-3ea2-4758-a6cb-a3fdad95edb4",
+        "previous_hash": null,
+        "current_hash": "sha256:2b6398ff9de832c909e13d7301f96b07f452ffd657f751cddee873a573f2327a",
+        "block_hash": "sha256:2b6398ff9de832c909e13d7301f96b07f452ffd657f751cddee873a573f2327a",
+        "change_description": null
+      }
+    ]
+  },
+  "block_registry": {
+    "31346c09-5cdd-4bef-a837-cf7c08f37697": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 0,
+        "size": 525,
+        "hash": "sha256:1a67fbee83163b69f8b5df5e315d3613d3e4a24793fa41faa8c8c64ee8ea0f76",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "31346c09-5cdd-4bef-a837-cf7c08f37697",
+        "metadata": {
+          "type": "agent_profile",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "none",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "0075041a-3389-4d5d-bd2e-77992192fabc": [
+      {
+        "type": "cross_modal",
+        "block_type": "cross_modal",
+        "offset": 525,
+        "size": 32664,
+        "hash": "sha256:33552dbbc4c31bc61dcbf0ecdffc49883885d494823f97d3267f3eb59504f841",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "0075041a-3389-4d5d-bd2e-77992192fabc",
+        "metadata": {
+          "title": "logistics_optimization_plan by logistics_agent_005",
+          "algorithm": "Enhanced_ACAM_v2",
+          "modalities": [
+            "text",
+            "agent_metadata",
+            "content_structure"
+          ],
+          "unified_representation_dim": 384,
+          "attention_weights_available": true,
+          "enhanced_version": true,
+          "encryption": {
+            "iv": "F4Pe6jWXv0/S7SZb",
+            "tag": "/BNVaeQGg4s2sP+jQLCfnQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "427894ca-cf98-47aa-88b9-38e849210def": [
+      {
+        "type": "CEMB",
+        "block_type": "CEMB",
+        "offset": 33189,
+        "size": 11284,
+        "hash": "sha256:818c0be85c7e6c5d9fb39d6378402a923f4f258ec746f668e9fc6cea497bdb2a",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "427894ca-cf98-47aa-88b9-38e849210def",
+        "metadata": {
+          "model": "logistics_agent_005_embedder",
+          "compressed": true,
+          "algorithm": "Enhanced_HSC_v2",
+          "compression_type": "hierarchical_semantic_dbscan",
+          "original_count": 3,
+          "original_dimensions": 384,
+          "compression_ratio": 4608.0,
+          "fidelity_score": 0.8882042098277214,
+          "tier1_clusters": 1,
+          "tier2_codebook_size": 1,
+          "tier3_encoding": "run_length",
+          "preserve_fidelity": true,
+          "encryption": {
+            "iv": "Lr7MdfnzWChpXP7R",
+            "tag": "RqaOEHEqh6pwmmpQzRjzOg==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ],
+    "113eef28-3ea2-4758-a6cb-a3fdad95edb4": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 44473,
+        "size": 396,
+        "hash": "sha256:2b6398ff9de832c909e13d7301f96b07f452ffd657f751cddee873a573f2327a",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "113eef28-3ea2-4758-a6cb-a3fdad95edb4",
+        "metadata": {
+          "type": "knowledge_triple",
+          "encryption": {
+            "iv": "UFiyK7ps0U06DFzF",
+            "tag": "bvv0SmdJA8F50t52oLXvkQ==",
+            "algorithm": "AES-GCM"
+          },
+          "encrypted": true,
+          "encryption_mode": "AES_GCM",
+          "privacy_policy": {
+            "privacy_level": "internal",
+            "encryption_mode": "aes_gcm",
+            "anonymization_required": false,
+            "audit_required": true
+          }
+        }
+      }
+    ]
+  },
+  "root_hash": "sha256:09911ca76ca62e1897d6fd7b549e954305b4d1dc86f9ded028e0edd04a2b06b6"
+}

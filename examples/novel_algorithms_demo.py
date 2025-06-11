@@ -22,11 +22,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from maif import MAIFEncoder, MAIFParser
 from maif.semantic import (
-    SemanticEmbedder, 
-    CrossModalAttention, 
+    SemanticEmbedder,
+    CrossModalAttention,
     HierarchicalSemanticCompression,
-    CryptographicSemanticBinding,
-    DeepSemanticUnderstanding
+    CryptographicSemanticBinding
 )
 
 def demo_acam():

@@ -1,0 +1,829 @@
+{
+  "maif_version": "0.1.0",
+  "created": 1749530457.5168908,
+  "creator_id": null,
+  "agent_id": "default_agent",
+  "header": {
+    "version": "0.1.0",
+    "created_timestamp": 1749530457.5168908,
+    "creator_id": null,
+    "agent_id": "default_agent"
+  },
+  "blocks": [
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 0,
+      "size": 711,
+      "hash": "sha256:09bdfa285f73c1ead719d5d2084b50799bd1fe91420c98eb0ec55c76a8148a74",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "0c11ec4b-f988-414b-8e66-3edb1c37bf2d",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "geo_agent_001",
+        "timestamp": 1749530457.6022358
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 711,
+      "size": 711,
+      "hash": "sha256:822cd7774ef737143cdd49c6d96bae595761e75510cb1ee541b37054d2bf5fea",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "6d4dc7e3-3606-4752-b6c3-831fcb25e14a",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "geo_agent_002",
+        "timestamp": 1749530457.602346
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 1422,
+      "size": 710,
+      "hash": "sha256:abf04672dbd17b13d42bd78cab981a282f84dec1b82a5c80d6650101b96dd5a0",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "031cd690-ae29-4d57-a02f-f25aab099f74",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "geo_agent_003",
+        "timestamp": 1749530457.6023932
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 2132,
+      "size": 711,
+      "hash": "sha256:697b1bfa0ece8532abea049d26ce8793db2ca4453d8ba9e1f484d03ba7a361e3",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "6c0bf22e-5b8d-4878-aab4-e11c9917c8c5",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "geo_agent_004",
+        "timestamp": 1749530457.602439
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 2843,
+      "size": 711,
+      "hash": "sha256:ae7d16d8323c59c775bd50f729ee7e8bd0be584278bcc8b740c63697381d6a78",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "30c1ee3b-136e-456f-8dcd-fdd3f7fd084c",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "geo_agent_005",
+        "timestamp": 1749530457.6024792
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 3554,
+      "size": 716,
+      "hash": "sha256:e589a2518c499b0b5d872318a33919a4bdd2a603ffa8cfd96d5418a90bfb15ff",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "972fc7f2-9889-4530-86a1-231130f24824",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "culture_agent_001",
+        "timestamp": 1749530457.6025221
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 4270,
+      "size": 716,
+      "hash": "sha256:35622c5a6adbb6aad1a0ab9b5d5f965705e304189d3b535171f3d64a38c1ca5a",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "b858021a-5d76-4354-b9e3-31ebb5be746a",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "culture_agent_002",
+        "timestamp": 1749530457.602561
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 4986,
+      "size": 717,
+      "hash": "sha256:0fe84034616e195b64c934435ab20d53a3663243826a43b8aae28dfb06d6031c",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "1934188d-dba4-439e-9095-e7212f87aaf9",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "culture_agent_003",
+        "timestamp": 1749530457.602598
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 5703,
+      "size": 716,
+      "hash": "sha256:ec820cacbdcfd4e4323663f16edd259194db605c77cb5637af2c8bae1145d2b3",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "29c14f24-ea96-4b6f-9bac-33532d10f49c",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "culture_agent_004",
+        "timestamp": 1749530457.602635
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 6419,
+      "size": 716,
+      "hash": "sha256:996afba419aab5c2519229ed86f4adec439607608cefb47655daf1ec542ae024",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "0edc7b3f-2573-46a7-bed3-557cf1fb250e",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "culture_agent_005",
+        "timestamp": 1749530457.602668
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 7135,
+      "size": 723,
+      "hash": "sha256:a70b0853f74f052997545508df13b925b9072ebf9e61c96df1a08f1af78fe302",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "aee8a33e-87f9-4e14-9d29-8f482e1715ca",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "logistics_agent_001",
+        "timestamp": 1749530457.602703
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 7858,
+      "size": 722,
+      "hash": "sha256:6e8596c407172f3b8c69182c356cd1d4c88d432d917bdd4a126d9d96be9884d1",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "312b55df-8a69-4111-b2e1-90e86f7e41ee",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "logistics_agent_002",
+        "timestamp": 1749530457.602747
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 8580,
+      "size": 722,
+      "hash": "sha256:1d12420a191e8c3c6ad8c210acfa100665390bc902ee2bb4cc2c3f9fab1ccb02",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "8460ff62-72fd-4f1d-9631-d002c7162f82",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "logistics_agent_003",
+        "timestamp": 1749530457.602786
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 9302,
+      "size": 723,
+      "hash": "sha256:669187982a0ca81cd22de5d69e5a45fc69e812f936309955d488c79e028ebf39",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "4835c845-4635-4450-81a6-acf9b93fe451",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "logistics_agent_004",
+        "timestamp": 1749530457.602829
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 10025,
+      "size": 723,
+      "hash": "sha256:9521d2136992a7dd8a0c1960c228ed826361ff02b06ac71cbfe70759ece6f53d",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "bf36ce50-aa9e-4c21-af85-d4d47267a0fa",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "logistics_agent_005",
+        "timestamp": 1749530457.602868
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 10748,
+      "size": 718,
+      "hash": "sha256:fc6af617aff8dc41abce872993a839e8c05f9f039caf6308c702b5c999e67705",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "0f15c7fa-5aa0-47c5-9a8b-ee6e2d5b50fd",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "safety_agent_001",
+        "timestamp": 1749530457.602911
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 11466,
+      "size": 735,
+      "hash": "sha256:8cb68d1a2d783d9e2e7fa75b1735adafb3944f55452027dea3f0090777b8fab1",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "aab065b6-96fb-4330-a33e-2ec41e7f8175",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "devils_advocate_001",
+        "timestamp": 1749530457.6029491
+      }
+    },
+    {
+      "type": "metadata",
+      "block_type": "metadata",
+      "offset": 12201,
+      "size": 1060,
+      "hash": "sha256:c91d7c7c81d2ee1bfbea758c81ad766b7e96035a6d10cc11b41c424d1faf9ff6",
+      "version": 1,
+      "previous_hash": null,
+      "block_id": "facff6f8-aa90-45ca-aa41-5c9f404a706c",
+      "metadata": {
+        "type": "agent_final_summary",
+        "agent_id": "coordinator_agent_001",
+        "timestamp": 1749530457.6029959
+      }
+    }
+  ],
+  "version_history": {
+    "0c11ec4b-f988-414b-8e66-3edb1c37bf2d": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602311,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "0c11ec4b-f988-414b-8e66-3edb1c37bf2d",
+        "previous_hash": null,
+        "current_hash": "sha256:09bdfa285f73c1ead719d5d2084b50799bd1fe91420c98eb0ec55c76a8148a74",
+        "block_hash": "sha256:09bdfa285f73c1ead719d5d2084b50799bd1fe91420c98eb0ec55c76a8148a74",
+        "change_description": null
+      }
+    ],
+    "6d4dc7e3-3606-4752-b6c3-831fcb25e14a": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602371,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "6d4dc7e3-3606-4752-b6c3-831fcb25e14a",
+        "previous_hash": null,
+        "current_hash": "sha256:822cd7774ef737143cdd49c6d96bae595761e75510cb1ee541b37054d2bf5fea",
+        "block_hash": "sha256:822cd7774ef737143cdd49c6d96bae595761e75510cb1ee541b37054d2bf5fea",
+        "change_description": null
+      }
+    ],
+    "031cd690-ae29-4d57-a02f-f25aab099f74": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602413,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "031cd690-ae29-4d57-a02f-f25aab099f74",
+        "previous_hash": null,
+        "current_hash": "sha256:abf04672dbd17b13d42bd78cab981a282f84dec1b82a5c80d6650101b96dd5a0",
+        "block_hash": "sha256:abf04672dbd17b13d42bd78cab981a282f84dec1b82a5c80d6650101b96dd5a0",
+        "change_description": null
+      }
+    ],
+    "6c0bf22e-5b8d-4878-aab4-e11c9917c8c5": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602458,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "6c0bf22e-5b8d-4878-aab4-e11c9917c8c5",
+        "previous_hash": null,
+        "current_hash": "sha256:697b1bfa0ece8532abea049d26ce8793db2ca4453d8ba9e1f484d03ba7a361e3",
+        "block_hash": "sha256:697b1bfa0ece8532abea049d26ce8793db2ca4453d8ba9e1f484d03ba7a361e3",
+        "change_description": null
+      }
+    ],
+    "30c1ee3b-136e-456f-8dcd-fdd3f7fd084c": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602497,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "30c1ee3b-136e-456f-8dcd-fdd3f7fd084c",
+        "previous_hash": null,
+        "current_hash": "sha256:ae7d16d8323c59c775bd50f729ee7e8bd0be584278bcc8b740c63697381d6a78",
+        "block_hash": "sha256:ae7d16d8323c59c775bd50f729ee7e8bd0be584278bcc8b740c63697381d6a78",
+        "change_description": null
+      }
+    ],
+    "972fc7f2-9889-4530-86a1-231130f24824": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602541,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "972fc7f2-9889-4530-86a1-231130f24824",
+        "previous_hash": null,
+        "current_hash": "sha256:e589a2518c499b0b5d872318a33919a4bdd2a603ffa8cfd96d5418a90bfb15ff",
+        "block_hash": "sha256:e589a2518c499b0b5d872318a33919a4bdd2a603ffa8cfd96d5418a90bfb15ff",
+        "change_description": null
+      }
+    ],
+    "b858021a-5d76-4354-b9e3-31ebb5be746a": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602578,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "b858021a-5d76-4354-b9e3-31ebb5be746a",
+        "previous_hash": null,
+        "current_hash": "sha256:35622c5a6adbb6aad1a0ab9b5d5f965705e304189d3b535171f3d64a38c1ca5a",
+        "block_hash": "sha256:35622c5a6adbb6aad1a0ab9b5d5f965705e304189d3b535171f3d64a38c1ca5a",
+        "change_description": null
+      }
+    ],
+    "1934188d-dba4-439e-9095-e7212f87aaf9": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.6026182,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "1934188d-dba4-439e-9095-e7212f87aaf9",
+        "previous_hash": null,
+        "current_hash": "sha256:0fe84034616e195b64c934435ab20d53a3663243826a43b8aae28dfb06d6031c",
+        "block_hash": "sha256:0fe84034616e195b64c934435ab20d53a3663243826a43b8aae28dfb06d6031c",
+        "change_description": null
+      }
+    ],
+    "29c14f24-ea96-4b6f-9bac-33532d10f49c": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602651,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "29c14f24-ea96-4b6f-9bac-33532d10f49c",
+        "previous_hash": null,
+        "current_hash": "sha256:ec820cacbdcfd4e4323663f16edd259194db605c77cb5637af2c8bae1145d2b3",
+        "block_hash": "sha256:ec820cacbdcfd4e4323663f16edd259194db605c77cb5637af2c8bae1145d2b3",
+        "change_description": null
+      }
+    ],
+    "0edc7b3f-2573-46a7-bed3-557cf1fb250e": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602685,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "0edc7b3f-2573-46a7-bed3-557cf1fb250e",
+        "previous_hash": null,
+        "current_hash": "sha256:996afba419aab5c2519229ed86f4adec439607608cefb47655daf1ec542ae024",
+        "block_hash": "sha256:996afba419aab5c2519229ed86f4adec439607608cefb47655daf1ec542ae024",
+        "change_description": null
+      }
+    ],
+    "aee8a33e-87f9-4e14-9d29-8f482e1715ca": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602722,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "aee8a33e-87f9-4e14-9d29-8f482e1715ca",
+        "previous_hash": null,
+        "current_hash": "sha256:a70b0853f74f052997545508df13b925b9072ebf9e61c96df1a08f1af78fe302",
+        "block_hash": "sha256:a70b0853f74f052997545508df13b925b9072ebf9e61c96df1a08f1af78fe302",
+        "change_description": null
+      }
+    ],
+    "312b55df-8a69-4111-b2e1-90e86f7e41ee": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602766,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "312b55df-8a69-4111-b2e1-90e86f7e41ee",
+        "previous_hash": null,
+        "current_hash": "sha256:6e8596c407172f3b8c69182c356cd1d4c88d432d917bdd4a126d9d96be9884d1",
+        "block_hash": "sha256:6e8596c407172f3b8c69182c356cd1d4c88d432d917bdd4a126d9d96be9884d1",
+        "change_description": null
+      }
+    ],
+    "8460ff62-72fd-4f1d-9631-d002c7162f82": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602803,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "8460ff62-72fd-4f1d-9631-d002c7162f82",
+        "previous_hash": null,
+        "current_hash": "sha256:1d12420a191e8c3c6ad8c210acfa100665390bc902ee2bb4cc2c3f9fab1ccb02",
+        "block_hash": "sha256:1d12420a191e8c3c6ad8c210acfa100665390bc902ee2bb4cc2c3f9fab1ccb02",
+        "change_description": null
+      }
+    ],
+    "4835c845-4635-4450-81a6-acf9b93fe451": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.6028469,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "4835c845-4635-4450-81a6-acf9b93fe451",
+        "previous_hash": null,
+        "current_hash": "sha256:669187982a0ca81cd22de5d69e5a45fc69e812f936309955d488c79e028ebf39",
+        "block_hash": "sha256:669187982a0ca81cd22de5d69e5a45fc69e812f936309955d488c79e028ebf39",
+        "change_description": null
+      }
+    ],
+    "bf36ce50-aa9e-4c21-af85-d4d47267a0fa": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602889,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "bf36ce50-aa9e-4c21-af85-d4d47267a0fa",
+        "previous_hash": null,
+        "current_hash": "sha256:9521d2136992a7dd8a0c1960c228ed826361ff02b06ac71cbfe70759ece6f53d",
+        "block_hash": "sha256:9521d2136992a7dd8a0c1960c228ed826361ff02b06ac71cbfe70759ece6f53d",
+        "change_description": null
+      }
+    ],
+    "0f15c7fa-5aa0-47c5-9a8b-ee6e2d5b50fd": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.6029282,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "0f15c7fa-5aa0-47c5-9a8b-ee6e2d5b50fd",
+        "previous_hash": null,
+        "current_hash": "sha256:fc6af617aff8dc41abce872993a839e8c05f9f039caf6308c702b5c999e67705",
+        "block_hash": "sha256:fc6af617aff8dc41abce872993a839e8c05f9f039caf6308c702b5c999e67705",
+        "change_description": null
+      }
+    ],
+    "aab065b6-96fb-4330-a33e-2ec41e7f8175": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.602966,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "aab065b6-96fb-4330-a33e-2ec41e7f8175",
+        "previous_hash": null,
+        "current_hash": "sha256:8cb68d1a2d783d9e2e7fa75b1735adafb3944f55452027dea3f0090777b8fab1",
+        "block_hash": "sha256:8cb68d1a2d783d9e2e7fa75b1735adafb3944f55452027dea3f0090777b8fab1",
+        "change_description": null
+      }
+    ],
+    "facff6f8-aa90-45ca-aa41-5c9f404a706c": [
+      {
+        "version": 1,
+        "timestamp": 1749530457.603015,
+        "agent_id": "default_agent",
+        "operation": "create",
+        "block_id": "facff6f8-aa90-45ca-aa41-5c9f404a706c",
+        "previous_hash": null,
+        "current_hash": "sha256:c91d7c7c81d2ee1bfbea758c81ad766b7e96035a6d10cc11b41c424d1faf9ff6",
+        "block_hash": "sha256:c91d7c7c81d2ee1bfbea758c81ad766b7e96035a6d10cc11b41c424d1faf9ff6",
+        "change_description": null
+      }
+    ]
+  },
+  "block_registry": {
+    "0c11ec4b-f988-414b-8e66-3edb1c37bf2d": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 0,
+        "size": 711,
+        "hash": "sha256:09bdfa285f73c1ead719d5d2084b50799bd1fe91420c98eb0ec55c76a8148a74",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "0c11ec4b-f988-414b-8e66-3edb1c37bf2d",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "geo_agent_001",
+          "timestamp": 1749530457.6022358
+        }
+      }
+    ],
+    "6d4dc7e3-3606-4752-b6c3-831fcb25e14a": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 711,
+        "size": 711,
+        "hash": "sha256:822cd7774ef737143cdd49c6d96bae595761e75510cb1ee541b37054d2bf5fea",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "6d4dc7e3-3606-4752-b6c3-831fcb25e14a",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "geo_agent_002",
+          "timestamp": 1749530457.602346
+        }
+      }
+    ],
+    "031cd690-ae29-4d57-a02f-f25aab099f74": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 1422,
+        "size": 710,
+        "hash": "sha256:abf04672dbd17b13d42bd78cab981a282f84dec1b82a5c80d6650101b96dd5a0",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "031cd690-ae29-4d57-a02f-f25aab099f74",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "geo_agent_003",
+          "timestamp": 1749530457.6023932
+        }
+      }
+    ],
+    "6c0bf22e-5b8d-4878-aab4-e11c9917c8c5": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 2132,
+        "size": 711,
+        "hash": "sha256:697b1bfa0ece8532abea049d26ce8793db2ca4453d8ba9e1f484d03ba7a361e3",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "6c0bf22e-5b8d-4878-aab4-e11c9917c8c5",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "geo_agent_004",
+          "timestamp": 1749530457.602439
+        }
+      }
+    ],
+    "30c1ee3b-136e-456f-8dcd-fdd3f7fd084c": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 2843,
+        "size": 711,
+        "hash": "sha256:ae7d16d8323c59c775bd50f729ee7e8bd0be584278bcc8b740c63697381d6a78",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "30c1ee3b-136e-456f-8dcd-fdd3f7fd084c",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "geo_agent_005",
+          "timestamp": 1749530457.6024792
+        }
+      }
+    ],
+    "972fc7f2-9889-4530-86a1-231130f24824": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 3554,
+        "size": 716,
+        "hash": "sha256:e589a2518c499b0b5d872318a33919a4bdd2a603ffa8cfd96d5418a90bfb15ff",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "972fc7f2-9889-4530-86a1-231130f24824",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "culture_agent_001",
+          "timestamp": 1749530457.6025221
+        }
+      }
+    ],
+    "b858021a-5d76-4354-b9e3-31ebb5be746a": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 4270,
+        "size": 716,
+        "hash": "sha256:35622c5a6adbb6aad1a0ab9b5d5f965705e304189d3b535171f3d64a38c1ca5a",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "b858021a-5d76-4354-b9e3-31ebb5be746a",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "culture_agent_002",
+          "timestamp": 1749530457.602561
+        }
+      }
+    ],
+    "1934188d-dba4-439e-9095-e7212f87aaf9": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 4986,
+        "size": 717,
+        "hash": "sha256:0fe84034616e195b64c934435ab20d53a3663243826a43b8aae28dfb06d6031c",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "1934188d-dba4-439e-9095-e7212f87aaf9",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "culture_agent_003",
+          "timestamp": 1749530457.602598
+        }
+      }
+    ],
+    "29c14f24-ea96-4b6f-9bac-33532d10f49c": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 5703,
+        "size": 716,
+        "hash": "sha256:ec820cacbdcfd4e4323663f16edd259194db605c77cb5637af2c8bae1145d2b3",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "29c14f24-ea96-4b6f-9bac-33532d10f49c",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "culture_agent_004",
+          "timestamp": 1749530457.602635
+        }
+      }
+    ],
+    "0edc7b3f-2573-46a7-bed3-557cf1fb250e": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 6419,
+        "size": 716,
+        "hash": "sha256:996afba419aab5c2519229ed86f4adec439607608cefb47655daf1ec542ae024",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "0edc7b3f-2573-46a7-bed3-557cf1fb250e",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "culture_agent_005",
+          "timestamp": 1749530457.602668
+        }
+      }
+    ],
+    "aee8a33e-87f9-4e14-9d29-8f482e1715ca": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 7135,
+        "size": 723,
+        "hash": "sha256:a70b0853f74f052997545508df13b925b9072ebf9e61c96df1a08f1af78fe302",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "aee8a33e-87f9-4e14-9d29-8f482e1715ca",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "logistics_agent_001",
+          "timestamp": 1749530457.602703
+        }
+      }
+    ],
+    "312b55df-8a69-4111-b2e1-90e86f7e41ee": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 7858,
+        "size": 722,
+        "hash": "sha256:6e8596c407172f3b8c69182c356cd1d4c88d432d917bdd4a126d9d96be9884d1",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "312b55df-8a69-4111-b2e1-90e86f7e41ee",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "logistics_agent_002",
+          "timestamp": 1749530457.602747
+        }
+      }
+    ],
+    "8460ff62-72fd-4f1d-9631-d002c7162f82": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 8580,
+        "size": 722,
+        "hash": "sha256:1d12420a191e8c3c6ad8c210acfa100665390bc902ee2bb4cc2c3f9fab1ccb02",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "8460ff62-72fd-4f1d-9631-d002c7162f82",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "logistics_agent_003",
+          "timestamp": 1749530457.602786
+        }
+      }
+    ],
+    "4835c845-4635-4450-81a6-acf9b93fe451": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 9302,
+        "size": 723,
+        "hash": "sha256:669187982a0ca81cd22de5d69e5a45fc69e812f936309955d488c79e028ebf39",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "4835c845-4635-4450-81a6-acf9b93fe451",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "logistics_agent_004",
+          "timestamp": 1749530457.602829
+        }
+      }
+    ],
+    "bf36ce50-aa9e-4c21-af85-d4d47267a0fa": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 10025,
+        "size": 723,
+        "hash": "sha256:9521d2136992a7dd8a0c1960c228ed826361ff02b06ac71cbfe70759ece6f53d",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "bf36ce50-aa9e-4c21-af85-d4d47267a0fa",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "logistics_agent_005",
+          "timestamp": 1749530457.602868
+        }
+      }
+    ],
+    "0f15c7fa-5aa0-47c5-9a8b-ee6e2d5b50fd": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 10748,
+        "size": 718,
+        "hash": "sha256:fc6af617aff8dc41abce872993a839e8c05f9f039caf6308c702b5c999e67705",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "0f15c7fa-5aa0-47c5-9a8b-ee6e2d5b50fd",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "safety_agent_001",
+          "timestamp": 1749530457.602911
+        }
+      }
+    ],
+    "aab065b6-96fb-4330-a33e-2ec41e7f8175": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 11466,
+        "size": 735,
+        "hash": "sha256:8cb68d1a2d783d9e2e7fa75b1735adafb3944f55452027dea3f0090777b8fab1",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "aab065b6-96fb-4330-a33e-2ec41e7f8175",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "devils_advocate_001",
+          "timestamp": 1749530457.6029491
+        }
+      }
+    ],
+    "facff6f8-aa90-45ca-aa41-5c9f404a706c": [
+      {
+        "type": "metadata",
+        "block_type": "metadata",
+        "offset": 12201,
+        "size": 1060,
+        "hash": "sha256:c91d7c7c81d2ee1bfbea758c81ad766b7e96035a6d10cc11b41c424d1faf9ff6",
+        "version": 1,
+        "previous_hash": null,
+        "block_id": "facff6f8-aa90-45ca-aa41-5c9f404a706c",
+        "metadata": {
+          "type": "agent_final_summary",
+          "agent_id": "coordinator_agent_001",
+          "timestamp": 1749530457.6029959
+        }
+      }
+    ]
+  },
+  "root_hash": "sha256:6286b5081f251520660305a178f6ccc48906b6ac91ff150d378cd364ecd49286"
+}
