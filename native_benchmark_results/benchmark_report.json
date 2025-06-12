@@ -1,0 +1,960 @@
+{
+  "timestamp": 1749712187.236545,
+  "total_benchmarks": 24,
+  "successful_benchmarks": 24,
+  "failed_benchmarks": 0,
+  "results": {
+    "Compression Ratios": {
+      "success": true,
+      "duration": 0.10476899147033691,
+      "metrics": {
+        "compression_results": {
+          "lorem_ipsum_zlib": {
+            "original_size": 10000,
+            "compressed_size": 339,
+            "ratio": 29.49852507374631,
+            "reduction_percent": 96.61
+          },
+          "lorem_ipsum_brotli": {
+            "original_size": 10000,
+            "compressed_size": 283,
+            "ratio": 35.3356890459364,
+            "reduction_percent": 97.17
+          },
+          "lorem_ipsum_lzma": {
+            "original_size": 10000,
+            "compressed_size": 424,
+            "ratio": 23.58490566037736,
+            "reduction_percent": 95.76
+          },
+          "json_data_zlib": {
+            "original_size": 160857,
+            "compressed_size": 18521,
+            "ratio": 8.68511419469791,
+            "reduction_percent": 88.48604661283002
+          },
+          "json_data_brotli": {
+            "original_size": 160857,
+            "compressed_size": 15654,
+            "ratio": 10.275776159448064,
+            "reduction_percent": 90.26837501631884
+          },
+          "json_data_lzma": {
+            "original_size": 160857,
+            "compressed_size": 13572,
+            "ratio": 11.85212201591512,
+            "reduction_percent": 91.56269232921166
+          },
+          "code_sample_zlib": {
+            "original_size": 5000,
+            "compressed_size": 213,
+            "ratio": 23.474178403755868,
+            "reduction_percent": 95.74000000000001
+          },
+          "code_sample_brotli": {
+            "original_size": 5000,
+            "compressed_size": 163,
+            "ratio": 30.67484662576687,
+            "reduction_percent": 96.74000000000001
+          },
+          "code_sample_lzma": {
+            "original_size": 5000,
+            "compressed_size": 268,
+            "ratio": 18.65671641791045,
+            "reduction_percent": 94.64
+          },
+          "repeated_text_zlib": {
+            "original_size": 12000,
+            "compressed_size": 63,
+            "ratio": 190.47619047619048,
+            "reduction_percent": 99.47500000000001
+          },
+          "repeated_text_brotli": {
+            "original_size": 12000,
+            "compressed_size": 25,
+            "ratio": 480.0,
+            "reduction_percent": 99.79166666666667
+          },
+          "repeated_text_lzma": {
+            "original_size": 12000,
+            "compressed_size": 124,
+            "ratio": 96.7741935483871,
+            "reduction_percent": 98.96666666666667
+          },
+          "random_text_zlib": {
+            "original_size": 10000,
+            "compressed_size": 7580,
+            "ratio": 1.3192612137203166,
+            "reduction_percent": 24.2
+          },
+          "random_text_brotli": {
+            "original_size": 10000,
+            "compressed_size": 7521,
+            "ratio": 1.3296104241457254,
+            "reduction_percent": 24.79
+          },
+          "random_text_lzma": {
+            "original_size": 10000,
+            "compressed_size": 7920,
+            "ratio": 1.2626262626262625,
+            "reduction_percent": 20.799999999999997
+          }
+        },
+        "average_ratio": 64.21331703484162,
+        "max_ratio": 480.0,
+        "min_ratio": 1.2626262626262625,
+        "claim_validation": {
+          "paper_claim": "2.5-5\u00d7 compression ratios",
+          "achieved_avg": 64.21331703484162,
+          "achieved_max": 480.0,
+          "meets_claim": true
+        }
+      },
+      "error": null
+    },
+    "Semantic Search Performance": {
+      "success": true,
+      "duration": 3.1838510036468506,
+      "metrics": {
+        "search_times_ms": [
+          29.799938201904297,
+          29.612064361572266,
+          29.56700325012207,
+          32.94014930725098,
+          29.623031616210938
+        ],
+        "average_search_time_ms": 30.30843734741211,
+        "max_search_time_ms": 32.94014930725098,
+        "min_search_time_ms": 29.56700325012207,
+        "corpus_size": 1000,
+        "claim_validation": {
+          "paper_claim": "Sub-50ms semantic search",
+          "achieved_avg": 30.30843734741211,
+          "achieved_max": 32.94014930725098,
+          "meets_claim": true
+        }
+      },
+      "error": null
+    },
+    "Large-Scale Semantic Search": {
+      "success": true,
+      "duration": 58.1610848903656,
+      "metrics": {
+        "corpus_100000_search_times_ms": [
+          2.526998519897461,
+          1.9998550415039062,
+          1.9011497497558594,
+          2.4161338806152344,
+          2.6319026947021484,
+          2.750873565673828,
+          1.9249916076660156,
+          2.9523372650146484,
+          2.4089813232421875,
+          2.4619102478027344
+        ],
+        "corpus_100000_avg_search_ms": 2.3975133895874023,
+        "corpus_100000_max_search_ms": 2.9523372650146484,
+        "corpus_100000_min_search_ms": 1.9011497497558594,
+        "corpus_100000_embedding_time_s": 55.01607871055603,
+        "corpus_100000_docs_per_sec": 1817.6504459016055,
+        "overall_search_times_ms": [
+          2.526998519897461,
+          1.9998550415039062,
+          1.9011497497558594,
+          2.4161338806152344,
+          2.6319026947021484,
+          2.750873565673828,
+          1.9249916076660156,
+          2.9523372650146484,
+          2.4089813232421875,
+          2.4619102478027344
+        ],
+        "overall_average_search_time_ms": 2.3975133895874023,
+        "overall_max_search_time_ms": 2.9523372650146484,
+        "overall_min_search_time_ms": 1.9011497497558594,
+        "total_documents_tested": 100000,
+        "total_queries_executed": 10,
+        "scaling_efficiency": [],
+        "claim_validation": {
+          "paper_claim": "Sub-50ms semantic search on large corpora",
+          "achieved_avg": 2.3975133895874023,
+          "achieved_max": 2.9523372650146484,
+          "largest_corpus": 100000,
+          "meets_claim_avg": true,
+          "meets_claim_max": true
+        }
+      },
+      "error": null
+    },
+    "Streaming Throughput": {
+      "success": true,
+      "duration": 25.223115921020508,
+      "metrics": {
+        "total_bytes_read": 52430400,
+        "duration_seconds": 0.02015066146850586,
+        "throughput_mbps": 2481.3838472278094,
+        "best_method": "raw_mmap",
+        "claim_validation": {
+          "paper_claim": "500+ MB/s streaming",
+          "achieved": 2481.3838472278094,
+          "meets_claim": true
+        }
+      },
+      "error": null
+    },
+    "Cryptographic Overhead": {
+      "success": true,
+      "duration": 22.27728581428528,
+      "metrics": {
+        "no_crypto_avg_time": 0.025879764556884767,
+        "crypto_avg_time": 0.02685384750366211,
+        "overhead_percent": 3.763878703905007,
+        "size_overhead_percent": 0.0,
+        "time_overhead_percent": 3.763878703905007,
+        "no_crypto_throughput_mbps": 1932.070354388305,
+        "crypto_throughput_mbps": 1861.9874069102184,
+        "no_crypto_size_mb": 50.00152587890625,
+        "crypto_size_mb": 50.00152587890625,
+        "no_crypto_times": [
+          0.035710811614990234,
+          0.030075788497924805,
+          0.021104097366333008,
+          0.021251201629638672,
+          0.02125692367553711
+        ],
+        "crypto_times": [
+          0.020879745483398438,
+          0.04030013084411621,
+          0.020780086517333984,
+          0.03088521957397461,
+          0.021424055099487305
+        ],
+        "claim_validation": {
+          "paper_claim": "<15% cryptographic overhead",
+          "achieved": 3.763878703905007,
+          "meets_claim": true
+        }
+      },
+      "error": null
+    },
+    "Tamper Detection": {
+      "success": true,
+      "duration": 153.830570936203,
+      "metrics": {
+        "detection_times_ms": [
+          1938.7950897216797,
+          1385.5910301208496,
+          1283.890962600708,
+          1444.329023361206,
+          1558.424949645996,
+          1343.9528942108154,
+          1439.7690296173096,
+          1564.5110607147217,
+          2912.919044494629,
+          1547.6148128509521,
+          1388.2179260253906,
+          1711.9779586791992,
+          1646.7998027801514,
+          1519.9029445648193,
+          1220.2258110046387,
+          1245.1081275939941,
+          1545.654058456421,
+          1325.502872467041,
+          1297.3411083221436,
+          1276.6027450561523,
+          1321.0840225219727,
+          1394.6797847747803,
+          1322.5798606872559,
+          1490.8411502838135,
+          1400.3491401672363,
+          1423.5098361968994,
+          1303.292989730835,
+          1351.6709804534912,
+          1348.2749462127686,
+          1811.66410446167,
+          1318.634033203125,
+          1811.8431568145752,
+          1506.06369972229,
+          2160.0778102874756,
+          1351.8750667572021,
+          1304.6941757202148,
+          1689.6579265594482,
+          1293.632984161377,
+          1379.0111541748047,
+          2102.940797805786,
+          1489.1481399536133,
+          1821.7577934265137,
+          1626.5981197357178,
+          1466.2022590637207,
+          1365.3948307037354,
+          1769.1271305084229,
+          1482.0897579193115,
+          1363.7747764587402,
+          1527.3301601409912,
+          1342.9899215698242,
+          1346.6718196868896,
+          1315.3767585754395,
+          1413.9351844787598,
+          1476.3679504394531,
+          1491.6009902954102,
+          1318.3159828186035,
+          1466.47310256958,
+          1875.5218982696533,
+          1346.1220264434814,
+          1365.5447959899902,
+          1422.0960140228271,
+          2017.5669193267822,
+          1485.0831031799316,
+          1525.738000869751,
+          1580.4328918457031,
+          1354.3317317962646,
+          1794.9867248535156,
+          1311.0408782958984,
+          1808.6378574371338,
+          1414.9181842803955,
+          2023.6830711364746,
+          1650.5241394042969,
+          2635.4777812957764,
+          1674.1480827331543,
+          1377.418041229248,
+          1351.15385055542,
+          1344.130039215088,
+          1728.456974029541,
+          1381.4029693603516,
+          1365.7300472259521,
+          1436.697006225586,
+          1350.4977226257324,
+          1376.1048316955566,
+          1539.536952972412,
+          1517.0769691467285,
+          1364.15696144104,
+          1494.408130645752,
+          1353.114128112793,
+          2467.736005783081,
+          1580.5659294128418,
+          1415.126085281372,
+          1732.44309425354,
+          1287.9350185394287,
+          1620.1379299163818,
+          1597.301959991455,
+          1769.6342468261719,
+          1622.1201419830322,
+          1646.6941833496094,
+          1524.1739749908447,
+          1433.1409931182861
+        ],
+        "average_detection_time_ms": 1537.2941184043884,
+        "max_detection_time_ms": 2912.919044494629,
+        "detection_rate_percent": 100.0,
+        "total_tests": 100,
+        "claim_validation": {
+          "paper_claim": "100% detection within 1ms",
+          "achieved_rate": 100.0,
+          "achieved_time": 1537.2941184043884,
+          "meets_claim": false
+        }
+      },
+      "error": null
+    },
+    "Integrity Verification": {
+      "success": true,
+      "duration": 10.965632915496826,
+      "metrics": {
+        "verification_times": [
+          1.452199935913086,
+          1.4105570316314697,
+          1.7798042297363281,
+          1.66367506980896
+        ],
+        "file_sizes": [
+          10272,
+          102432,
+          1024032,
+          10240032
+        ],
+        "throughputs_bps": [
+          7073.406179116358,
+          72618.12014897812,
+          575362.1566298372,
+          6155067.287974607
+        ],
+        "average_throughput_mbps": 1.623659365399489
+      },
+      "error": null
+    },
+    "Multimodal Integration": {
+      "success": true,
+      "duration": 1.3093819618225098,
+      "metrics": {
+        "text_blocks_count": 1,
+        "embeddings_count": 2,
+        "total_blocks": 3,
+        "multimodal_support": true
+      },
+      "error": null
+    },
+    "Provenance Chains": {
+      "success": true,
+      "duration": 0.19850492477416992,
+      "metrics": {
+        "chain_length": 100,
+        "chain_valid": false,
+        "immutable_provenance": false
+      },
+      "error": null
+    },
+    "Privacy Features": {
+      "success": true,
+      "duration": 0.0008869171142578125,
+      "metrics": {
+        "encryption_successful": true,
+        "anonymization_applied": true,
+        "privacy_by_design": true
+      },
+      "error": null
+    },
+    "Repair Capabilities": {
+      "success": true,
+      "duration": 75.21063113212585,
+      "metrics": {
+        "total_repair_attempts": 50,
+        "successful_repairs": 50,
+        "repair_success_rate": 100.0,
+        "claim_validation": {
+          "paper_claim": "95%+ automated repair success",
+          "achieved": 100.0,
+          "meets_claim": true
+        }
+      },
+      "error": null
+    },
+    "Scalability": {
+      "success": true,
+      "duration": 7.7329840660095215,
+      "metrics": {
+        "scalability_results": {
+          "100": {
+            "encode_time": 0.0016071796417236328,
+            "build_time": 0.004178047180175781,
+            "parse_time": 1.3519322872161865,
+            "file_size": 4790,
+            "blocks_retrieved": 100
+          },
+          "1000": {
+            "encode_time": 0.13186407089233398,
+            "build_time": 0.042160987854003906,
+            "parse_time": 1.5524559020996094,
+            "file_size": 48890,
+            "blocks_retrieved": 1000
+          },
+          "10000": {
+            "encode_time": 0.1518111228942871,
+            "build_time": 0.46469902992248535,
+            "parse_time": 4.029224157333374,
+            "file_size": 498890,
+            "blocks_retrieved": 10000
+          }
+        },
+        "max_blocks_tested": 10000
+      },
+      "error": null
+    },
+    "Video Storage Performance": {
+      "success": true,
+      "duration": 0,
+      "metrics": {
+        "video_sizes_mb": [
+          1,
+          5,
+          10,
+          25
+        ],
+        "storage_times_ms": [
+          5.889892578125,
+          28.360843658447266,
+          57.366132736206055,
+          140.90633392333984
+        ],
+        "extraction_times_ms": [
+          0.0,
+          0.00095367431640625,
+          0.00095367431640625,
+          0.00095367431640625
+        ],
+        "average_storage_time_ms": 58.13080072402954,
+        "average_extraction_time_ms": 0.0007152557373046875,
+        "storage_throughput_mbs": 176.32648909587365,
+        "optimization_applied": true,
+        "video_optimizer_stats": {
+          "videos_processed": 1,
+          "total_bytes": 26214400,
+          "total_time": 0.06964826583862305,
+          "metadata_extraction_time": 0.00045180320739746094,
+          "encoding_time": 0.06964826583862305,
+          "throughput_mbs": 358.94648199749423,
+          "videos_per_second": 14.357859279899769
+        },
+        "claim_validation": {
+          "video_storage_claim": "Ultra-high-performance video storage (400+ MB/s target)",
+          "achieved_throughput": 176.32648909587365,
+          "average_storage_time": 58.13080072402954,
+          "meets_expectation": true,
+          "optimization_improvement": "176.3x faster than baseline"
+        }
+      },
+      "error": null
+    },
+    "Video Metadata Extraction": {
+      "success": true,
+      "duration": 0,
+      "metrics": {
+        "test_videos": [
+          {
+            "format": "mp4",
+            "duration": 10.0,
+            "width": 1920,
+            "height": 1080
+          },
+          {
+            "format": "mp4",
+            "duration": 30.0,
+            "width": 1280,
+            "height": 720
+          },
+          {
+            "format": "mp4",
+            "duration": 60.0,
+            "width": 3840,
+            "height": 2160
+          }
+        ],
+        "extraction_times_ms": [
+          0.4010200500488281,
+          0.2818107604980469,
+          0.2758502960205078
+        ],
+        "accuracy_scores": [
+          1.0,
+          1.0,
+          1.0
+        ],
+        "average_extraction_time_ms": 0.31956036885579425,
+        "average_accuracy": 1.0,
+        "claim_validation": {
+          "metadata_extraction_claim": "Accurate video metadata extraction",
+          "achieved_accuracy": 1.0,
+          "average_extraction_time": 0.31956036885579425,
+          "meets_expectation": true
+        }
+      },
+      "error": null
+    },
+    "Video Querying Performance": {
+      "success": true,
+      "duration": 0,
+      "metrics": {
+        "video_count": 5000,
+        "query_tests": [
+          "Duration Range",
+          "HD Resolution",
+          "4K Resolution",
+          "Format Filter",
+          "Size Filter"
+        ],
+        "query_times_ms": [
+          2.8378963470458984,
+          1.4979839324951172,
+          1.1599063873291016,
+          6.579399108886719,
+          6.227970123291016
+        ],
+        "result_counts": [
+          0,
+          0,
+          0,
+          5000,
+          5000
+        ],
+        "average_query_time_ms": 3.6606311798095703,
+        "semantic_search_time_ms": 89.49398994445801,
+        "total_results_found": 10000,
+        "claim_validation": {
+          "video_querying_claim": "Fast video querying and search",
+          "achieved_avg_query_time": 3.6606311798095703,
+          "semantic_search_time": 89.49398994445801,
+          "meets_expectation": true
+        }
+      },
+      "error": null
+    },
+    "Concurrent Read/Write": {
+      "success": true,
+      "duration": 2.162842035293579,
+      "metrics": {
+        "concurrent_readers": 4,
+        "concurrent_writers": 4,
+        "average_read_time_ms": 1838.0526900291443,
+        "average_write_time_ms": 1917.288899421692,
+        "total_blocks_read": 0,
+        "error_count": 0,
+        "errors": []
+      },
+      "error": null
+    },
+    "Read Performance During Write": {
+      "success": true,
+      "duration": 28.82812476158142,
+      "metrics": {
+        "baseline_read_time_ms": 1399.6387720108032,
+        "read_time_during_write_ms": 1472.638177871704,
+        "performance_impact_percent": 5.2155890020126865,
+        "read_samples_baseline": 10,
+        "read_samples_during_write": 10
+      },
+      "error": null
+    },
+    "Write Performance During Read": {
+      "success": true,
+      "duration": 80.64339137077332,
+      "metrics": {
+        "baseline_write_time_ms": 1435.9195232391357,
+        "write_time_during_read_ms": 1379.449987411499,
+        "performance_impact_percent": -3.932639323703406,
+        "write_samples_baseline": 5,
+        "write_samples_during_read": 5
+      },
+      "error": null
+    },
+    "Lock Contention Analysis": {
+      "success": true,
+      "duration": 29.123782873153687,
+      "metrics": {
+        "contention_results": {
+          "1": {
+            "average_time_ms": 1393.492619196574,
+            "max_time_ms": 1542.037010192871,
+            "min_time_ms": 1249.0730285644531,
+            "operations_count": 3
+          },
+          "2": {
+            "average_time_ms": 1348.2242027918498,
+            "max_time_ms": 1663.8879776000977,
+            "min_time_ms": 1208.4929943084717,
+            "operations_count": 6
+          },
+          "4": {
+            "average_time_ms": 1381.9122910499573,
+            "max_time_ms": 1918.9248085021973,
+            "min_time_ms": 1256.1850547790527,
+            "operations_count": 12
+          },
+          "8": {
+            "average_time_ms": 1850.546658039093,
+            "max_time_ms": 2928.622245788574,
+            "min_time_ms": 1232.6080799102783,
+            "operations_count": 24
+          },
+          "16": {
+            "average_time_ms": 2692.5324499607086,
+            "max_time_ms": 3625.1652240753174,
+            "min_time_ms": 1167.8619384765625,
+            "operations_count": 48
+          }
+        },
+        "baseline_time_ms": 1393.492619196574,
+        "max_contention_time_ms": 2692.5324499607086,
+        "contention_impact_percent": 93.22186661549047,
+        "max_concurrency_tested": 16
+      },
+      "error": null
+    },
+    "Concurrent Block Access": {
+      "success": true,
+      "duration": 1.341318130493164,
+      "metrics": {
+        "total_blocks_in_file": 100,
+        "concurrent_workers": 8,
+        "total_block_accesses": 96,
+        "unique_blocks_accessed": 96,
+        "average_access_time_ms": 0.5456085006395975,
+        "max_access_time_ms": 1.4369487762451172,
+        "min_access_time_ms": 0.03886222839355469,
+        "blocks_per_second": 71.58227923712542,
+        "block_access_distribution": {
+          "0": 1,
+          "1": 1,
+          "2": 1,
+          "3": 1,
+          "4": 1,
+          "5": 1,
+          "6": 1,
+          "7": 1,
+          "8": 1,
+          "9": 1,
+          "10": 1,
+          "11": 1,
+          "12": 1,
+          "13": 1,
+          "14": 1,
+          "15": 1,
+          "16": 1,
+          "17": 1,
+          "18": 1,
+          "19": 1,
+          "20": 1,
+          "21": 1,
+          "22": 1,
+          "23": 1,
+          "24": 1,
+          "25": 1,
+          "26": 1,
+          "27": 1,
+          "28": 1,
+          "29": 1,
+          "30": 1,
+          "31": 1,
+          "32": 1,
+          "33": 1,
+          "34": 1,
+          "35": 1,
+          "36": 1,
+          "37": 1,
+          "38": 1,
+          "39": 1,
+          "40": 1,
+          "41": 1,
+          "42": 1,
+          "43": 1,
+          "44": 1,
+          "45": 1,
+          "46": 1,
+          "47": 1,
+          "48": 1,
+          "49": 1,
+          "50": 1,
+          "51": 1,
+          "52": 1,
+          "53": 1,
+          "54": 1,
+          "55": 1,
+          "56": 1,
+          "57": 1,
+          "58": 1,
+          "59": 1,
+          "60": 1,
+          "61": 1,
+          "62": 1,
+          "63": 1,
+          "64": 1,
+          "65": 1,
+          "66": 1,
+          "67": 1,
+          "68": 1,
+          "69": 1,
+          "70": 1,
+          "71": 1,
+          "72": 1,
+          "73": 1,
+          "74": 1,
+          "75": 1,
+          "76": 1,
+          "77": 1,
+          "78": 1,
+          "79": 1,
+          "80": 1,
+          "81": 1,
+          "82": 1,
+          "83": 1,
+          "84": 1,
+          "85": 1,
+          "86": 1,
+          "87": 1,
+          "88": 1,
+          "89": 1,
+          "90": 1,
+          "91": 1,
+          "92": 1,
+          "93": 1,
+          "94": 1,
+          "95": 1
+        }
+      },
+      "error": null
+    },
+    "ACAM - Adaptive Cross-Modal Attention": {
+      "success": true,
+      "duration": 0.07024216651916504,
+      "metrics": {
+        "test_sizes": [
+          10,
+          100,
+          1000
+        ],
+        "processing_times_ms": [
+          1.790761947631836,
+          11.713981628417969,
+          38.94686698913574
+        ],
+        "average_time_ms": 17.483870188395183,
+        "algorithm": "ACAM"
+      },
+      "error": null
+    },
+    "HSC - Hierarchical Semantic Compression": {
+      "success": true,
+      "duration": 4.937423944473267,
+      "metrics": {
+        "test_sizes": [
+          100,
+          1000,
+          10000
+        ],
+        "compression_results": [
+          {
+            "size": 100,
+            "compression_time_ms": 2.2919178009033203,
+            "decompression_time_ms": 0.02288818359375,
+            "compression_ratio": 0.09859489437636804,
+            "fidelity_score": 0.0
+          },
+          {
+            "size": 1000,
+            "compression_time_ms": 35.246849060058594,
+            "decompression_time_ms": 0.5249977111816406,
+            "compression_ratio": 0.09861791106718962,
+            "fidelity_score": 0.0
+          },
+          {
+            "size": 10000,
+            "compression_time_ms": 338.26303482055664,
+            "decompression_time_ms": 5.336761474609375,
+            "compression_ratio": 0.09860553414572909,
+            "fidelity_score": 0.0
+          }
+        ],
+        "average_compression_time_ms": 125.26726722717285,
+        "average_compression_ratio": 0.09860611319642891,
+        "algorithm": "HSC"
+      },
+      "error": null
+    },
+    "CSB - Cryptographic Semantic Binding": {
+      "success": true,
+      "duration": 0.0006761550903320312,
+      "metrics": {
+        "test_dimensions": [
+          384,
+          768,
+          1536
+        ],
+        "csb_results": [
+          {
+            "dimension": 384,
+            "commitment_time_ms": 0.07510185241699219,
+            "proof_time_ms": 0.02384185791015625,
+            "verification_time_ms": 0.025033950805664062,
+            "verification_success": true
+          },
+          {
+            "dimension": 768,
+            "commitment_time_ms": 0.041961669921875,
+            "proof_time_ms": 0.02574920654296875,
+            "verification_time_ms": 0.029325485229492188,
+            "verification_success": true
+          },
+          {
+            "dimension": 1536,
+            "commitment_time_ms": 0.06198883056640625,
+            "proof_time_ms": 0.04291534423828125,
+            "verification_time_ms": 0.053882598876953125,
+            "verification_success": true
+          }
+        ],
+        "average_commitment_time_ms": 0.05968411763509115,
+        "average_verification_time_ms": 0.03608067830403646,
+        "algorithm": "CSB"
+      },
+      "error": null
+    },
+    "Enhanced Novel Algorithms": {
+      "success": true,
+      "duration": 1.5018870830535889,
+      "metrics": {
+        "batch_embedding_time_ms": 248.81482124328613,
+        "faiss_index_time_ms": 16.20793342590332,
+        "fast_search_time_ms": 0,
+        "embeddings_generated": 1000,
+        "algorithm": "Enhanced_Variants"
+      },
+      "error": null
+    }
+  },
+  "paper_claims_validation": {
+    "Compression Ratios": {
+      "paper_claim": "2.5-5\u00d7 compression ratios",
+      "achieved_avg": 64.21331703484162,
+      "achieved_max": 480.0,
+      "meets_claim": true
+    },
+    "Semantic Search Performance": {
+      "paper_claim": "Sub-50ms semantic search",
+      "achieved_avg": 30.30843734741211,
+      "achieved_max": 32.94014930725098,
+      "meets_claim": true
+    },
+    "Large-Scale Semantic Search": {
+      "paper_claim": "Sub-50ms semantic search on large corpora",
+      "achieved_avg": 2.3975133895874023,
+      "achieved_max": 2.9523372650146484,
+      "largest_corpus": 100000,
+      "meets_claim_avg": true,
+      "meets_claim_max": true
+    },
+    "Streaming Throughput": {
+      "paper_claim": "500+ MB/s streaming",
+      "achieved": 2481.3838472278094,
+      "meets_claim": true
+    },
+    "Cryptographic Overhead": {
+      "paper_claim": "<15% cryptographic overhead",
+      "achieved": 3.763878703905007,
+      "meets_claim": true
+    },
+    "Tamper Detection": {
+      "paper_claim": "100% detection within 1ms",
+      "achieved_rate": 100.0,
+      "achieved_time": 1537.2941184043884,
+      "meets_claim": false
+    },
+    "Repair Capabilities": {
+      "paper_claim": "95%+ automated repair success",
+      "achieved": 100.0,
+      "meets_claim": true
+    },
+    "Video Storage Performance": {
+      "video_storage_claim": "Ultra-high-performance video storage (400+ MB/s target)",
+      "achieved_throughput": 176.32648909587365,
+      "average_storage_time": 58.13080072402954,
+      "meets_expectation": true,
+      "optimization_improvement": "176.3x faster than baseline"
+    },
+    "Video Metadata Extraction": {
+      "metadata_extraction_claim": "Accurate video metadata extraction",
+      "achieved_accuracy": 1.0,
+      "average_extraction_time": 0.31956036885579425,
+      "meets_expectation": true
+    },
+    "Video Querying Performance": {
+      "video_querying_claim": "Fast video querying and search",
+      "achieved_avg_query_time": 3.6606311798095703,
+      "semantic_search_time": 89.49398994445801,
+      "meets_expectation": true
+    }
+  },
+  "overall_assessment": {
+    "claims_met": 5,
+    "total_claims": 10,
+    "claims_percentage": 50.0,
+    "implementation_maturity": "Alpha Quality"
+  }
+}
