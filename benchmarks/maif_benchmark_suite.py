@@ -2037,7 +2037,10 @@ class ExampleClass:
             print("\n--- Video Storage Performance ---")
             
             # Import optimized video storage
-            from ..maif.video_optimized import optimize_maif_encoder_for_video, VideoStorageOptimizer
+            import sys
+            from pathlib import Path
+            sys.path.insert(0, str(Path(__file__).parent.parent))
+            from maif.video_optimized import optimize_maif_encoder_for_video, VideoStorageOptimizer
             
             # Test different video sizes
             video_sizes = [1, 5, 10, 25]  # MB
