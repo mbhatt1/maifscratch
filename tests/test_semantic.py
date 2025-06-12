@@ -107,11 +107,8 @@ class TestSemanticEmbedder:
         """Test batch text embedding."""
         # Mock the model
         mock_model = Mock()
-        mock_model.encode.return_value = np.array([
-            [0.1, 0.2, 0.3],
-            [0.4, 0.5, 0.6],
-            [0.7, 0.8, 0.9]
-        ])
+        # Create 384-dimensional embeddings as expected
+        mock_model.encode.return_value = np.random.rand(3, 384)
         mock_transformer.return_value = mock_model
         
         embedder = SemanticEmbedder(model_name="test-model")
@@ -124,7 +121,7 @@ class TestSemanticEmbedder:
         assert len(embeddings) == 3
         for i, embedding in enumerate(embeddings):
             assert isinstance(embedding, SemanticEmbedding)
-            assert len(embedding.vector) == 3
+            assert len(embedding.vector) == 384
             assert embedding.metadata["id"] == i + 1
             assert embedding.metadata["text"] == texts[i]
     

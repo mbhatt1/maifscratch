@@ -361,7 +361,8 @@ class TestPyTorchModelRecovery:
         print(f"  • Model ready for inference or continued training")
         print(f"  • File size: {os.path.getsize(self.maif_path):,} bytes")
         
-        return recovered_model
+        # Test passes - all assertions completed successfully
+        assert True
     
     def test_model_versioning_and_comparison(self):
         """Test storing multiple model versions and comparing them."""

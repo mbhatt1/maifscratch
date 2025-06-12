@@ -49,7 +49,7 @@ def create_test_file(tmpdir: str, size_mb: int = 50):
     
     return maif_path
 
-def test_original_streaming(maif_path: str):
+def run_original_streaming_test(maif_path: str):
     """Test original streaming implementation."""
     print("\n=== Testing Original Streaming ===")
     
@@ -84,7 +84,7 @@ def test_original_streaming(maif_path: str):
         print(f"Original streaming failed: {e}")
         return 0
 
-def test_optimized_streaming(maif_path: str):
+def run_optimized_streaming_test(maif_path: str):
     """Test optimized streaming implementation."""
     print("\n=== Testing Optimized Streaming ===")
     

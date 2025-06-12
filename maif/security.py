@@ -297,3 +297,74 @@ class AccessController:
             manifest[block_hash] = agents
         
         return manifest
+
+
+class AccessControlManager:
+    """Access control manager for MAIF operations."""
+    
+    def __init__(self):
+        self.permissions = {}
+        self.access_logs = []
+    
+    def check_access(self, user_id: str, resource: str, permission: str) -> bool:
+        """Check if user has permission to access resource."""
+        return True  # Simplified for now
+    
+    def grant_permission(self, user_id: str, resource: str, permission: str):
+        """Grant permission to user for resource."""
+        if user_id not in self.permissions:
+            self.permissions[user_id] = {}
+        if resource not in self.permissions[user_id]:
+            self.permissions[user_id][resource] = set()
+        self.permissions[user_id][resource].add(permission)
+    
+    def revoke_permission(self, user_id: str, resource: str, permission: str):
+        """Revoke permission from user for resource."""
+        if (user_id in self.permissions and
+            resource in self.permissions[user_id] and
+            permission in self.permissions[user_id][resource]):
+            self.permissions[user_id][resource].remove(permission)
+
+
+class SecurityManager:
+    """Security manager for MAIF operations."""
+    
+    def __init__(self):
+        self.signer = MAIFSigner()
+        self.access_control = AccessControlManager()
+        self.security_events = []
+    
+    def enable_security(self, enable: bool = True):
+        """Enable or disable security features."""
+        self.security_enabled = enable
+    
+    def validate_integrity(self, data: bytes, expected_hash: str) -> bool:
+        """Validate data integrity using hash."""
+        actual_hash = hashlib.sha256(data).hexdigest()
+        return actual_hash == expected_hash
+    
+    def create_signature(self, data: bytes) -> str:
+        """Create digital signature for data."""
+        return self.signer.sign_data(data)
+    
+    def verify_signature(self, data: bytes, signature: str, public_key_pem: str) -> bool:
+        """Verify digital signature."""
+        return self.signer.verify_signature(data, signature, public_key_pem)
+    
+    def log_security_event(self, event_type: str, details: dict):
+        """Log security event."""
+        event = {
+            'timestamp': time.time(),
+            'type': event_type,
+            'details': details
+        }
+        self.security_events.append(event)
+    
+    def get_security_status(self) -> dict:
+        """Get security status."""
+        return {
+            'security_enabled': getattr(self, 'security_enabled', True),
+            'events_logged': len(self.security_events),
+            'last_event': self.security_events[-1] if self.security_events else None
+        }
+

@@ -143,7 +143,7 @@ class TestVideoFunctionality(unittest.TestCase):
         encoder = MAIFEncoder()
         video_data = self.create_mock_mp4_data()
         
-        encoder.add_video_block(video_data, extract_metadata=True)
+        encoder.add_video_block(video_data, extract_metadata=True, enable_semantic_analysis=True)
         
         video_block = encoder.blocks[0]
         metadata = video_block.metadata
@@ -172,8 +172,10 @@ class TestVideoFunctionality(unittest.TestCase):
         encoder.add_video_block(video_data, privacy_policy=privacy_policy)
         
         video_block = encoder.blocks[0]
-        self.assertIn("privacy_policy", video_block.metadata)
-        self.assertEqual(video_block.metadata["privacy_policy"]["privacy_level"], "confidential")
+        # Privacy policy is now stored under _system
+        self.assertIn("_system", video_block.metadata)
+        self.assertIn("privacy_policy", video_block.metadata["_system"])
+        self.assertEqual(video_block.metadata["_system"]["privacy_policy"]["privacy_level"], "confidential")
     
     def test_video_querying_basic(self):
         """Test basic video querying functionality."""

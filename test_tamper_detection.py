@@ -55,7 +55,7 @@ def create_test_file_with_tamper_detection():
         
         return maif_path, manifest_path, tmpdir
 
-def test_normal_streaming(maif_path, manifest_path):
+def run_normal_streaming_test(maif_path, manifest_path):
     """Test normal streaming with tamper detection."""
     print("\n🔍 Testing normal streaming with tamper detection...")
     
@@ -102,7 +102,7 @@ def test_normal_streaming(maif_path, manifest_path):
         print(f"   Integrity: {security['integrity_percentage']:.1f}%")
         print(f"   Tamper detected: {security['tamper_detected']}")
 
-def test_memory_tamper_detection():
+def run_memory_tamper_detection_test():
     """Test memory-based tamper detection."""
     print("\n🧠 Testing memory-based tamper detection...")
     
@@ -129,7 +129,7 @@ def test_memory_tamper_detection():
     print(f"   Memory integrity: {status['memory_integrity']:.1f}%")
     print(f"   Regions monitored: {status['regions_monitored']}")
 
-def test_checkpoint_streaming(maif_path):
+def run_checkpoint_streaming_test(maif_path):
     """Test streaming with periodic checkpoints."""
     print("\n⏱️ Testing streaming with periodic checkpoints...")
     

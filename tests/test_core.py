@@ -418,8 +418,9 @@ class TestPrivacyIntegration:
         
         # Data should be encrypted
         assert block.data != b"Sensitive information"
-        assert block.metadata.get("encrypted") is True
-        assert block.metadata.get("encryption_mode") == "AES_GCM"
+        # Encryption metadata is now stored under _system
+        assert block.metadata.get("_system", {}).get("encrypted") is True
+        assert block.metadata.get("_system", {}).get("encryption_mode") == "AES_GCM"
     
     def test_anonymized_text_block(self):
         """Test adding anonymized text blocks."""
@@ -436,7 +437,8 @@ class TestPrivacyIntegration:
         text_content = block.data.decode('utf-8')
         assert "John Smith" not in text_content
         assert "ACME Corp" not in text_content
-        assert block.metadata.get("anonymized") is True
+        # Anonymized flag is now stored under _system
+        assert block.metadata.get("_system", {}).get("anonymized") is True
     
     def test_privacy_report(self):
         """Test privacy report generation."""
