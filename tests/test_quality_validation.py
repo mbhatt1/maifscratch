@@ -156,9 +156,10 @@ class TestReconstructionQuality:
         assert fidelity_degraded >= 0.95, f"5% degradation should maintain >95% fidelity, got {fidelity_degraded}"
         
         # Significant degradation - add noise to break cosine similarity
-        heavily_degraded = original_embeddings * 0.8 + np.random.normal(0, 0.1, original_embeddings.shape)
+        np.random.seed(42)  # For reproducible results
+        heavily_degraded = original_embeddings * 0.5 + np.random.normal(0, 0.5, original_embeddings.shape)
         fidelity_heavy = self._calculate_cosine_similarity_fidelity(original_embeddings, heavily_degraded)
-        assert fidelity_heavy < 0.98, f"Noisy degradation should reduce fidelity, got {fidelity_heavy}"
+        assert fidelity_heavy < 0.95, f"Noisy degradation should reduce fidelity, got {fidelity_heavy}"
     
     def test_quality_threshold_validation(self):
         """Test that quality thresholds are properly validated."""

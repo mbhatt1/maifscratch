@@ -3,8 +3,15 @@
 Quick verification script to test the major fixes.
 """
 
-import tempfile
 import os
+import warnings
+
+# Suppress OpenMP warning
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+warnings.filterwarnings("ignore", message=".*Found Intel OpenMP.*", category=RuntimeWarning)
+warnings.filterwarnings("ignore", message=".*threadpoolctl.*", category=RuntimeWarning)
+
+import tempfile
 import json
 from maif.core import MAIFEncoder, MAIFDecoder
 from maif.validation import MAIFValidator

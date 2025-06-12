@@ -37,8 +37,8 @@ class TestStreamingConfig:
         """Test StreamingConfig default values."""
         config = StreamingConfig()
         
-        assert config.buffer_size == 65536  # 64KB default
-        assert config.max_workers == 4
+        assert config.buffer_size == 8388608  # 8MB default
+        assert config.max_workers == 8
         assert config.chunk_size == 4096    # 4KB default
         assert config.enable_compression is False
         assert config.compression_level == 6

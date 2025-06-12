@@ -2,6 +2,14 @@
 Semantic embedding and knowledge graph functionality for MAIF.
 """
 
+import os
+import warnings
+
+# Suppress OpenMP warning before importing scientific libraries
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+warnings.filterwarnings("ignore", message=".*Found Intel OpenMP.*", category=RuntimeWarning)
+warnings.filterwarnings("ignore", message=".*threadpoolctl.*", category=RuntimeWarning)
+
 import json
 import time
 import struct
