@@ -4,11 +4,13 @@ Stream-Level Access Control for MAIF
 
 Provides granular access control enforcement during streaming operations,
 including per-block permissions, time-based access, rate limiting, and
-content-based access control.
+content-based access control with advanced security features.
 """
 
 import time
 import threading
+import secrets
+import hmac
 from typing import Dict, List, Optional, Set, Callable, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -64,7 +66,7 @@ class StreamAccessRule:
 
 @dataclass
 class StreamSession:
-    """Active streaming session with access tracking."""
+    """Active streaming session with access tracking and security features."""
     session_id: str
     user_id: str
     resource_path: str
@@ -83,10 +85,23 @@ class StreamSession:
     # Security state
     access_violations: List[Dict[str, Any]] = field(default_factory=list)
     is_active: bool = True
+    
+    # Anti-replay protection
+    nonce_history: Set[str] = field(default_factory=set)
+    last_request_timestamp: float = 0.0
+    
+    # Multi-factor authentication
+    mfa_verified: bool = False
+    mfa_required: bool = False
+    mfa_challenge_time: Optional[float] = None
+    
+    # Behavioral analysis
+    access_pattern_hash: str = ""
+    suspicious_activity_score: float = 0.0
 
 
 class StreamAccessController:
-    """Main access control system for MAIF streaming."""
+    """Main access control system for MAIF streaming with advanced security."""
     
     def __init__(self):
         self.rules: Dict[str, StreamAccessRule] = {}
@@ -100,6 +115,24 @@ class StreamAccessController:
         # Audit logging
         self.audit_log: List[Dict[str, Any]] = []
         self.max_audit_entries = 10000
+        
+        # Security enhancements
+        self._timing_randomization = True
+        self._min_response_time = 0.001  # 1ms minimum response time
+        self._max_response_time = 0.010  # 10ms maximum response time
+        
+        # Anti-replay protection
+        self._global_nonce_history: Set[str] = set()
+        self._nonce_cleanup_interval = 3600  # 1 hour
+        self._last_nonce_cleanup = time.time()
+        
+        # MFA settings
+        self._mfa_secret_key = secrets.token_bytes(32)
+        self._mfa_timeout = 300  # 5 minutes
+        
+        # Behavioral analysis
+        self._behavioral_patterns: Dict[str, List[Dict]] = defaultdict(list)
+        self._anomaly_threshold = 0.7
     
     def add_rule(self, rule: StreamAccessRule) -> None:
         """Add an access control rule."""
@@ -164,6 +197,277 @@ class StreamAccessController:
                           block_type: str = None, block_data: bytes = None) -> Tuple[AccessDecision, str]:
         """
         Check access for a streaming operation.
+def check_stream_access_secure(self, session_id: str, operation: str, 
+                                  block_type: str = None, block_data: bytes = None,
+                                  request_nonce: str = None, request_timestamp: float = None) -> Tuple[AccessDecision, str]:
+        """
+        Enhanced access check with anti-replay, timing attack protection, and MFA.
+        
+        Args:
+            session_id: Active session ID
+            operation: 'read' or 'write'
+            block_type: Type of block being accessed
+            block_data: Block data (for content-based rules)
+            request_nonce: Unique request identifier (anti-replay)
+            request_timestamp: Request timestamp (anti-replay)
+            
+        Returns:
+            Tuple of (decision, reason)
+        """
+        start_time = time.time()
+        
+        try:
+            # 1. Anti-replay protection
+            if request_nonce and request_timestamp:
+                replay_check = self._check_anti_replay(session_id, request_nonce, request_timestamp)
+                if replay_check != AccessDecision.ALLOW:
+                    return self._timing_safe_response(start_time, replay_check, "Replay attack detected")
+            
+            # 2. MFA verification for sensitive operations
+            mfa_check = self._check_mfa_requirement(session_id, operation, block_type)
+            if mfa_check != AccessDecision.ALLOW:
+                return self._timing_safe_response(start_time, mfa_check, "MFA verification required")
+            
+            # 3. Behavioral analysis
+            behavioral_check = self._analyze_behavioral_pattern(session_id, operation, block_type)
+            if behavioral_check != AccessDecision.ALLOW:
+                return self._timing_safe_response(start_time, behavioral_check, "Suspicious behavioral pattern")
+            
+            # 4. Standard access control check
+            decision, reason = self.check_stream_access(session_id, operation, block_type, block_data)
+            
+            # 5. Update behavioral patterns
+            self._update_behavioral_pattern(session_id, operation, block_type, decision)
+            
+            return self._timing_safe_response(start_time, decision, reason)
+            
+        except Exception as e:
+            return self._timing_safe_response(start_time, AccessDecision.DENY, f"Security check failed: {str(e)}")
+    
+    def _check_anti_replay(self, session_id: str, nonce: str, timestamp: float) -> AccessDecision:
+        """Check for replay attacks using nonce and timestamp validation."""
+        current_time = time.time()
+        
+        # Check timestamp freshness (within 30 seconds)
+        if abs(current_time - timestamp) > 30:
+            return AccessDecision.DENY
+        
+        # Check global nonce uniqueness
+        if nonce in self._global_nonce_history:
+            return AccessDecision.DENY
+        
+        # Check session-specific nonce
+        if session_id in self.sessions:
+            session = self.sessions[session_id]
+            if nonce in session.nonce_history:
+                return AccessDecision.DENY
+            
+            # Check timestamp ordering (must be newer than last request)
+            if timestamp <= session.last_request_timestamp:
+                return AccessDecision.DENY
+            
+            # Update session state
+            session.nonce_history.add(nonce)
+            session.last_request_timestamp = timestamp
+            
+            # Limit nonce history size
+            if len(session.nonce_history) > 1000:
+                # Remove oldest nonces (approximate)
+                session.nonce_history = set(list(session.nonce_history)[-500:])
+        
+        # Add to global nonce history
+        self._global_nonce_history.add(nonce)
+        
+        # Cleanup old nonces periodically
+        if current_time - self._last_nonce_cleanup > self._nonce_cleanup_interval:
+            self._cleanup_old_nonces()
+        
+        return AccessDecision.ALLOW
+    
+    def _check_mfa_requirement(self, session_id: str, operation: str, block_type: str) -> AccessDecision:
+        """Check if MFA is required and verified for this operation."""
+        if session_id not in self.sessions:
+            return AccessDecision.DENY
+        
+        session = self.sessions[session_id]
+        
+        # Determine if MFA is required based on operation sensitivity
+        requires_mfa = (
+            session.mfa_required or
+            operation == "write" or
+            block_type in ["SECU", "ACLS", "PROV"] or  # Security-sensitive blocks
+            session.suspicious_activity_score > 0.5
+        )
+        
+        if requires_mfa and not session.mfa_verified:
+            return AccessDecision.DENY
+        
+        # Check MFA timeout
+        if session.mfa_verified and session.mfa_challenge_time:
+            if time.time() - session.mfa_challenge_time > self._mfa_timeout:
+                session.mfa_verified = False
+                return AccessDecision.DENY
+        
+        return AccessDecision.ALLOW
+    
+    def _analyze_behavioral_pattern(self, session_id: str, operation: str, block_type: str) -> AccessDecision:
+        """Analyze user behavior for anomalies."""
+        if session_id not in self.sessions:
+            return AccessDecision.DENY
+        
+        session = self.sessions[session_id]
+        current_time = time.time()
+        
+        # Create behavior signature
+        behavior = {
+            "operation": operation,
+            "block_type": block_type,
+            "timestamp": current_time,
+            "hour_of_day": int((current_time % 86400) / 3600),
+            "day_of_week": int((current_time / 86400) % 7)
+        }
+        
+        # Get user's historical patterns
+        user_patterns = self._behavioral_patterns[session.user_id]
+        
+        if len(user_patterns) < 10:
+            # Not enough data for analysis
+            user_patterns.append(behavior)
+            return AccessDecision.ALLOW
+        
+        # Simple anomaly detection based on patterns
+        anomaly_score = self._calculate_anomaly_score(behavior, user_patterns)
+        session.suspicious_activity_score = anomaly_score
+        
+        if anomaly_score > self._anomaly_threshold:
+            # Require MFA for suspicious activity
+            session.mfa_required = True
+            if not session.mfa_verified:
+                return AccessDecision.DENY
+        
+        # Update patterns (keep last 100 behaviors)
+        user_patterns.append(behavior)
+        if len(user_patterns) > 100:
+            user_patterns.pop(0)
+        
+        return AccessDecision.ALLOW
+    
+    def _calculate_anomaly_score(self, current_behavior: Dict, historical_patterns: List[Dict]) -> float:
+        """Calculate anomaly score based on historical patterns."""
+        if not historical_patterns:
+            return 0.0
+        
+        # Simple scoring based on common patterns
+        score = 0.0
+        
+        # Check operation frequency
+        operation_count = sum(1 for p in historical_patterns if p["operation"] == current_behavior["operation"])
+        operation_frequency = operation_count / len(historical_patterns)
+        if operation_frequency < 0.1:  # Rare operation
+            score += 0.3
+        
+        # Check time-of-day patterns
+        hour = current_behavior["hour_of_day"]
+        hour_count = sum(1 for p in historical_patterns if abs(p["hour_of_day"] - hour) <= 1)
+        hour_frequency = hour_count / len(historical_patterns)
+        if hour_frequency < 0.1:  # Unusual time
+            score += 0.4
+        
+        # Check block type patterns
+        if current_behavior["block_type"]:
+            block_count = sum(1 for p in historical_patterns if p["block_type"] == current_behavior["block_type"])
+            block_frequency = block_count / len(historical_patterns)
+            if block_frequency < 0.05:  # Very rare block type
+                score += 0.3
+        
+        return min(score, 1.0)
+    
+    def _timing_safe_response(self, start_time: float, decision: AccessDecision, reason: str) -> Tuple[AccessDecision, str]:
+        """Return response with timing attack protection."""
+        if not self._timing_randomization:
+            return decision, reason
+        
+        elapsed = time.time() - start_time
+        
+        # Add random delay to normalize response times
+        if elapsed < self._min_response_time:
+            delay = self._min_response_time - elapsed + secrets.randbelow(int(self._max_response_time * 1000)) / 1000
+            time.sleep(delay)
+        elif elapsed > self._max_response_time:
+            # Response took too long, add small random delay
+            time.sleep(secrets.randbelow(5) / 1000)  # 0-5ms
+        else:
+            # Add small random delay to mask timing differences
+            time.sleep(secrets.randbelow(3) / 1000)  # 0-3ms
+        
+        return decision, reason
+    
+    def _update_behavioral_pattern(self, session_id: str, operation: str, block_type: str, decision: AccessDecision) -> None:
+        """Update behavioral patterns based on access decision."""
+        if session_id in self.sessions:
+            session = self.sessions[session_id]
+            
+            # Adjust suspicion score based on access patterns
+            if decision == AccessDecision.DENY:
+                session.suspicious_activity_score = min(session.suspicious_activity_score + 0.1, 1.0)
+            else:
+                session.suspicious_activity_score = max(session.suspicious_activity_score - 0.05, 0.0)
+    
+    def _cleanup_old_nonces(self) -> None:
+        """Clean up old nonces to prevent memory growth."""
+        # This is a simplified cleanup - in production, you'd want more sophisticated cleanup
+        if len(self._global_nonce_history) > 10000:
+            # Keep only recent nonces (this is approximate)
+            self._global_nonce_history = set(list(self._global_nonce_history)[-5000:])
+        
+        self._last_nonce_cleanup = time.time()
+    
+    def initiate_mfa_challenge(self, session_id: str) -> Optional[str]:
+        """Initiate MFA challenge for a session."""
+        if session_id not in self.sessions:
+            return None
+        
+        session = self.sessions[session_id]
+        
+        # Generate MFA challenge (simplified - in production use proper TOTP/SMS)
+        challenge = secrets.token_hex(16)
+        session.mfa_challenge_time = time.time()
+        
+        self._log_audit("mfa_challenge_initiated", {
+            "session_id": session_id,
+            "user_id": session.user_id,
+            "challenge_time": session.mfa_challenge_time
+        })
+        
+        return challenge
+    
+    def verify_mfa_response(self, session_id: str, response: str, expected_response: str) -> bool:
+        """Verify MFA response."""
+        if session_id not in self.sessions:
+            return False
+        
+        session = self.sessions[session_id]
+        
+        # Verify response (simplified - in production use proper verification)
+        if hmac.compare_digest(response, expected_response):
+            session.mfa_verified = True
+            session.mfa_challenge_time = time.time()
+            
+            self._log_audit("mfa_verification_success", {
+                "session_id": session_id,
+                "user_id": session.user_id
+            })
+            
+            return True
+        else:
+            session.suspicious_activity_score = min(session.suspicious_activity_score + 0.2, 1.0)
+            
+            self._log_audit("mfa_verification_failed", {
+                "session_id": session_id,
+                "user_id": session.user_id
+            })
+            
+            return False
         
         Args:
             session_id: Active session ID
