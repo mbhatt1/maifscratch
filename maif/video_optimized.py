@@ -23,14 +23,16 @@ from pathlib import Path
 @dataclass
 class VideoStorageConfig:
     """Configuration for ultra-high-performance video storage."""
-    chunk_size: int = 64 * 1024 * 1024  # 64MB chunks
-    max_workers: int = 32  # Maximum parallel workers
-    buffer_size: int = 256 * 1024 * 1024  # 256MB buffer
+    chunk_size: int = 128 * 1024 * 1024  # 128MB chunks for better throughput
+    max_workers: int = 64  # More parallel workers
+    buffer_size: int = 512 * 1024 * 1024  # 512MB buffer for large videos
     enable_metadata_extraction: bool = True
-    enable_semantic_analysis: bool = False  # Disable by default for speed
+    enable_semantic_analysis: bool = True  # Enable by default for accuracy
     use_memory_mapping: bool = True
     parallel_processing: bool = True
     hardware_acceleration: bool = True
+    enable_zero_copy: bool = True  # Enable zero-copy operations
+    enable_streaming_mode: bool = True  # Enable streaming optimizations
 
 
 class UltraFastVideoEncoder:
@@ -94,24 +96,42 @@ class UltraFastVideoEncoder:
     
     def _generate_video_hash_fast(self, video_data: bytes) -> str:
         """Generate video hash using hardware-accelerated hashing."""
-        if self.config.hardware_acceleration:
-            # Use hardware-accelerated SHA256 if available
+        if self.config.hardware_acceleration and self.config.enable_zero_copy:
+            # Use hardware-accelerated SHA256 with zero-copy optimization
             try:
                 import hashlib
                 hasher = hashlib.sha256()
                 
-                # Process in large chunks for better performance
-                chunk_size = self.config.chunk_size
-                for i in range(0, len(video_data), chunk_size):
-                    chunk = video_data[i:i + chunk_size]
-                    hasher.update(chunk)
+                # Use larger chunks for better throughput (target 400+ MB/s)
+                chunk_size = min(self.config.chunk_size, 256 * 1024 * 1024)  # Max 256MB chunks
+                
+                # Zero-copy processing when possible
+                if len(video_data) <= chunk_size:
+                    # Small files: process in one go
+                    hasher.update(video_data)
+                else:
+                    # Large files: process in optimized chunks
+                    for i in range(0, len(video_data), chunk_size):
+                        chunk = video_data[i:i + chunk_size]
+                        hasher.update(chunk)
                 
                 return hasher.hexdigest()[:16]  # Use first 16 chars for speed
             except Exception:
                 pass
         
-        # Fallback to simple hash
-        return hashlib.md5(video_data[:1024] + video_data[-1024:]).hexdigest()[:16]
+        # Ultra-fast fallback for maximum throughput
+        if len(video_data) > 10 * 1024 * 1024:  # > 10MB
+            # For large files, sample strategically for speed
+            sample_size = 64 * 1024  # 64KB samples
+            samples = [
+                video_data[:sample_size],  # Beginning
+                video_data[len(video_data)//2:len(video_data)//2 + sample_size],  # Middle
+                video_data[-sample_size:]  # End
+            ]
+            return hashlib.md5(b''.join(samples)).hexdigest()[:16]
+        else:
+            # Small files: full hash
+            return hashlib.md5(video_data).hexdigest()[:16]
     
     def _extract_metadata_parallel(self, video_data: bytes) -> Dict[str, Any]:
         """Extract video metadata using parallel processing."""
@@ -126,7 +146,8 @@ class UltraFastVideoEncoder:
             futures = {
                 executor.submit(self._extract_format_info, video_data): "format",
                 executor.submit(self._extract_size_info, video_data): "size",
-                executor.submit(self._extract_header_info, video_data): "header"
+                executor.submit(self._extract_header_info, video_data): "header",
+                executor.submit(self._extract_mp4_metadata_fast, video_data): "mp4"  # Add MP4 extraction
             }
             
             # Collect results
@@ -155,6 +176,9 @@ class UltraFastVideoEncoder:
             if header[4:8] == b'ftyp':
                 metadata["format"] = "mp4"
                 metadata["container"] = "mp4"
+                # Try to extract MP4 metadata
+                mp4_metadata = self._extract_mp4_metadata_fast(video_data)
+                metadata.update(mp4_metadata)
             elif header[:4] == b'RIFF' and video_data[8:12] == b'AVI ':
                 metadata["format"] = "avi"
                 metadata["container"] = "avi"
@@ -165,6 +189,82 @@ class UltraFastVideoEncoder:
                 metadata["format"] = "mkv"
                 metadata["container"] = "matroska"
         
+        return metadata
+    
+    def _extract_mp4_metadata_fast(self, video_data: bytes) -> Dict[str, Any]:
+        """Fast MP4 metadata extraction with recursive box parsing."""
+        metadata = {}
+        
+        def parse_boxes_recursive(data: bytes, start_pos: int, end_pos: int, depth: int = 0):
+            """Recursively parse MP4 boxes."""
+            if depth > 5:  # Prevent infinite recursion
+                return
+                
+            pos = start_pos
+            while pos < end_pos - 8:
+                try:
+                    # Read box header
+                    if pos + 8 > len(data):
+                        break
+                        
+                    box_size = struct.unpack('>I', data[pos:pos+4])[0]
+                    box_type = data[pos+4:pos+8]
+                    
+                    if box_size < 8 or box_size > end_pos - pos:
+                        pos += 4
+                        continue
+                    
+                    # Parse mvhd for duration
+                    if box_type == b'mvhd':
+                        try:
+                            if pos + 32 <= len(data):
+                                version = data[pos + 8]
+                                if version == 0:
+                                    timescale = struct.unpack('>I', data[pos+20:pos+24])[0]
+                                    duration_units = struct.unpack('>I', data[pos+24:pos+28])[0]
+                                    if timescale > 0:
+                                        metadata["duration"] = duration_units / timescale
+                                        metadata["timescale"] = timescale
+                        except (struct.error, IndexError):
+                            pass
+                    
+                    # Parse tkhd for dimensions
+                    elif box_type == b'tkhd':
+                        try:
+                            if box_size >= 84:
+                                # Width and height are at the end of tkhd box
+                                width_pos = pos + box_size - 8
+                                if width_pos + 8 <= len(data):
+                                    width = struct.unpack('>I', data[width_pos:width_pos+4])[0] >> 16
+                                    height = struct.unpack('>I', data[width_pos+4:width_pos+8])[0] >> 16
+                                    if width > 0 and height > 0 and width < 10000 and height < 10000:
+                                        metadata["resolution"] = f"{width}x{height}"
+                                        metadata["width"] = width
+                                        metadata["height"] = height
+                        except (struct.error, IndexError):
+                            pass
+                    
+                    # Handle container boxes that may contain other boxes
+                    elif box_type in [b'moov', b'trak', b'mdia', b'minf', b'stbl']:
+                        # Recursively parse container contents
+                        container_start = pos + 8
+                        container_end = pos + box_size
+                        parse_boxes_recursive(data, container_start, container_end, depth + 1)
+                    
+                    pos += box_size
+                    
+                except (struct.error, IndexError):
+                    pos += 4
+                    continue
+        
+        try:
+            import struct
+            # Start recursive parsing from the beginning
+            parse_boxes_recursive(video_data, 0, len(video_data))
+            
+        except Exception:
+            pass
+            
         return metadata
     
     def _extract_format_info(self, video_data: bytes) -> Dict[str, Any]:
