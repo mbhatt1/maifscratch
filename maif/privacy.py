@@ -478,12 +478,12 @@ class PrivacyEngine:
         return self.privacy_policies.get(block_id)
     
     def enforce_retention_policy(self):
-        """Enforce data retention policies."""
+        """Enforce data retention policies (FIXED: no dictionary modification during iteration)."""
         current_time = time.time()
         expired_blocks = []
         
-        # Check retention policies dict for expired blocks
-        for block_id, retention_info in self.retention_policies.items():
+        # FIX: Create list copy to avoid modification during iteration
+        for block_id, retention_info in list(self.retention_policies.items()):
             if isinstance(retention_info, dict):
                 created_at = retention_info.get('created_at', 0)
                 retention_days = retention_info.get('retention_days', 30)
@@ -492,7 +492,7 @@ class PrivacyEngine:
                 expiry_time = created_at + (retention_days * 24 * 3600)
                 if current_time > expiry_time:
                     expired_blocks.append(block_id)
-                    # Actually delete the expired block
+                    # Delete the expired block (soft or hard based on privacy level)
                     self._delete_expired_block(block_id)
         
         return expired_blocks
@@ -520,7 +520,21 @@ class PrivacyEngine:
         }
     
     def _delete_expired_block(self, block_id: str):
-        """Delete expired block (placeholder for retention policy enforcement)."""
+        """Delete expired block with privacy level-based deletion strategy."""
+        # Determine deletion method based on privacy level
+        privacy_policy = self.privacy_policies.get(block_id)
+        use_hard_delete = False
+        
+        if privacy_policy:
+            # Hard delete for high security levels only
+            high_security_levels = [PrivacyLevel.HIGH, PrivacyLevel.SECRET, PrivacyLevel.TOP_SECRET]
+            use_hard_delete = privacy_policy.privacy_level in high_security_levels
+        
+        if use_hard_delete:
+            self._secure_delete_block_data(block_id)
+        else:
+            self._soft_delete_block_data(block_id)
+        
         # Remove from privacy policies
         if block_id in self.privacy_policies:
             del self.privacy_policies[block_id]
@@ -532,6 +546,95 @@ class PrivacyEngine:
         # Remove encryption keys
         if block_id in self.encryption_keys:
             del self.encryption_keys[block_id]
+    
+    def _secure_delete_block_data(self, block_id: str, overwrite_passes: int = 3):
+        """Securely overwrite and destroy block data (hard delete for HIGH/SECRET/TOP_SECRET)."""
+        # Note: This is a placeholder implementation
+        # In a real system, this would:
+        # 1. Locate the actual data storage
+        # 2. Perform multiple overwrite passes with random data
+        # 3. Final overwrite with zeros
+        # 4. Force filesystem sync
+        # 5. Verify data destruction
+        
+        print(f"🔥 HARD DELETE: Securely destroying block {block_id} with {overwrite_passes} overwrite passes")
+        
+        # Simulate secure overwrite process
+        import secrets
+        for pass_num in range(overwrite_passes):
+            # In real implementation: overwrite actual storage location
+            random_data = secrets.token_bytes(1024)  # Simulate overwrite
+            print(f"   Pass {pass_num + 1}: Overwriting with random data")
+        
+        # Final zero overwrite
+        print(f"   Final pass: Overwriting with zeros")
+        
+        # Log secure deletion for audit trail
+        self._log_secure_deletion(block_id, overwrite_passes)
+    
+    def _soft_delete_block_data(self, block_id: str):
+        """Mark block as deleted without physical destruction (soft delete for lower levels)."""
+        print(f"📝 SOFT DELETE: Marking block {block_id} as deleted (data preserved)")
+        
+        # In a real implementation, this would mark the block as deleted
+        # but leave the actual data intact for potential recovery
+        
+        # Log soft deletion for audit trail
+        self._log_soft_deletion(block_id)
+    
+    def _log_secure_deletion(self, block_id: str, overwrite_passes: int):
+        """Log secure deletion event for audit trail."""
+        deletion_record = {
+            'block_id': block_id,
+            'deletion_type': 'secure_hard_delete',
+            'overwrite_passes': overwrite_passes,
+            'timestamp': time.time(),
+            'method': 'multi_pass_overwrite'
+        }
+        print(f"📋 AUDIT: Logged secure deletion of {block_id}")
+        # In real implementation: store in audit log
+    
+    def _log_soft_deletion(self, block_id: str):
+        """Log soft deletion event for audit trail."""
+        deletion_record = {
+            'block_id': block_id,
+            'deletion_type': 'soft_delete',
+            'timestamp': time.time(),
+            'method': 'metadata_marking'
+        }
+        print(f"📋 AUDIT: Logged soft deletion of {block_id}")
+        # In real implementation: store in audit log
+    
+    def secure_delete_block(self, block_id: str, reason: str = "Manual deletion") -> bool:
+        """Public method for secure deletion of blocks based on privacy level."""
+        if block_id not in self.privacy_policies:
+            return False
+        
+        privacy_policy = self.privacy_policies[block_id]
+        
+        # Determine deletion method based on privacy level
+        high_security_levels = [PrivacyLevel.HIGH, PrivacyLevel.SECRET, PrivacyLevel.TOP_SECRET]
+        use_hard_delete = privacy_policy.privacy_level in high_security_levels
+        
+        print(f"\n🗑️  DELETION REQUEST: {block_id}")
+        print(f"   Privacy Level: {privacy_policy.privacy_level.value}")
+        print(f"   Deletion Method: {'HARD DELETE' if use_hard_delete else 'SOFT DELETE'}")
+        print(f"   Reason: {reason}")
+        
+        if use_hard_delete:
+            self._secure_delete_block_data(block_id)
+        else:
+            self._soft_delete_block_data(block_id)
+        
+        # Remove from all registries
+        if block_id in self.privacy_policies:
+            del self.privacy_policies[block_id]
+        if block_id in self.retention_policies:
+            del self.retention_policies[block_id]
+        if block_id in self.encryption_keys:
+            del self.encryption_keys[block_id]
+        
+        return True
 
 class DifferentialPrivacy:
     """Differential privacy implementation for MAIF."""

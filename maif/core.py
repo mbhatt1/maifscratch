@@ -1151,13 +1151,21 @@ class MAIFEncoder:
         return block_id
     
     def delete_block(self, block_id: str, reason: Optional[str] = None) -> bool:
-        """Mark a block as deleted (soft delete with versioning)."""
+        """Delete a block using privacy level-based deletion strategy."""
         if block_id not in self.block_registry:
             return False
         
         latest_block = self.block_registry[block_id][-1]
         
-        # Mark the block as deleted in its metadata
+        # Use privacy engine for deletion if available
+        if self.privacy_engine and hasattr(self.privacy_engine, 'secure_delete_block'):
+            # Let privacy engine handle deletion based on privacy level
+            privacy_deletion_result = self.privacy_engine.secure_delete_block(block_id, reason or "Block deletion")
+            if privacy_deletion_result:
+                # Privacy engine handled the deletion, now update our records
+                pass
+        
+        # Mark the block as deleted in its metadata (for audit trail)
         if latest_block.metadata is None:
             latest_block.metadata = {}
         latest_block.metadata["deleted"] = True
