@@ -114,16 +114,19 @@ class TestBlockTypeMapping:
         
         # Read the file and check the header
         with open(maif_path, 'rb') as f:
-            # Skip to the first block header (after file header)
-            f.seek(32)  # Assuming 32-byte file header
+            # File starts directly with the first block (no file header)
+            f.seek(0)
             header_data = f.read(32)  # Read block header
             
-            # Parse the block header
+            # Parse the block header: [size(4)][type(4)][version(4)][flags(4)][uuid(16)]
             import struct
-            size, type_bytes, version, flags = struct.unpack('>I4sII', header_data[:16])
-            block_type = type_bytes.decode('ascii').rstrip('\0')
-            
-            assert block_type == "VDAT", f"Video block should use VDAT FourCC, got '{block_type}'"
+            if len(header_data) >= 16:
+                size, type_bytes, version, flags = struct.unpack('>I4sII', header_data[:16])
+                block_type = type_bytes.decode('ascii').rstrip('\0')
+                
+                assert block_type == "VDAT", f"Video block should use VDAT FourCC, got '{block_type}'"
+            else:
+                assert False, f"Not enough header data: got {len(header_data)} bytes, expected at least 16"
     
     def test_data_block_creation_uses_correct_fourcc(self):
         """Test that 'data' blocks use the correct BDAT FourCC."""
@@ -138,16 +141,19 @@ class TestBlockTypeMapping:
         
         # Read the file and check the header
         with open(maif_path, 'rb') as f:
-            # Skip to the first block header (after file header)
-            f.seek(32)  # Assuming 32-byte file header
+            # File starts directly with the first block (no file header)
+            f.seek(0)
             header_data = f.read(32)  # Read block header
             
-            # Parse the block header
+            # Parse the block header: [size(4)][type(4)][version(4)][flags(4)][uuid(16)]
             import struct
-            size, type_bytes, version, flags = struct.unpack('>I4sII', header_data[:16])
-            block_type = type_bytes.decode('ascii').rstrip('\0')
-            
-            assert block_type == "BDAT", f"Data block should use BDAT FourCC, got '{block_type}'"
+            if len(header_data) >= 16:
+                size, type_bytes, version, flags = struct.unpack('>I4sII', header_data[:16])
+                block_type = type_bytes.decode('ascii').rstrip('\0')
+                
+                assert block_type == "BDAT", f"Data block should use BDAT FourCC, got '{block_type}'"
+            else:
+                assert False, f"Not enough header data: got {len(header_data)} bytes, expected at least 16"
 
 
 class TestFileFormatStability:
