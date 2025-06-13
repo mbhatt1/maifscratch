@@ -99,23 +99,23 @@ graph TB
         SF5 --> PM4
     end
     
-    style BT1 fill:#e3f2fd
-    style BT2 fill:#e3f2fd
-    style BT3 fill:#e3f2fd
-    style BT4 fill:#e3f2fd
-    style SF1 fill:#c8e6c9
-    style SF2 fill:#c8e6c9
-    style SF3 fill:#c8e6c9
-    style SF4 fill:#c8e6c9
-    style SF5 fill:#c8e6c9
-    style CS1 fill:#f3e5f5
-    style CS2 fill:#f3e5f5
-    style CS3 fill:#f3e5f5
-    style CS4 fill:#f3e5f5
-    style PM1 fill:#fff3e0
-    style PM2 fill:#fff3e0
-    style PM3 fill:#fff3e0
-    style PM4 fill:#fff3e0
+    style BT1 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#000
+    style BT2 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#000
+    style BT3 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#000
+    style BT4 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#000
+    style SF1 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style SF2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style SF3 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style SF4 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style SF5 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style CS1 fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style CS2 fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style CS3 fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style CS4 fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style PM1 fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style PM2 fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style PM3 fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style PM4 fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Key Security Principles
@@ -166,11 +166,11 @@ graph TB
         D --> E
     end
     
-    style A fill:#e1f5fe
-    style B fill:#f3e5f5
-    style C fill:#e8f5e8
-    style D fill:#fff3e0
-    style E fill:#fce4ec
+    style A fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#D0021B,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ### Security Domains
@@ -295,10 +295,10 @@ flowchart LR
     F --> H[Log Security Event]
     E --> I[Allow Access]
     
-    style E fill:#c8e6c9
-    style F fill:#ffcdd2
-    style G fill:#ffecb3
-    style H fill:#ffecb3
+    style E fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style F fill:#D0021B,stroke:#333,stroke-width:2px,color:#fff
+    style G fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style H fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Multi-Level Verification Architecture
@@ -328,10 +328,10 @@ graph TD
         D --> H
     end
     
-    style A fill:#e3f2fd
-    style B fill:#f1f8e9
-    style C fill:#fff3e0
-    style D fill:#fce4ec
+    style A fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ---
@@ -396,9 +396,9 @@ block-beta
         audit["Audit Trail<br/>• Timestamp<br/>• Creator<br/>• Access Log"]
     end
     
-    style header fill:#e3f2fd
-    style encrypted fill:#f3e5f5
-    style metadata fill:#e8f5e8
+    style header fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style encrypted fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style metadata fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Block Type Security Comparison
@@ -435,22 +435,22 @@ graph LR
         end
     end
     
-    style T1 fill:#c8e6c9
-    style T2 fill:#c8e6c9
-    style T3 fill:#c8e6c9
-    style T4 fill:#c8e6c9
-    style B1 fill:#c8e6c9
-    style B2 fill:#c8e6c9
-    style B3 fill:#c8e6c9
-    style B4 fill:#c8e6c9
-    style V1 fill:#c8e6c9
-    style V2 fill:#c8e6c9
-    style V3 fill:#c8e6c9
-    style V4 fill:#c8e6c9
-    style E1 fill:#c8e6c9
-    style E2 fill:#c8e6c9
-    style E3 fill:#c8e6c9
-    style E4 fill:#c8e6c9
+    style T1 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style T2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style T3 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style T4 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B1 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B3 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B4 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style V1 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style V2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style V3 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style V4 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style E1 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style E2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style E3 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style E4 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ---
@@ -479,18 +479,18 @@ graph LR
         B6[Performance: Software Optimized]
     end
     
-    style A1 fill:#c8e6c9
-    style A2 fill:#c8e6c9
-    style A3 fill:#c8e6c9
-    style A4 fill:#c8e6c9
-    style A5 fill:#c8e6c9
-    style A6 fill:#c8e6c9
-    style B1 fill:#e1f5fe
-    style B2 fill:#e1f5fe
-    style B3 fill:#e1f5fe
-    style B4 fill:#e1f5fe
-    style B5 fill:#e1f5fe
-    style B6 fill:#e1f5fe
+    style A1 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style A2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style A3 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style A4 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style A5 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style A6 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B1 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B2 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B3 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B4 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B5 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B6 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ### Key Derivation Process
@@ -509,9 +509,9 @@ flowchart TD
     J -->|Yes| K[✅ Authentication Success]
     J -->|No| L[❌ Authentication Failed]
     
-    style E fill:#c8e6c9
-    style K fill:#c8e6c9
-    style L fill:#ffcdd2
+    style E fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style K fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style L fill:#D0021B,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ```python
@@ -552,10 +552,10 @@ graph TD
     B --> H
     D --> H
     
-    style A fill:#c8e6c9
-    style B fill:#e1f5fe
-    style C fill:#fff3e0
-    style D fill:#f3e5f5
+    style A fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ---
@@ -596,12 +596,12 @@ graph TD
         B --> I
     end
     
-    style A fill:#e1f5fe
-    style B fill:#f3e5f5
-    style C fill:#e8f5e8
-    style D fill:#fff3e0
-    style E fill:#fce4ec
-    style F fill:#f1f8e9
+    style A fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#D0021B,stroke:#333,stroke-width:2px,color:#fff
+    style F fill:#50E3C2,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Encryption Workflow
@@ -694,10 +694,10 @@ graph TD
     M --> O
     N --> O
     
-    style N fill:#c8e6c9
-    style I fill:#ffcdd2
-    style K fill:#ffcdd2
-    style M fill:#ffcdd2
+    style N fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style I fill:#D0021B,stroke:#333,stroke-width:2px,color:#fff
+    style K fill:#D0021B,stroke:#333,stroke-width:2px,color:#fff
+    style M fill:#D0021B,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ### Privacy Policy Enforcement Flow
@@ -730,10 +730,10 @@ flowchart TD
     P --> Q[Validation Check]
     Q --> R[Store in MAIF]
     
-    style F fill:#ffecb3
-    style G fill:#fff3e0
-    style H fill:#e8f5e8
-    style I fill:#c8e6c9
+    style F fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style G fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style H fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style I fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Compliance Features
@@ -762,19 +762,19 @@ graph LR
         M[Privacy-by-Design<br/>Implementation]
     end
     
-    style A fill:#e3f2fd
-    style B fill:#e3f2fd
-    style C fill:#e3f2fd
-    style D fill:#e3f2fd
-    style E fill:#f3e5f5
-    style F fill:#f3e5f5
-    style G fill:#f3e5f5
-    style H fill:#f3e5f5
-    style I fill:#e8f5e8
-    style J fill:#e8f5e8
-    style K fill:#e8f5e8
-    style L fill:#e8f5e8
-    style M fill:#e8f5e8
+    style A fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style B fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style C fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style D fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style E fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style F fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style G fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style H fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style I fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style J fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style K fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style L fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style M fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Compliance Mapping Matrix
@@ -815,10 +815,10 @@ graph TD
     SF7 --> GDPR
     SF8 --> SOC2
     
-    style GDPR fill:#e3f2fd
-    style HIPAA fill:#f3e5f5
-    style SOC2 fill:#e8f5e8
-    style CCPA fill:#fff3e0
+    style GDPR fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style HIPAA fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
+    style SOC2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style CCPA fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ---
@@ -936,18 +936,18 @@ graph LR
         L[Privacy Testing<br/>8 tests]
     end
     
-    style A fill:#c8e6c9
-    style B fill:#c8e6c9
-    style C fill:#c8e6c9
-    style D fill:#c8e6c9
-    style E fill:#e1f5fe
-    style F fill:#e1f5fe
-    style G fill:#e1f5fe
-    style H fill:#e1f5fe
-    style I fill:#ffecb3
-    style J fill:#ffecb3
-    style K fill:#ffecb3
-    style L fill:#ffecb3
+    style A fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style F fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style G fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style H fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style I fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style J fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style K fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style L fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Performance Testing Results
@@ -986,14 +986,14 @@ graph TD
         A --> H
     end
     
-    style A fill:#c8e6c9
-    style B fill:#e8f5e8
-    style C fill:#e8f5e8
-    style D fill:#e8f5e8
-    style E fill:#e8f5e8
-    style F fill:#e8f5e8
-    style G fill:#e8f5e8
-    style H fill:#e8f5e8
+    style A fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#50E3C2,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#50E3C2,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#50E3C2,stroke:#333,stroke-width:2px,color:#000
+    style E fill:#50E3C2,stroke:#333,stroke-width:2px,color:#000
+    style F fill:#50E3C2,stroke:#333,stroke-width:2px,color:#000
+    style G fill:#50E3C2,stroke:#333,stroke-width:2px,color:#000
+    style H fill:#50E3C2,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ### Benchmark Performance Matrix
@@ -1027,19 +1027,19 @@ graph LR
         end
     end
     
-    style A1 fill:#ffecb3
-    style A2 fill:#ffecb3
-    style A3 fill:#ffecb3
-    style A4 fill:#ffecb3
-    style B1 fill:#c8e6c9
-    style B2 fill:#c8e6c9
-    style B3 fill:#c8e6c9
-    style B4 fill:#c8e6c9
-    style C1 fill:#e1f5fe
-    style C2 fill:#e1f5fe
-    style C3 fill:#e1f5fe
-    style C4 fill:#e1f5fe
-    style D1 fill:#f3e5f5
+    style A1 fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style A2 fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style A3 fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style A4 fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style B1 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B3 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style B4 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
+    style C1 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style C2 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style C3 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style C4 fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style D1 fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
 ```
 
 ---
