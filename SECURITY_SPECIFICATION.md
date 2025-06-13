@@ -44,10 +44,10 @@ graph TB
         end
         
         subgraph "Compliance Standards"
-            CS1[GDPR Compliance]
+            CS1[Privacy Controls]
             CS2[HIPAA Compliance]
             CS3[SOC 2 Compliance]
-            CS4[CCPA Compliance]
+            CS4[Data Protection]
         end
         
         subgraph "Performance Metrics"
@@ -209,12 +209,12 @@ mindmap
         Chain of Custody
         Digital Signatures
     Privacy Compliance
-      GDPR
-        Right to Erasure
-        Data Portability
-      CCPA
-        Consumer Rights
-        Data Disclosure
+      Data Protection
+        Data Anonymization
+        Secure Deletion
+      Privacy Controls
+        Access Management
+        Data Minimization
       HIPAA
         PHI Protection
         Access Controls
@@ -740,11 +740,11 @@ flowchart TD
 
 ```mermaid
 graph LR
-    subgraph "GDPR Compliance"
-        A[Right to Erasure<br/>Secure Deletion]
-        B[Data Portability<br/>Encrypted Export]
-        C[Consent Management<br/>Policy Enforcement]
-        D[Audit Trails<br/>Access Logging]
+    subgraph "Privacy Controls"
+        A[Data Deletion<br/>Block Removal]
+        B[Data Export<br/>Portable Format]
+        C[Access Control<br/>Policy Enforcement]
+        D[Audit Trails<br/>Activity Logging]
     end
     
     subgraph "HIPAA Compliance"
@@ -792,33 +792,35 @@ graph TD
         SF8[Validation Pipeline]
     end
     
-    subgraph "Regulatory Requirements"
-        GDPR[GDPR Requirements]
+    subgraph "Compliance Standards"
+        PRIVACY[Privacy Controls]
         HIPAA[HIPAA Requirements]
         SOC2[SOC 2 Requirements]
-        CCPA[CCPA Requirements]
+        SECURITY[Security Standards]
     end
     
     SF1 --> HIPAA
     SF1 --> SOC2
+    SF1 --> SECURITY
     SF2 --> HIPAA
     SF2 --> SOC2
-    SF3 --> GDPR
-    SF3 --> CCPA
-    SF4 --> GDPR
+    SF2 --> SECURITY
+    SF3 --> PRIVACY
     SF4 --> HIPAA
     SF4 --> SOC2
+    SF4 --> PRIVACY
     SF5 --> HIPAA
     SF5 --> SOC2
-    SF6 --> GDPR
-    SF6 --> CCPA
-    SF7 --> GDPR
+    SF5 --> SECURITY
+    SF6 --> PRIVACY
+    SF7 --> PRIVACY
     SF8 --> SOC2
+    SF8 --> SECURITY
     
-    style GDPR fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
+    style PRIVACY fill:#4A90E2,stroke:#333,stroke-width:2px,color:#fff
     style HIPAA fill:#BD10E0,stroke:#333,stroke-width:2px,color:#fff
     style SOC2 fill:#7ED321,stroke:#333,stroke-width:2px,color:#000
-    style CCPA fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
+    style SECURITY fill:#F5A623,stroke:#333,stroke-width:2px,color:#000
 ```
 
 ---
@@ -872,7 +874,7 @@ policy = PrivacyPolicy(
     anonymization_required=True,
     audit_required=True,
     geographic_restrictions=["US", "EU"],
-    compliance_requirements=["GDPR", "HIPAA"]
+    compliance_requirements=["HIPAA", "SOC2"]
 )
 
 # Apply to any block type
@@ -1056,7 +1058,7 @@ timeline
         December 2025 : AES-GCM Encryption
                       : SHA-256 Tamper Detection
                       : Privacy Policies
-                      : GDPR/HIPAA Compliance
+                      : HIPAA/SOC2 Compliance
                       : Comprehensive Validation
     
     section v1.1 (Q1 2026)
@@ -1101,15 +1103,17 @@ gantt
 
 ## Conclusion
 
-The MAIF security specification defines a comprehensive, enterprise-grade security framework that provides:
+The MAIF security specification defines a comprehensive security framework with strong technical foundations that provides:
 
-- **Universal Protection**: Consistent security across all block types
-- **Cryptographic Integrity**: Strong hash-based tamper detection
-- **Privacy by Design**: Built-in privacy controls and compliance
-- **Performance Optimized**: High-speed security operations
-- **Future-Proof**: Extensible architecture for emerging threats
+- **Universal Protection**: Consistent security across all block types (file, video, embedding)
+- **Cryptographic Integrity**: SHA-256 hash-based tamper detection and AES-256 encryption
+- **Privacy by Design**: Built-in anonymization, access controls, and audit trails
+- **Performance Optimized**: High-speed security operations (328 MB/s hashing, 45 MB/s encryption)
+- **Compliance Ready**: Technical safeguards for HIPAA and SOC 2 requirements
 
-This specification ensures that MAIF provides robust security, privacy, and tamper detection capabilities suitable for enterprise, government, and high-security applications while maintaining the performance and flexibility required for modern data interchange scenarios.
+This specification documents MAIF's robust technical security capabilities suitable for research, development, and internal enterprise applications. The system provides strong foundational security controls while maintaining high performance and flexibility for modern data interchange scenarios.
+
+**Note**: For production use with regulated data, additional organizational measures and compliance procedures may be required beyond the technical safeguards documented here.
 
 ---
 
