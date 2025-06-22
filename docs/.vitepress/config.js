@@ -14,8 +14,8 @@ export default withMermaid(defineConfig({
     ['meta', { name: 'og:locale', content: 'en' }],
     ['meta', { name: 'og:site_name', content: 'MAIF Framework' }],
     ['meta', { name: 'og:image', content: '/maif-og-image.png' }],
-    ['link', { rel: 'icon', href: '/maifscratch/favicon.ico' }],
-    ['link', { rel: 'mask-icon', href: '/maifscratch/safari-pinned-tab.svg', color: '#3c82f6' }],
+    ['link', { rel: 'icon', href: '/maifscratch-1/favicon.ico' }],
+    ['link', { rel: 'mask-icon', href: '/maifscratch-1/safari-pinned-tab.svg', color: '#3c82f6' }],
     ['meta', { name: 'msapplication-TileColor', content: '#3c82f6' }],
     // Custom CSS for code overflow and styling
     ['style', {}, `
@@ -56,7 +56,7 @@ export default withMermaid(defineConfig({
   lastUpdated: true,
   
   // Set base URL for GitHub Pages deployment
-  base: '/maifscratch/',
+  base: '/maifscratch-1/',
   
   // Ensure proper asset handling for GitHub Pages
   outDir: '.vitepress/dist',
@@ -74,18 +74,14 @@ export default withMermaid(defineConfig({
     }
   },
 
-  // Vite configuration for proper asset handling
+  // Simplified Vite configuration for GitHub Pages
   vite: {
-    base: '/maifscratch/',
-    build: {
-      assetsDir: 'assets',
-      rollupOptions: {
-        output: {
-          assetFileNames: 'assets/[name]-[hash][extname]',
-          chunkFileNames: 'assets/[name]-[hash].js',
-          entryFileNames: 'assets/[name]-[hash].js'
-        }
-      }
+    base: '/maifscratch-1/',
+    optimizeDeps: {
+      include: ['mermaid']
+    },
+    ssr: {
+      noExternal: ['mermaid']
     }
   },
 
@@ -128,7 +124,7 @@ export default withMermaid(defineConfig({
   },
   
   themeConfig: {
-    logo: '/maifscratch/maif-logo.svg',
+    logo: '/maifscratch-1/maif-logo.svg',
     siteTitle: 'MAIF Framework',
     
     nav: [
@@ -270,31 +266,6 @@ export default withMermaid(defineConfig({
         translations: {
           button: {
             buttonText: 'Search MAIF docs'
-          }
-        }
-      }
-    }
-  },
-
-  vite: {
-    define: {
-      __VUE_OPTIONS_API__: false
-    },
-    optimizeDeps: {
-      include: [
-        'mermaid'
-      ],
-      exclude: ['@vue/repl']
-    },
-    ssr: {
-      noExternal: ['mermaid']
-    },
-    build: {
-      chunkSizeWarningLimit: 1000,
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            mermaid: ['mermaid']
           }
         }
       }
