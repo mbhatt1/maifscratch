@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   title: 'MAIF Framework',
   description: 'Multi-Agent Intelligence Framework - Cutting-edge memory framework for AI agent systems with advanced privacy, semantic understanding, and high-performance capabilities',
   
@@ -50,6 +51,7 @@ export default defineConfig({
 
   cleanUrls: true,
   lastUpdated: true,
+  ignoreDeadLinks: true,
   
   // Markdown configuration with Mermaid support
   markdown: {
@@ -58,6 +60,44 @@ export default defineConfig({
       dark: 'github-dark'
     },
     lineNumbers: true
+  },
+
+  // Mermaid configuration
+  mermaid: {
+    theme: 'default',
+    flowchart: {
+      useMaxWidth: false,
+      htmlLabels: true,
+      nodeSpacing: 50,
+      rankSpacing: 50
+    },
+    sequence: {
+      useMaxWidth: false,
+      diagramMarginX: 50,
+      diagramMarginY: 50,
+      actorMargin: 50,
+      width: 150,
+      height: 65,
+      boxMargin: 10,
+      boxTextMargin: 5,
+      noteMargin: 10,
+      messageMargin: 35
+    },
+    gantt: {
+      useMaxWidth: false
+    },
+    journey: {
+      useMaxWidth: false
+    },
+    class: {
+      useMaxWidth: false
+    },
+    state: {
+      useMaxWidth: false
+    },
+    er: {
+      useMaxWidth: false
+    }
   },
   
   themeConfig: {
@@ -245,4 +285,4 @@ export default defineConfig({
       ]
     }
   }
-}) 
+})) 

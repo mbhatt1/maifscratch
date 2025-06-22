@@ -71,8 +71,8 @@ div[class*="language-"] pre code {
   word-break: break-word;
 }
 
-/* Mermaid diagram styling */
-.mermaid, .mermaid-rendered {
+/* Enhanced Mermaid diagram styling with zoom support */
+.mermaid, .mermaid-rendered, .mermaid-enhanced {
   text-align: center;
   margin: 2rem 0;
   overflow-x: auto;
@@ -80,11 +80,40 @@ div[class*="language-"] pre code {
   border-radius: 8px;
   padding: 1rem;
   border: 1px solid var(--vp-c-divider);
+  position: relative;
 }
 
-.mermaid svg, .mermaid-rendered svg {
+.mermaid svg, .mermaid-rendered svg, .mermaid-enhanced svg {
   max-width: 100%;
   height: auto;
+  cursor: zoom-in;
+  transition: all 0.3s ease;
+  min-height: 300px; /* Ensure diagrams have minimum readable size */
+}
+
+.mermaid svg:hover, .mermaid-rendered svg:hover, .mermaid-enhanced svg:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: scale(1.02);
+}
+
+/* Large diagram support */
+.mermaid.large-diagram, .mermaid-enhanced.large-diagram {
+  overflow: visible;
+  padding: 2rem;
+}
+
+.mermaid.large-diagram svg, .mermaid-enhanced.large-diagram svg {
+  min-width: 800px;
+  min-height: 400px;
+}
+
+/* Zoom overlay styling */
+.medium-zoom-overlay {
+  background: rgba(0, 0, 0, 0.8) !important;
+}
+
+.medium-zoom-image {
+  cursor: zoom-out !important;
 }
 
 /* Ensure code blocks with mermaid are visible until processed */

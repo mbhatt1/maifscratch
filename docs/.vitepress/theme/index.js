@@ -8,86 +8,75 @@ export default {
   setup() {
     const route = useRoute()
     
-    const renderMermaidDiagrams = async () => {
+    const initializeZoom = async () => {
       if (typeof window === 'undefined') return
       
       try {
-        // Dynamic import of Mermaid
-        const { default: mermaid } = await import('mermaid')
+        // Dynamic import of medium-zoom
+        const mediumZoom = (await import('medium-zoom')).default
         
-        // Initialize Mermaid
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: document.documentElement.classList.contains('dark') ? 'dark' : 'default',
-          themeVariables: {
-            primaryColor: '#3c82f6',
-            primaryTextColor: '#1f2937',
-            primaryBorderColor: '#e5e7eb',
-            lineColor: '#6b7280',
-            secondaryColor: '#f3f4f6',
-            tertiaryColor: '#ffffff'
-          },
-          flowchart: {
-            useMaxWidth: true,
-            htmlLabels: true
-          },
-          sequence: {
-            useMaxWidth: true
-          }
+        // Initialize zoom for mermaid diagrams
+        mediumZoom('.mermaid svg, .mermaid-diagram svg, [data-type="mermaid"] svg', {
+          background: 'rgba(0, 0, 0, 0.8)',
+          scrollOffset: 40,
+          margin: 40
         })
         
-        // Find all mermaid code blocks
-        const mermaidBlocks = document.querySelectorAll('pre code.language-mermaid:not([data-processed])')
-        
-        for (let i = 0; i < mermaidBlocks.length; i++) {
-          const block = mermaidBlocks[i]
-          const content = block.textContent.trim()
-          
-          if (!content) continue
-          
-          try {
-            // Create a unique ID
-            const id = `mermaid-${Date.now()}-${i}`
-            
-            // Render the diagram
-            const { svg } = await mermaid.render(id, content)
-            
-            // Create wrapper div
-            const wrapper = document.createElement('div')
-            wrapper.className = 'mermaid-diagram'
-            wrapper.innerHTML = svg
-            wrapper.style.textAlign = 'center'
-            wrapper.style.margin = '2rem 0'
-            
-            // Replace the pre element
-            const preElement = block.parentElement
-            if (preElement && preElement.tagName === 'PRE') {
-              preElement.replaceWith(wrapper)
-            }
-            
-            block.setAttribute('data-processed', 'true')
-          } catch (error) {
-            console.error('Mermaid render error:', error)
-            block.setAttribute('data-processed', 'true')
-          }
-        }
+        // Also zoom regular images
+        mediumZoom('img:not(.no-zoom)', {
+          background: 'rgba(0, 0, 0, 0.8)',
+          scrollOffset: 40,
+          margin: 40
+        })
       } catch (error) {
-        console.error('Failed to load Mermaid:', error)
+        console.error('Failed to initialize zoom:', error)
       }
     }
 
-    onMounted(() => {
-      nextTick(() => {
-        renderMermaidDiagrams()
+    const enhanceMermaidDiagrams = () => {
+      // Find all mermaid containers and make them more responsive
+      const mermaidContainers = document.querySelectorAll('.mermaid, .mermaid-diagram, [data-type="mermaid"]')
+      
+      mermaidContainers.forEach(container => {
+        const svg = container.querySelector('svg')
+        if (svg) {
+          // Make SVG responsive
+          svg.style.maxWidth = '100%'
+          svg.style.height = 'auto'
+          svg.style.cursor = 'zoom-in'
+          
+          // Add a wrapper for better styling
+          if (!container.classList.contains('mermaid-enhanced')) {
+            container.classList.add('mermaid-enhanced')
+            container.style.textAlign = 'center'
+            container.style.margin = '2rem 0'
+            container.style.padding = '1rem'
+            container.style.border = '1px solid var(--vp-c-divider)'
+            container.style.borderRadius = '8px'
+            container.style.backgroundColor = 'var(--vp-c-bg-soft)'
+            container.style.overflow = 'auto'
+          }
+        }
       })
+    }
+
+    const initializePage = () => {
+      nextTick(() => {
+        setTimeout(() => {
+          enhanceMermaidDiagrams()
+          initializeZoom()
+        }, 500) // Give mermaid time to render
+      })
+    }
+
+    onMounted(() => {
+      initializePage()
     })
 
     watch(
       () => route.path,
       () => {
-        nextTick(() => {
-          renderMermaidDiagrams()
-        })
+        initializePage()
       }
     )
   }
