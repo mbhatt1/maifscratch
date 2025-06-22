@@ -68,7 +68,6 @@ export default defineConfig({
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API Reference', link: '/api/' },
       { text: 'Examples', link: '/examples/' },
-      { text: 'Cookbook', link: '/cookbook/' },
       {
         text: 'v1.0.0',
         items: [
@@ -135,23 +134,6 @@ export default defineConfig({
             { text: 'Access Control', link: '/api/security/access-control' },
             { text: 'Cryptography', link: '/api/security/crypto' }
           ]
-        },
-        {
-          text: 'Semantic Processing',
-          items: [
-            { text: 'Semantic Embedder', link: '/api/semantic/embedder' },
-            { text: 'Novel Algorithms', link: '/api/semantic/algorithms' },
-            { text: 'Knowledge Graphs', link: '/api/semantic/knowledge-graphs' },
-            { text: 'Cross-Modal Attention', link: '/api/semantic/attention' }
-          ]
-        },
-        {
-          text: 'Streaming & Performance',
-          items: [
-            { text: 'Stream Reader/Writer', link: '/api/streaming/streams' },
-            { text: 'Compression', link: '/api/streaming/compression' },
-            { text: 'Optimization', link: '/api/streaming/optimization' }
-          ]
         }
       ],
       '/examples/': [
@@ -181,27 +163,6 @@ export default defineConfig({
             { text: 'Hugging Face Models', link: '/examples/huggingface' },
             { text: 'Ray/Dask Distributed', link: '/examples/distributed' },
             { text: 'Kafka Streaming', link: '/examples/kafka' }
-          ]
-        }
-      ],
-      '/cookbook/': [
-        {
-          text: 'Recipes',
-          items: [
-            { text: 'Overview', link: '/cookbook/' },
-            { text: 'High-Performance Patterns', link: '/cookbook/performance' },
-            { text: 'Security Hardening', link: '/cookbook/security' },
-            { text: 'Privacy Compliance', link: '/cookbook/privacy' },
-            { text: 'Error Handling', link: '/cookbook/error-handling' }
-          ]
-        },
-        {
-          text: 'Deployment',
-          items: [
-            { text: 'Cloud Deployment', link: '/cookbook/cloud' },
-            { text: 'Edge Computing', link: '/cookbook/edge' },
-            { text: 'Containerization', link: '/cookbook/containers' },
-            { text: 'CI/CD Pipeline', link: '/cookbook/cicd' }
           ]
         }
       ]
