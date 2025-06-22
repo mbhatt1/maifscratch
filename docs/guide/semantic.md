@@ -48,35 +48,43 @@ graph TB
 
 ### 1. ACAM (Adaptive Cross-Modal Attention Mechanism)
 
-ACAM enables dynamic attention across different data modalities for enhanced understanding:
+ACAM enables dynamic attention across different data modalities for enhanced understanding. The following code initializes an `ACAMProcessor` and uses it to analyze the relationships between text, image, and audio data within an artifact.
 
 ```python
-from maif_sdk import create_artifact, ACAMProcessor
+from maif_sdk import create_artifact, ACAMProcessor, create_client
+import numpy as np
 
-# Initialize ACAM processor
+# Assume a client is already created.
+client = create_client()
+
+# Mock data for the example.
+mountain_sunset_image = np.random.rand(100, 100, 3)
+nature_sounds = np.random.rand(44100) # 1 second of audio
+
+# Initialize the ACAM processor with specific parameters for attention and fusion.
 acam = ACAMProcessor(
     attention_heads=8,
     cross_modal_fusion="adaptive",
     temperature=0.07
 )
 
-# Create artifact with ACAM processing
+# Create an artifact and attach the ACAM processor to it.
 artifact = create_artifact("acam-demo", client, 
     processors=[acam]
 )
 
-# Add multi-modal data
+# Add multi-modal data to the artifact.
 text_id = artifact.add_text("A serene mountain landscape at sunset")
 image_id = artifact.add_image(mountain_sunset_image)
 audio_id = artifact.add_audio(nature_sounds)
 
-# ACAM automatically computes cross-modal attention
+# ACAM automatically computes attention scores between the different modalities.
 attention_maps = artifact.get_attention_maps()
 print(f"Text-Image attention: {attention_maps['text_image'].mean():.3f}")
 print(f"Text-Audio attention: {attention_maps['text_audio'].mean():.3f}")
 print(f"Image-Audio attention: {attention_maps['image_audio'].mean():.3f}")
 
-# Query with cross-modal understanding
+# Perform a search that leverages the cross-modal understanding provided by ACAM.
 results = artifact.search("peaceful nature scene", use_acam=True)
 for result in results:
     print(f"{result.type}: {result.title} (relevance: {result.acam_score:.3f})")
@@ -84,89 +92,107 @@ for result in results:
 
 ### 2. HSC (Hierarchical Semantic Compression)
 
-HSC provides efficient compression while preserving semantic meaning:
+HSC provides efficient compression while preserving semantic meaning. This example shows how to configure an `HSCCompressor` to compress a large document, reducing its size while maintaining high semantic fidelity.
 
 ```python
-from maif_sdk import HSCCompressor
+from maif_sdk import HSCCompressor, create_artifact, create_client
 
-# Configure HSC compression
+# Assume a client is already created.
+client = create_client()
+large_document = "..." * 1000 # Mock large document
+
+# Configure HSC to achieve a 10x compression ratio while preserving 95% of the semantic meaning.
 hsc = HSCCompressor(
-    compression_ratio=0.1,  # 10x compression
-    semantic_preservation=0.95,  # 95% semantic fidelity
+    compression_ratio=0.1,
+    semantic_preservation=0.95,
     hierarchical_levels=3
 )
 
-# Apply HSC to embeddings
+# Create an artifact with the HSC compressor attached.
 artifact = create_artifact("hsc-demo", client, 
     compressor=hsc
 )
 
-# Add large text document
+# Add a large text document and instruct the artifact to compress it.
 document_id = artifact.add_text(large_document, compress=True)
 
-# Check compression stats
+# Retrieve statistics to verify the compression performance.
 stats = artifact.get_compression_stats(document_id)
 print(f"Original size: {stats.original_size} bytes")
 print(f"Compressed size: {stats.compressed_size} bytes")
 print(f"Compression ratio: {stats.ratio:.2f}x")
 print(f"Semantic preservation: {stats.semantic_fidelity:.3f}")
 
-# Search still works with compressed data
+# Semantic search functions correctly even on the compressed data.
 results = artifact.search("key concepts", compressed_search=True)
 ```
 
 ### 3. CSB (Cryptographic Semantic Binding)
 
-CSB provides secure semantic processing with privacy guarantees:
+CSB provides secure semantic processing with privacy guarantees. This example demonstrates using a `CSBProcessor` to add and search sensitive data in an encrypted, privacy-preserving manner.
 
 ```python
-from maif_sdk import CSBProcessor
+from maif_sdk import CSBProcessor, create_artifact, create_client
+from types import SimpleNamespace
 
-# Initialize CSB with privacy settings
+# Assume a client is already created.
+client = create_client()
+# Mock user object with permissions.
+user = SimpleNamespace(has_permission=lambda perm: perm == "medical_data")
+
+# Initialize CSB with strong encryption and differential privacy enabled.
 csb = CSBProcessor(
     encryption_level="AES-256",
     differential_privacy=True,
     privacy_budget=1.0
 )
 
-# Create privacy-preserving artifact
+# Create a privacy-preserving artifact with the CSB processor.
 artifact = create_artifact("csb-demo", client, 
     processors=[csb],
     privacy_level="high"
 )
 
-# Add sensitive data with semantic processing
+# Add sensitive data, which will be automatically encrypted by the CSB processor.
 sensitive_text = "Patient John Doe has diabetes and hypertension"
 text_id = artifact.add_text(sensitive_text, encrypt=True)
 
-# Semantic search works on encrypted data
+# Semantic search can be performed on the encrypted data without decrypting it first.
 results = artifact.search("medical conditions", encrypted_search=True)
 print(f"Found {len(results)} results without decrypting data")
 
-# Only authorized users can access decrypted results
+# Decrypt results only for authorized users, enforcing access control.
 if user.has_permission("medical_data"):
     decrypted_results = artifact.decrypt_search_results(results)
+    print("Search results decrypted for authorized user.")
 ```
 
 ## Embedding Systems
 
 ### 1. Multi-Modal Embeddings
 
-Generate unified embeddings across different data types:
+Generate unified embeddings across different data types. This allows for searching and comparing information across text, images, audio, and other modalities in a single semantic space.
 
 ```python
-# Multi-modal embedding generation
+from maif_sdk import create_artifact, create_client
+import numpy as np
+
+client = create_client()
+cat_image = np.random.rand(100, 100, 3)
+cat_purring_sound = np.random.rand(44100)
+
+# Create an artifact for multi-modal embeddings.
 artifact = create_artifact("multimodal-embeddings", client)
 
-# Add different modalities
+# Add content of different modalities to the artifact.
 text_id = artifact.add_text("A cat sitting on a windowsill")
 image_id = artifact.add_image(cat_image)
 audio_id = artifact.add_audio(cat_purring_sound)
 
-# Generate unified embedding
+# Generate a single, unified embedding that represents the combined meaning of the blocks.
 unified_embedding = artifact.get_unified_embedding([text_id, image_id, audio_id])
 
-# Use for similarity search across modalities
+# Use the unified embedding to find semantically similar artifacts across all modalities.
 similar_artifacts = client.search_similar_artifacts(
     embedding=unified_embedding,
     threshold=0.8
@@ -175,25 +201,31 @@ similar_artifacts = client.search_similar_artifacts(
 
 ### 2. Contextual Embeddings
 
-Generate context-aware embeddings that consider surrounding information:
+Generate context-aware embeddings that consider surrounding information, such as previous messages in a conversation, to produce more accurate and relevant representations.
 
 ```python
-# Contextual embedding example
+from maif_sdk import create_artifact, create_client
+
+client = create_client()
+# Mock ID for the last message in the conversation.
+last_message_id = "some_block_id"
+
+# Create an artifact to store a conversation.
 conversation_artifact = create_artifact("conversation", client)
 
-# Add conversation history
+# Add several turns of a conversation to the artifact.
 conversation_artifact.add_text("User: What's the weather like?")
 conversation_artifact.add_text("AI: It's sunny and 75°F today.")
-conversation_artifact.add_text("User: Should I wear a jacket?")
+last_message_id = conversation_artifact.add_text("User: Should I wear a jacket?")
 
-# Generate contextual embedding for the last message
+# Generate an embedding for the last message that is informed by the previous two messages.
 contextual_embedding = conversation_artifact.get_contextual_embedding(
     block_id=last_message_id,
-    context_window=3,  # Consider last 3 messages
-    context_weight=0.3  # 30% context, 70% current message
+    context_window=3,  # Consider the last 3 messages.
+    context_weight=0.3  # Give 30% weight to the context and 70% to the current message.
 )
 
-# Generate response with context awareness
+# Use the context-aware embedding to generate a more informed response.
 response = conversation_artifact.generate_response(
     embedding=contextual_embedding,
     response_type="helpful"
@@ -202,31 +234,41 @@ response = conversation_artifact.generate_response(
 
 ### 3. Temporal Embeddings
 
-Handle time-series and temporal data:
+Handle time-series and temporal data by creating embeddings that capture trends, seasonality, and other time-based patterns.
 
 ```python
-# Temporal embedding for time-series data
+from maif_sdk import create_artifact, create_client
+import datetime
+
+client = create_client()
+# Mock time-series data.
+time_series_data = [
+    (datetime.datetime(2024, 1, 1), {"value": 10}),
+    (datetime.datetime(2024, 1, 2), {"value": 12}),
+]
+
+# Create an artifact for storing temporal data.
 time_series_artifact = create_artifact("temporal-data", client)
 
-# Add time-stamped data
+# Add time-stamped data points to the artifact.
 for timestamp, data in time_series_data:
     time_series_artifact.add_structured_data(
         data, 
         timestamp=timestamp,
-        temporal_context=True
+        temporal_context=True # Instruct MAIF to treat this as temporal data.
     )
 
-# Generate temporal embeddings
+# Generate a single embedding that represents the specified time range and resolution.
 temporal_embedding = time_series_artifact.get_temporal_embedding(
     time_range=("2024-01-01", "2024-01-31"),
     temporal_resolution="daily",
-    trend_analysis=True
+    trend_analysis=True # Enable trend analysis in the embedding.
 )
 
-# Predict future values
+# Use the temporal embedding to predict future values.
 prediction = time_series_artifact.predict_temporal(
     embedding=temporal_embedding,
-    forecast_horizon="7d"
+    forecast_horizon="7d" # Predict the next 7 days.
 )
 ```
 
@@ -234,32 +276,34 @@ prediction = time_series_artifact.predict_temporal(
 
 ### 1. Dynamic Knowledge Graph Construction
 
-MAIF automatically builds knowledge graphs from your data:
+MAIF automatically builds knowledge graphs from your data, identifying entities and relationships to create a structured representation of the information.
 
 ```python
-# Knowledge graph construction
+from maif_sdk import create_artifact, create_client
+
+client = create_client()
+
+# Create an artifact with knowledge graph construction enabled.
 kg_artifact = create_artifact("knowledge-graph", client,
     enable_knowledge_graph=True
 )
 
-# Add related documents
+# As documents are added, MAIF automatically identifies entities and relationships.
 kg_artifact.add_text("Apple Inc. is a technology company founded by Steve Jobs.")
 kg_artifact.add_text("Steve Jobs was the CEO of Apple until 2011.")
 kg_artifact.add_text("Apple develops iPhones, iPads, and Mac computers.")
 
-# Access the constructed knowledge graph
+# Access the constructed knowledge graph to query relationships.
 knowledge_graph = kg_artifact.get_knowledge_graph()
+# Find relationships connected to the 'Apple Inc.' entity.
+apple_relations = knowledge_graph.get_relations(entity="Apple Inc.")
 
-# Query the knowledge graph
-entities = knowledge_graph.get_entities()
-relationships = knowledge_graph.get_relationships()
+for relation in apple_relations:
+    print(f"Apple Inc. -> {relation.type} -> {relation.target.name}")
 
-print(f"Entities: {[e.name for e in entities]}")
-print(f"Relationships: {[(r.source, r.relation, r.target) for r in relationships]}")
-
-# Semantic reasoning
-reasoning_result = knowledge_graph.reason("Who founded the company that makes iPhones?")
-print(f"Answer: {reasoning_result.answer}")
+# Example output:
+# Apple Inc. -> founded_by -> Steve Jobs
+# Apple Inc. -> develops -> iPhones
 ```
 
 ### 2. Knowledge Graph Querying

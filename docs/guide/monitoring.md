@@ -56,26 +56,29 @@ graph TB
 
 ### 1. System Metrics
 
-Monitor system-level performance:
+Monitor system-level performance. The following code demonstrates how to configure a `MetricsCollector` and a `SystemMonitor` to track key infrastructure metrics like CPU, memory, disk, and network usage.
 
 ```python
 from maif_sdk import MetricsCollector, SystemMonitor
+import asyncio
 
-# Configure metrics collector
+# Configure metrics collector to gather data every 30 seconds,
+# retain it for 30 days, and export in Prometheus format.
 metrics_collector = MetricsCollector(
     collection_interval="30s",
     retention_period="30d",
     export_format="prometheus"
 )
 
-# System monitor for infrastructure metrics
+# System monitor for infrastructure metrics.
+# `detailed_monitoring=True` enables granular data collection.
 system_monitor = SystemMonitor(
     metrics_collector,
     detailed_monitoring=True
 )
 
 async def setup_system_monitoring():
-    # Configure system metrics
+    # Configure which specific system metrics to track.
     system_metrics = {
         "cpu": {
             "utilization": True,
@@ -103,31 +106,36 @@ async def setup_system_monitoring():
         }
     }
     
+    # Apply the metric configuration to the monitor.
     await system_monitor.configure_metrics(system_metrics)
     
-    # Start monitoring
+    # Start the monitoring process in the background.
     await system_monitor.start()
     
     print("System monitoring configured and started")
 
-await setup_system_monitoring()
+# Run the asynchronous setup function.
+asyncio.run(setup_system_monitoring())
 ```
 
 ### 2. Application Metrics
 
-Monitor MAIF application performance:
+Monitor MAIF application performance. This example sets up an `ApplicationMonitor` to collect metrics related to API requests, artifact management, search performance, and storage operations.
 
 ```python
 from maif_sdk import ApplicationMonitor
+import asyncio
 
-# Application-specific monitoring
+# Assume metrics_collector is already defined from the previous step.
+
+# Application-specific monitoring for a service named 'maif-production'.
 app_monitor = ApplicationMonitor(
     metrics_collector,
     application_name="maif-production"
 )
 
 async def setup_application_monitoring():
-    # Configure application metrics
+    # Configure core application performance metrics to track.
     app_metrics = {
         "requests": {
             "rate": True,
@@ -161,9 +169,10 @@ async def setup_application_monitoring():
         }
     }
     
+    # Apply the application metric configuration.
     await app_monitor.configure_metrics(app_metrics)
     
-    # Custom business metrics
+    # Configure custom business-level metrics.
     business_metrics = {
         "user_activity": {
             "active_users": True,
@@ -177,75 +186,93 @@ async def setup_application_monitoring():
         }
     }
     
+    # Apply the business metric configuration.
     await app_monitor.configure_business_metrics(business_metrics)
     
-    # Start application monitoring
+    # Start the application monitoring process.
     await app_monitor.start()
+    print("Application monitoring configured and started.")
 
-await setup_application_monitoring()
+# Run the asynchronous setup function.
+asyncio.run(setup_application_monitoring())
 ```
 
 ### 3. Custom Metrics
 
-Define and collect custom metrics:
+Define and collect custom metrics tailored to your specific use case. The code below shows how to define and use different types of custom metrics: counters, gauges, histograms, and summaries.
 
 ```python
 from maif_sdk import CustomMetrics
+import asyncio
+import time
+from types import SimpleNamespace
 
-# Custom metrics for specific use cases
+# Assume metrics_collector is already defined.
+
+# Custom metrics for specific use cases.
 custom_metrics = CustomMetrics(metrics_collector)
 
 async def setup_custom_metrics():
-    # Define custom counters
+    # Define custom counters for tracking cumulative values.
     await custom_metrics.define_counter(
         name="documents_processed_total",
         description="Total number of documents processed",
         labels=["document_type", "processing_stage"]
     )
     
-    # Define custom gauges
+    # Define custom gauges for tracking current values that can go up or down.
     await custom_metrics.define_gauge(
         name="active_connections",
         description="Number of active client connections",
         labels=["client_type", "region"]
     )
     
-    # Define custom histograms
+    # Define custom histograms to track the distribution of observed values.
     await custom_metrics.define_histogram(
         name="semantic_search_duration_seconds",
         description="Time spent on semantic search operations",
-        buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0],
+        buckets=[0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0], # Buckets for the histogram.
         labels=["query_complexity", "index_size"]
     )
     
-    # Define custom summaries
+    # Define custom summaries to track quantiles of observed values.
     await custom_metrics.define_summary(
         name="embedding_similarity_scores",
         description="Distribution of embedding similarity scores",
-        quantiles=[0.5, 0.9, 0.95, 0.99],
+        quantiles=[0.5, 0.9, 0.95, 0.99], # Quantiles to calculate.
         labels=["embedding_model", "data_type"]
     )
 
-# Usage in application code
+# Example of how to use the custom metrics within your application code.
 async def process_document(document):
-    # Increment counter
+    # Increment a counter metric.
     await custom_metrics.increment_counter(
         "documents_processed_total",
         labels={"document_type": document.type, "processing_stage": "ingestion"}
     )
     
-    # Record processing time
+    # Record an observation in a histogram.
     start_time = time.time()
-    # ... process document ...
+    # ... business logic to process the document ...
+    time.sleep(0.02) # Simulate work
     duration = time.time() - start_time
     
+    # This metric does not exist, using the search duration histogram as an example.
     await custom_metrics.record_histogram(
-        "document_processing_duration_seconds",
+        "semantic_search_duration_seconds",
         duration,
-        labels={"document_type": document.type}
+        labels={"query_complexity": "medium", "index_size": "large"}
     )
+    print(f"Processed document of type {document.type} in {duration:.4f} seconds.")
 
-await setup_custom_metrics()
+async def main():
+    await setup_custom_metrics()
+    # Create a mock document to process.
+    mock_document = SimpleNamespace(type="pdf")
+    await process_document(mock_document)
+
+# Run the main asynchronous function.
+asyncio.run(main())
 ```
 
 ## Distributed Tracing

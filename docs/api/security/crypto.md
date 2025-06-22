@@ -71,27 +71,33 @@ graph TB
 
 ## Quick Start
 
+This example provides a brief overview of the `CryptographyEngine`'s core functionality: symmetric and asymmetric encryption, digital signatures, and hashing.
+
 ```python
 from maif.crypto import CryptographyEngine, SymmetricKey, AsymmetricKeyPair
 
-# Create crypto engine
+# Create a default cryptography engine.
 crypto = CryptographyEngine()
 
-# Symmetric encryption
+# --- Symmetric Encryption ---
+# Generate a symmetric key, encrypt data, and then decrypt it.
 key = crypto.generate_symmetric_key("ChaCha20-Poly1305")
 ciphertext = crypto.encrypt_symmetric(b"secret data", key)
 plaintext = crypto.decrypt_symmetric(ciphertext, key)
 
-# Asymmetric encryption
+# --- Asymmetric Encryption ---
+# Generate an asymmetric key pair, encrypt with the public key, and decrypt with the private key.
 keypair = crypto.generate_asymmetric_keypair("RSA", key_size=2048)
 encrypted = crypto.encrypt_asymmetric(b"secret", keypair.public_key)
 decrypted = crypto.decrypt_asymmetric(encrypted, keypair.private_key)
 
-# Digital signatures
+# --- Digital Signatures ---
+# Sign a document with the private key and verify the signature with the public key.
 signature = crypto.sign(b"document", keypair.private_key)
 valid = crypto.verify_signature(b"document", signature, keypair.public_key)
 
-# Cryptographic hashing
+# --- Cryptographic Hashing ---
+# Generate a secure hash of a piece of data.
 hash_value = crypto.hash(b"data", algorithm="SHA-256")
 ```
 
@@ -99,35 +105,37 @@ hash_value = crypto.hash(b"data", algorithm="SHA-256")
 
 ### Constructor
 
+The `CryptographyEngine` constructor allows you to configure its default algorithms, security settings, and performance characteristics.
+
 ```python
 crypto = CryptographyEngine(
-    # Default algorithms
+    # --- Default Algorithms ---
     default_symmetric_algorithm="ChaCha20-Poly1305",
     default_asymmetric_algorithm="RSA",
     default_hash_algorithm="SHA-256",
     default_signature_algorithm="RSA-PSS",
     
-    # Security settings
-    secure_random_source="system",  # or "hardware", "fortuna"
-    constant_time_operations=True,
-    side_channel_protection=True,
+    # --- Security Settings ---
+    secure_random_source="system",  # The source for random number generation (e.g., system, hardware).
+    constant_time_operations=True, # Use constant-time algorithms to protect against timing attacks.
+    side_channel_protection=True, # Enable protections against side-channel attacks.
     
-    # Key management
-    key_derivation_algorithm="Argon2id",
-    key_derivation_iterations=100000,
-    key_derivation_memory_kb=65536,
+    # --- Key Management ---
+    key_derivation_algorithm="Argon2id", # The default key derivation function.
+    key_derivation_iterations=100000, # The default number of iterations for key derivation.
+    key_derivation_memory_kb=65536, # The default memory usage for Argon2.
     
-    # Performance
-    hardware_acceleration=True,     # Use AES-NI, etc.
-    parallel_operations=True,
+    # --- Performance ---
+    hardware_acceleration=True,     # Use hardware acceleration (e.g., AES-NI) where available.
+    parallel_operations=True, # Use multiple threads for parallel cryptographic operations.
     
-    # Compliance
-    fips_mode=True,                # FIPS 140-2 compliance
-    quantum_resistant_mode=False,   # Post-quantum algorithms
+    # --- Compliance ---
+    fips_mode=True,                # Enable FIPS 140-2 compliance mode.
+    quantum_resistant_mode=False,   # Enable experimental post-quantum cryptography algorithms.
     
-    # Novel features
-    enable_semantic_binding=True,   # CSB algorithm
-    semantic_binding_strength=128   # bits
+    # --- Novel Features ---
+    enable_semantic_binding=True,   # Enable the novel CSB algorithm.
+    semantic_binding_strength=128   # The security strength (in bits) for semantic binding.
 )
 ```
 
@@ -137,35 +145,37 @@ crypto = CryptographyEngine(
 
 #### `generate_symmetric_key(algorithm, **options) -> SymmetricKey`
 
+Generates a new symmetric key for use with algorithms like AES and ChaCha20.
+
 ```python
-# ChaCha20-Poly1305 key
+# Generate a 256-bit key for ChaCha20-Poly1305.
 chacha_key = crypto.generate_symmetric_key(
     algorithm="ChaCha20-Poly1305",
-    key_size=256,                   # bits
+    key_size=256,                   # The size of the key in bits.
     
-    # Key metadata
-    key_id="data-encryption-key",
-    purpose="data_encryption",
+    # --- Key Metadata ---
+    key_id="data-encryption-key", # A unique identifier for the key.
+    purpose="data_encryption", # The intended purpose of the key.
     
-    # Security options
-    secure_generation=True,
-    hardware_random=True,
+    # --- Security Options ---
+    secure_generation=True, # Ensure the key is generated with a secure random source.
+    hardware_random=True, # Use a hardware random number generator if available.
     
-    # Key derivation (if from password)
-    derive_from_password=False,
+    # --- Key Derivation (if generating from a password) ---
+    derive_from_password=False, # If True, the key will be derived from the provided password.
     password="strong-password",
-    salt_size=32,
-    iterations=100000
+    salt_size=32, # The size of the salt to use for key derivation.
+    iterations=100000 # The number of iterations for the KDF.
 )
 
-# AES-GCM key
+# Generate a 256-bit key for AES-GCM.
 aes_key = crypto.generate_symmetric_key(
     algorithm="AES-GCM",
     key_size=256,
     key_id="file-encryption-key"
 )
 
-# XChaCha20-Poly1305 key (extended nonce)
+# Generate a 256-bit key for XChaCha20-Poly1305, which supports extended nonces.
 xchacha_key = crypto.generate_symmetric_key(
     algorithm="XChaCha20-Poly1305",
     key_size=256,
@@ -177,64 +187,69 @@ xchacha_key = crypto.generate_symmetric_key(
 
 #### `encrypt_symmetric(data, key, **options) -> SymmetricCiphertext`
 
+Encrypts data using a symmetric key.
+
 ```python
-# Basic encryption
+# Encrypt a simple plaintext message.
 plaintext = b"Sensitive information"
 ciphertext = crypto.encrypt_symmetric(plaintext, chacha_key)
 
-# Advanced encryption with options
+# Encrypt with advanced options.
 ciphertext = crypto.encrypt_symmetric(
     data=plaintext,
     key=chacha_key,
     
-    # Encryption options
-    associated_data=b"metadata",    # Authenticated but not encrypted
-    nonce=None,                     # Auto-generate if None
+    # --- Encryption Options ---
+    associated_data=b"metadata",    # Provide additional data to be authenticated but not encrypted.
+    nonce=None,                     # A unique nonce for each encryption; auto-generated if None.
     
-    # Security options
-    constant_time=True,
-    secure_memory=True,
+    # --- Security Options ---
+    constant_time=True, # Use a constant-time implementation to prevent timing attacks.
+    secure_memory=True, # Use secure memory allocation for sensitive data.
     
-    # Compression
-    compress_before_encrypt=True,
+    # --- Compression ---
+    compress_before_encrypt=True, # Compress the data before encrypting it.
     compression_algorithm="zstd",
     
-    # Metadata
-    include_metadata=True,
+    # --- Metadata ---
+    include_metadata=True, # Include metadata (like the algorithm and nonce) in the output.
     custom_metadata={"purpose": "data_protection"}
 )
 
+# The result is a structured object containing the ciphertext and metadata.
 print(f"Algorithm: {ciphertext.algorithm}")
 print(f"Ciphertext size: {len(ciphertext.ciphertext)} bytes")
 print(f"Nonce: {ciphertext.nonce.hex()}")
-print(f"Tag: {ciphertext.tag.hex()}")
+print(f"Authentication Tag: {ciphertext.tag.hex()}")
 ```
 
 #### `decrypt_symmetric(ciphertext, key, **options) -> bytes`
 
+Decrypts data using a symmetric key and verifies its integrity.
+
 ```python
-# Basic decryption
+# Decrypt a simple ciphertext object.
 decrypted = crypto.decrypt_symmetric(ciphertext, chacha_key)
 
-# Advanced decryption with verification
+# Decrypt with advanced verification options.
 decrypted = crypto.decrypt_symmetric(
     ciphertext=ciphertext,
     key=chacha_key,
     
-    # Verification options
-    verify_associated_data=True,
+    # --- Verification Options ---
+    verify_associated_data=True, # Verify the integrity of the associated data.
     expected_associated_data=b"metadata",
     
-    # Security options
+    # --- Security Options ---
     constant_time=True,
     secure_memory=True,
-    clear_plaintext_after_use=False,
+    clear_plaintext_after_use=False, # If True, the decrypted plaintext will be cleared from memory after use.
     
-    # Decompression
-    decompress_after_decrypt=True,
+    # --- Decompression ---
+    decompress_after_decrypt=True, # Decompress the data after decrypting it.
     
-    # Validation
-    verify_metadata=True,
+    # --- Validation ---
+    verify_metadata=True, # Verify the metadata embedded in the ciphertext.
     expected_metadata={"purpose": "data_protection"}
 )
 ```
@@ -243,29 +258,31 @@ decrypted = crypto.decrypt_symmetric(
 
 #### `create_symmetric_stream_cipher(key, **options) -> StreamCipher`
 
+Creates a stream cipher for encrypting large files or data streams without loading the entire content into memory.
+
 ```python
-# Create stream cipher for large data
+# Create a stream cipher for a large data stream.
 stream_cipher = crypto.create_symmetric_stream_cipher(
     key=xchacha_key,
     algorithm="XChaCha20-Poly1305",
     
-    # Stream options
-    chunk_size=64*1024,             # 64KB chunks
-    buffer_size=1024*1024,          # 1MB buffer
+    # --- Stream Options ---
+    chunk_size=64*1024,             # Process the stream in 64KB chunks.
+    buffer_size=1024*1024,          # Use a 1MB buffer.
     
-    # Security
-    unique_nonce_per_chunk=True,
-    authenticate_chunks=True
+    # --- Security Options ---
+    unique_nonce_per_chunk=True, # Ensure each chunk is encrypted with a unique nonce.
+    authenticate_chunks=True # Authenticate each chunk to prevent tampering.
 )
 
-# Encrypt stream
+# Encrypt a large file by streaming it.
 with open("large_file.bin", "rb") as input_file:
     with open("encrypted_file.bin", "wb") as output_file:
         for chunk in input_file:
             encrypted_chunk = stream_cipher.encrypt_chunk(chunk)
             output_file.write(encrypted_chunk)
 
-# Finalize stream
+# Finalize the stream to get the final authentication tag.
 final_tag = stream_cipher.finalize()
 ```
 
@@ -275,40 +292,42 @@ final_tag = stream_cipher.finalize()
 
 #### `generate_asymmetric_keypair(algorithm, **options) -> AsymmetricKeyPair`
 
+Generates a new asymmetric key pair (public and private keys).
+
 ```python
-# RSA key pair
+# Generate a 2048-bit RSA key pair.
 rsa_keypair = crypto.generate_asymmetric_keypair(
     algorithm="RSA",
-    key_size=2048,                  # or 3072, 4096
+    key_size=2048,                  # The size of the key (e.g., 2048, 3072, 4096).
     public_exponent=65537,
     
-    # Key metadata
+    # --- Key Metadata ---
     key_id="document-encryption-key",
-    usage=["encryption", "signature"],
+    usage=["encryption", "signature"], # The intended usage of the key pair.
     
-    # Security options
+    # --- Security Options ---
     secure_generation=True,
-    hardware_backed=False,
+    hardware_backed=False, # If True, the key will be generated in an HSM.
     
-    # Storage options
-    password_protect_private_key=True,
+    # --- Storage Options ---
+    password_protect_private_key=True, # Encrypt the private key with a password.
     private_key_password="strong-password"
 )
 
-# ECDH key pair (Elliptic Curve Diffie-Hellman)
+# Generate an ECDH key pair for key exchange.
 ecdh_keypair = crypto.generate_asymmetric_keypair(
     algorithm="ECDH",
-    curve="P-256",                  # or "P-384", "P-521"
+    curve="P-256",                  # The elliptic curve to use (e.g., "P-256", "P-384").
     key_id="key-exchange-key"
 )
 
-# X25519 key pair (Curve25519)
+# Generate an X25519 key pair, a modern and fast key exchange algorithm.
 x25519_keypair = crypto.generate_asymmetric_keypair(
     algorithm="X25519",
     key_id="modern-encryption-key"
 )
 
-# Ed25519 key pair (EdDSA)
+# Generate an Ed25519 key pair for digital signatures.
 ed25519_keypair = crypto.generate_asymmetric_keypair(
     algorithm="Ed25519",
     key_id="signature-key"
@@ -319,45 +338,49 @@ ed25519_keypair = crypto.generate_asymmetric_keypair(
 
 #### `encrypt_asymmetric(data, public_key, **options) -> AsymmetricCiphertext`
 
+Encrypts data using a public key.
+
 ```python
-# RSA-OAEP encryption
+# Encrypt a message using RSA-OAEP padding.
 plaintext = b"Secret message"
 encrypted = crypto.encrypt_asymmetric(
     data=plaintext,
     public_key=rsa_keypair.public_key,
     
-    # Encryption options
-    padding="OAEP",                 # or "PKCS1v15"
-    hash_algorithm="SHA-256",       # for OAEP
-    mgf_hash="SHA-256",            # Mask generation function
+    # --- Encryption Options ---
+    padding="OAEP",                 # The padding scheme to use (OAEP is recommended).
+    hash_algorithm="SHA-256",       # The hash algorithm for OAEP.
+    mgf_hash="SHA-256",            # The mask generation function for OAEP.
     
-    # Hybrid encryption for large data
-    use_hybrid_encryption=True,     # RSA + AES
+    # --- Hybrid Encryption for Large Data ---
+    use_hybrid_encryption=True,     # Use a hybrid approach (e.g., RSA-KEM + AES-GCM) for large data.
     symmetric_algorithm="AES-GCM",
     
-    # Security options
+    # --- Security Options ---
     secure_memory=True
 )
 ```
 
 #### `decrypt_asymmetric(ciphertext, private_key, **options) -> bytes`
 
+Decrypts data using a private key.
+
 ```python
-# RSA-OAEP decryption
+# Decrypt the message using the private key.
 decrypted = crypto.decrypt_asymmetric(
     ciphertext=encrypted,
     private_key=rsa_keypair.private_key,
     
-    # Decryption options
+    # --- Decryption Options ---
     padding="OAEP",
     hash_algorithm="SHA-256",
     
-    # Security options
-    constant_time=True,
+    # --- Security Options ---
+    constant_time=True, # Use a constant-time implementation to prevent timing attacks.
     secure_memory=True,
     
-    # Private key protection
-    private_key_password="strong-password"
+    # --- Private Key Protection ---
+    private_key_password="strong-password" # The password to decrypt the private key, if it's protected.
 )
 ```
 
@@ -365,26 +388,28 @@ decrypted = crypto.decrypt_asymmetric(
 
 #### `perform_key_exchange(private_key, public_key, **options) -> SharedSecret`
 
+Performs a key exchange (e.g., Diffie-Hellman) to establish a shared secret between two parties.
+
 ```python
-# ECDH key exchange
+# Example of an ECDH key exchange between Alice and Bob.
 alice_keypair = crypto.generate_asymmetric_keypair("ECDH", curve="P-256")
 bob_keypair = crypto.generate_asymmetric_keypair("ECDH", curve="P-256")
 
-# Alice computes shared secret
+# Alice computes the shared secret using her private key and Bob's public key.
 alice_shared = crypto.perform_key_exchange(
     private_key=alice_keypair.private_key,
     public_key=bob_keypair.public_key,
     
-    # Key derivation
-    derive_key=True,
-    key_derivation_function="HKDF",
+    # --- Key Derivation ---
+    derive_key=True, # Derive a key from the shared secret.
+    key_derivation_function="HKDF", # The KDF to use.
     hash_algorithm="SHA-256",
-    salt=b"unique-salt",
-    info=b"key-exchange-context",
-    derived_key_length=32
+    salt=b"unique-salt", # A unique salt for the derivation.
+    info=b"key-exchange-context", # Contextual information for the derivation.
+    derived_key_length=32 # The desired length of the derived key.
 )
 
-# Bob computes the same shared secret
+# Bob computes the same shared secret using his private key and Alice's public key.
 bob_shared = crypto.perform_key_exchange(
     private_key=bob_keypair.private_key,
     public_key=alice_keypair.public_key,
@@ -396,7 +421,8 @@ bob_shared = crypto.perform_key_exchange(
     derived_key_length=32
 )
 
-assert alice_shared.key == bob_shared.key  # Same shared secret
+# Both Alice and Bob will now have the same shared secret key.
+assert alice_shared.key == bob_shared.key
 ```
 
 ## Digital Signatures
@@ -405,41 +431,43 @@ assert alice_shared.key == bob_shared.key  # Same shared secret
 
 #### `sign(data, private_key, **options) -> Signature`
 
+Creates a digital signature for a piece of data using a private key.
+
 ```python
-# RSA-PSS signature
+# Create an RSA-PSS signature.
 document = b"Important contract terms..."
 signature = crypto.sign(
     data=document,
     private_key=rsa_keypair.private_key,
     
-    # Signature algorithm
-    algorithm="RSA-PSS",
+    # --- Signature Algorithm Options ---
+    algorithm="RSA-PSS", # The signature scheme to use (PSS is recommended for RSA).
     hash_algorithm="SHA-256",
-    salt_length="auto",             # PSS salt length
+    salt_length="auto",             # The length of the salt for PSS.
     
-    # Security options
-    deterministic=False,            # Use random salt
+    # --- Security Options ---
+    deterministic=False,            # If False, the signature will be probabilistic (e.g., using a random salt).
     secure_memory=True,
     
-    # Metadata
-    include_timestamp=True,
+    # --- Metadata ---
+    include_timestamp=True, # Include a trusted timestamp in the signature.
     custom_attributes={"signer": "alice", "purpose": "approval"}
 )
 
-# ECDSA signature
+# Create a deterministic ECDSA signature.
 ecdsa_signature = crypto.sign(
     data=document,
     private_key=ecdsa_keypair.private_key,
     algorithm="ECDSA",
     hash_algorithm="SHA-256",
-    deterministic=True              # RFC 6979 deterministic ECDSA
+    deterministic=True              # Use RFC 6979 for a deterministic signature, which avoids the need for a good random number source.
 )
 
-# EdDSA signature (Ed25519)
+# Create an EdDSA (Ed25519) signature.
 ed25519_signature = crypto.sign(
     data=document,
     private_key=ed25519_keypair.private_key,
-    algorithm="EdDSA"               # Pure EdDSA (no hashing)
+    algorithm="EdDSA"               # Pure EdDSA does not require a separate hash function.
 )
 ```
 
@@ -447,27 +475,29 @@ ed25519_signature = crypto.sign(
 
 #### `verify_signature(data, signature, public_key, **options) -> bool`
 
+Verifies a digital signature using a public key.
+
 ```python
-# Verify RSA-PSS signature
+# Verify an RSA-PSS signature.
 is_valid = crypto.verify_signature(
     data=document,
     signature=signature,
     public_key=rsa_keypair.public_key,
     
-    # Verification options
+    # --- Verification Options ---
     algorithm="RSA-PSS",
     hash_algorithm="SHA-256",
     
-    # Security options
-    constant_time=True,
+    # --- Security Options ---
+    constant_time=True, # Use a constant-time implementation to prevent timing attacks.
     
-    # Metadata verification
-    verify_timestamp=True,
-    verify_attributes=True,
+    # --- Metadata Verification ---
+    verify_timestamp=True, # Verify that the timestamp is recent and valid.
+    verify_attributes=True, # Verify any custom attributes embedded in the signature.
     expected_attributes={"signer": "alice"}
 )
 
-print(f"Signature valid: {is_valid}")
+print(f"Is the signature valid? {is_valid}")
 ```
 
 ## Cryptographic Hashing
@@ -476,34 +506,30 @@ print(f"Signature valid: {is_valid}")
 
 #### `hash(data, algorithm, **options) -> bytes`
 
+Computes a cryptographic hash of a piece of data.
+
 ```python
-# SHA-256 hash
+# Compute a SHA-256 hash.
 sha256_hash = crypto.hash(
     data=b"Data to hash",
     algorithm="SHA-256"
 )
 
-# SHA-3 hash
+# Compute a SHA-3 hash.
 sha3_hash = crypto.hash(
     data=b"Data to hash",
     algorithm="SHA3-256"
 )
 
-# Blake2b hash with key
+# Compute a keyed Blake2b hash (which can be used as a MAC).
 blake2_hash = crypto.hash(
     data=b"Data to hash",
     algorithm="Blake2b",
-    digest_size=32,                 # Output size in bytes
-    key=b"secret-key",              # Optional key for MAC
-    salt=b"unique-salt",            # Optional salt
-    person=b"application-id"        # Optional personalization
+    digest_size=32,                 # The desired output size in bytes.
+    key=b"secret-key",              # An optional secret key.
+    salt=b"unique-salt",            # An optional salt.
+    person=b"application-id"        # An optional personalization string.
 )
-
-# Streaming hash for large data
-hasher = crypto.create_hasher("SHA-256")
-hasher.update(b"chunk 1")
-hasher.update(b"chunk 2")
-final_hash = hasher.finalize()
 ```
 
 ### Password Hashing

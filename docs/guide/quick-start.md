@@ -16,30 +16,31 @@ pip install maif[full]
 
 ## Step 2: Your First Agent
 
-Create a new Python file called `my_first_agent.py`:
+Create a new Python file called `my_first_agent.py`. This script initializes a new agent, creates a memory artifact, adds a piece of knowledge, and saves it to a file.
 
 ```python
 from maif_sdk import create_client, create_artifact
 
-# Create a MAIF client
+# 1. Create a MAIF client to manage agents and artifacts.
 client = create_client("my-first-agent")
 
-# Create an artifact (your agent's memory)
+# 2. Create an artifact, which serves as your agent's persistent memory.
 memory = create_artifact("agent-memory", client)
 
-# Add some initial knowledge
+# 3. Add some initial knowledge to the agent's memory.
+# The content is encrypted by default to ensure privacy.
 memory.add_text(
     "I am a helpful AI assistant created with MAIF. I can remember our conversations and learn from them.",
-    title="System Prompt",
-    encrypt=True  # Automatic encryption
+    title="System Prompt", # Give the memory block a title.
+    encrypt=True         # Ensure this data is encrypted at rest.
 )
 
-# Save the memory
+# 4. Save the memory to a portable, secure `.maif` file.
 memory.save("my_agent_memory.maif")
 print("✅ Agent memory created and saved!")
 ```
 
-Run it:
+Run it from your terminal:
 
 ```bash
 python my_first_agent.py
@@ -47,54 +48,54 @@ python my_first_agent.py
 
 ## Step 3: Add Conversation Memory
 
-Let's make the agent remember conversations:
+This script defines a chat function that loads the agent's memory, adds the user's message and the agent's response, and then saves the updated memory.
 
 ```python
 from maif_sdk import create_client, load_artifact
 import datetime
 
 def chat_with_agent(user_message: str):
-    # Load existing memory
+    # Load the agent's existing memory from the file.
     try:
         memory = load_artifact("my_agent_memory.maif")
     except FileNotFoundError:
-        # Create new memory if it doesn't exist
+        # If no memory file exists, create a new one.
         client = create_client("my-first-agent")
         memory = create_artifact("agent-memory", client)
     
-    # Store user message
+    # Store the user's message with a timestamp.
     memory.add_text(
         f"User: {user_message}",
         title="User Message",
-        encrypt=True,
+        encrypt=True, # Encrypt the user's message.
         metadata={
             "timestamp": datetime.datetime.now().isoformat(),
             "type": "user_input"
         }
     )
     
-    # Generate response (simplified for demo)
+    # Generate a simple response. In a real app, this would involve an LLM.
     response = f"I understand you said: '{user_message}'. This conversation is now stored securely in my memory."
     
-    # Store agent response
+    # Store the agent's response with a timestamp.
     memory.add_text(
         f"Assistant: {response}",
         title="Agent Response",
-        encrypt=True,
+        encrypt=True, # Encrypt the agent's response.
         metadata={
             "timestamp": datetime.datetime.now().isoformat(),
             "type": "agent_response"
         }
     )
     
-    # Save updated memory
+    # Save the updated memory back to the file.
     memory.save("my_agent_memory.maif")
     
     return response
 
-# Test the chat function
+# A simple command-line interface to test the chat function.
 if __name__ == "__main__":
-    print("🤖 MAIF Agent Ready! Type 'quit' to exit.\n")
+    print("🤖 MAIF Agent Ready! Type 'quit' to exit.\\n")
     
     while True:
         user_input = input("You: ")
@@ -102,31 +103,31 @@ if __name__ == "__main__":
             break
         
         response = chat_with_agent(user_input)
-        print(f"Agent: {response}\n")
+        print(f"Agent: {response}\\n")
 ```
 
 ## Step 4: Add Semantic Search
 
-Make your agent smart about finding relevant information:
+This script demonstrates how to use MAIF's built-in semantic search to find relevant memories and generate a more context-aware response.
 
 ```python
 from maif_sdk import create_client, load_artifact
 
 def smart_agent_with_search(user_message: str):
-    # Load memory
+    # Load the agent's memory.
     memory = load_artifact("my_agent_memory.maif")
     
-    # Search for relevant past conversations
+    # Search for memories that are semantically similar to the user's message.
     relevant_memories = memory.search(
         query=user_message,
-        top_k=3,  # Get top 3 most relevant memories
-        include_metadata=True
+        top_k=3,  # Retrieve the top 3 most relevant results.
+        include_metadata=True # Include metadata in the results.
     )
     
-    # Use relevant memories to inform response
-    context = "\n".join([mem['content'] for mem in relevant_memories])
+    # Create a context string from the content of the relevant memories.
+    context = "\\n".join([mem['content'] for mem in relevant_memories])
     
-    # Store new message
+    # Store the new user message.
     memory.add_text(
         f"User: {user_message}",
         title="User Message",
@@ -134,13 +135,13 @@ def smart_agent_with_search(user_message: str):
         metadata={"timestamp": datetime.datetime.now().isoformat()}
     )
     
-    # Generate contextual response
+    # Generate a response that acknowledges the context.
     if relevant_memories:
         response = f"Based on our previous conversations about similar topics, I can help you with: {user_message}"
     else:
         response = f"This is a new topic for us. Let me help you with: {user_message}"
     
-    # Store response
+    # Store the agent's contextual response.
     memory.add_text(
         f"Assistant: {response}",
         title="Agent Response", 
@@ -151,9 +152,9 @@ def smart_agent_with_search(user_message: str):
     memory.save("my_agent_memory.maif")
     return response, relevant_memories
 
-# Test semantic search
+# Example of how to test the semantic search functionality.
 if __name__ == "__main__":
-    # Add some sample data first
+    # First, load the memory and add some sample data to create a knowledge base.
     memory = load_artifact("my_agent_memory.maif")
     
     sample_topics = [
@@ -168,7 +169,7 @@ if __name__ == "__main__":
     
     memory.save("my_agent_memory.maif")
     
-    # Now test search
+    # Now, test the search with a new query.
     response, memories = smart_agent_with_search("Can you help me with Python?")
     print(f"Response: {response}")
     print(f"Found {len(memories)} relevant memories")
@@ -176,45 +177,46 @@ if __name__ == "__main__":
 
 ## Step 5: Add Privacy & Security
 
-Let's add enterprise-grade privacy features:
+This script shows how to configure a MAIF agent with enterprise-grade security and privacy features, including digital signatures, strong key derivation, and automated PII anonymization.
 
 ```python
 from maif_sdk import create_client, create_artifact
 from maif import PrivacyLevel, SecurityLevel
 
 def create_secure_agent():
-    # Create client with security settings
+    # Configure the client with high security defaults.
     client = create_client(
         "secure-agent",
-        default_security_level=SecurityLevel.TOP_SECRET,
-        enable_signing=True,  # Digital signatures
-        key_derivation_rounds=100000  # Strong key derivation
+        default_security_level=SecurityLevel.TOP_SECRET, # Set a high default security level.
+        enable_signing=True,  # Automatically sign all saved artifacts.
+        key_derivation_rounds=100000  # Use a high number of rounds for key derivation.
     )
     
-    # Create artifact with privacy settings
+    # Create an artifact with specific privacy settings.
     memory = create_artifact(
         "secure-memory",
         client,
-        privacy_level=PrivacyLevel.CONFIDENTIAL,
-        enable_audit_trail=True  # Track all operations
+        privacy_level=PrivacyLevel.CONFIDENTIAL, # Classify the data as confidential.
+        enable_audit_trail=True  # Ensure every operation is recorded in an immutable audit trail.
     )
     
-    # Add sensitive data with anonymization
+    # Add sensitive data with a request for anonymization.
+    # MAIF will automatically detect and redact PII like names and SSNs.
     memory.add_text(
         "Customer John Smith (SSN: 123-45-6789) called about account issues",
         title="Customer Service Log",
         encrypt=True,
-        anonymize=True,  # Automatically detect and anonymize PII
+        anonymize=True,  # Request PII anonymization for this block.
         metadata={
             "sensitivity": "high",
             "compliance": "GDPR"
         }
     )
     
-    # Save with cryptographic signature
+    # Save the artifact, which will be automatically signed due to the client setting.
     signature = memory.save("secure_memory.maif", sign=True)
     
-    # Verify integrity
+    # Verify the integrity of the artifact and review the audit trail.
     integrity_report = memory.verify_integrity()
     audit_trail = memory.get_audit_trail()
     
@@ -225,13 +227,13 @@ def create_secure_agent():
     
     return memory
 
-# Create and test secure agent
+# Create and test the secure agent.
 secure_memory = create_secure_agent()
 ```
 
 ## Step 6: Multi-Modal Agent
 
-Add support for images, audio, and other data types:
+This script demonstrates how to create an agent that can handle various data types, including text and images.
 
 ```python
 from maif_sdk import create_client, create_artifact
@@ -241,14 +243,14 @@ def create_multimodal_agent():
     client = create_client("multimodal-agent")
     memory = create_artifact("multimodal-memory", client)
     
-    # Add text
+    # Add a text block as before.
     text_id = memory.add_text(
         "This agent can handle multiple data types",
         title="Agent Description"
     )
     
-    # Add image (example with base64 encoded data)
-    # In practice, you'd load actual image files
+    # Add an image. Here, we simulate image data with a base64 encoded string.
+    # In a real application, you would load the image data from a file.
     sample_image_data = b"fake_image_data_for_demo"
     image_id = memory.add_image(
         sample_image_data,

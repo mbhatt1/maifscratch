@@ -84,13 +84,15 @@ graph TB
 
 ### 1. SDK Layer
 
-The SDK provides high-level abstractions for AI developers:
+The SDK provides high-level abstractions for AI developers, simplifying interaction with the MAIF core. This example shows the most common entry point for an application.
 
 ```python
-# High-level SDK usage
+# The SDK provides simple, high-level functions for common tasks.
 from maif_sdk import create_client, create_artifact
 
+# `create_client` initializes the connection to the MAIF core and sets up configurations.
 client = create_client("my-agent")
+# `create_artifact` gives you a handle to a secure, persistent data container.
 artifact = create_artifact("memory", client)
 ```
 
@@ -135,68 +137,76 @@ graph TB
 
 ### 3. Specialized Engines
 
-Each engine handles specific aspects of data processing:
+Each engine handles specific aspects of data processing. These engines are highly configurable to meet the demands of different use cases.
 
 #### Privacy Engine
-- **Encryption**: AES-GCM, ChaCha20, XChaCha20
-- **Anonymization**: PII detection and replacement
-- **Differential Privacy**: Mathematical privacy guarantees
-- **Key Management**: Secure key derivation and rotation
+
+The Privacy Engine is responsible for all cryptographic and privacy-preserving operations. This example shows how to configure it with specific algorithms and parameters.
 
 ```python
 from maif import PrivacyEngine
 
+# Initialize the Privacy Engine with specific configurations.
 privacy = PrivacyEngine(
+    # Set the encryption algorithm. AES-GCM is a high-performance, authenticated encryption standard.
     encryption_algorithm="AES-GCM",
+    # Increase the number of rounds for key derivation to enhance security against brute-force attacks.
     key_derivation_rounds=100000,
+    # Set the epsilon value for differential privacy to control the trade-off between privacy and utility.
     differential_privacy_epsilon=1.0
 )
 ```
 
 #### Security Engine
-- **Digital Signatures**: Ed25519, RSA-PSS
-- **Access Control**: Role-based and attribute-based
-- **Audit Logging**: Immutable operation logs
-- **Tamper Detection**: Cryptographic integrity checks
+
+The Security Engine manages digital signatures, access control, and auditing. This example shows how to configure it for a typical enterprise environment.
 
 ```python
 from maif import SecurityEngine
 
+# Initialize the Security Engine with specific security policies.
 security = SecurityEngine(
+    # Set the digital signature algorithm. Ed25519 is a fast and secure signature scheme.
     signature_algorithm="Ed25519",
+    # Specify the access control model. RBAC (Role-Based Access Control) is a common choice.
     access_control="RBAC",
+    # Set the audit level to "DETAILED" to record all operations for compliance and forensics.
     audit_level="DETAILED"
 )
 ```
 
 #### Semantic Engine
-- **Embedding Generation**: Multiple model support
-- **Semantic Indexing**: High-performance vector search
-- **Cross-Modal Processing**: Text, image, audio understanding
-- **Relationship Discovery**: Automatic connection detection
+
+The Semantic Engine handles everything related to semantic understanding, from embeddings to advanced cross-modal analysis. This example shows how to configure it with a specific embedding model and index type.
 
 ```python
 from maif.semantic import SemanticEngine
 
+# Initialize the Semantic Engine with configurations for embedding and search.
 semantic = SemanticEngine(
+    # Specify the pre-trained model to use for generating embeddings.
     embedding_model="all-MiniLM-L6-v2",
+    # Choose the index type for vector search. HNSW is a high-performance index for large datasets.
     index_type="HNSW",
+    # Enable cross-modal processing to find relationships between different data types.
     cross_modal_enabled=True
 )
 ```
 
 #### Streaming Engine
-- **High-Throughput I/O**: 400+ MB/s sustained writes
-- **Memory-Mapped Files**: Zero-copy operations
-- **Compression**: Real-time data compression
-- **Buffering**: Intelligent write buffering
+
+The Streaming Engine is optimized for high-throughput, low-latency data ingestion and retrieval. This example shows how to configure its buffering and compression settings.
 
 ```python
 from maif.streaming import StreamingEngine
 
+# Initialize the Streaming Engine with performance-tuning parameters.
 streaming = StreamingEngine(
-    buffer_size=128*1024,
+    # Set the buffer size for write operations. Larger buffers can improve throughput.
+    buffer_size=128*1024, # 128 KB
+    # Specify the compression algorithm. HSC is MAIF's novel semantic compression algorithm.
     compression_algorithm="HSC",
+    # Enable memory-mapped I/O for zero-copy reads and faster access.
     memory_mapping=True
 )
 ```
@@ -292,25 +302,29 @@ graph TB
 6. **VideoBlock**: Video content
 7. **MetadataBlock**: System metadata
 
-Each block type has specialized handling:
+Each block type can be created with specialized options that trigger different processing pipelines.
 
 ```python
-# Block type specific features
+# Each block type supports specific features and metadata.
+
+# Create a TextBlock with language detection and sentiment analysis enabled.
 text_block = artifact.add_text("Hello", 
     language="en",
     sentiment_analysis=True
 )
 
+# Create an ImageBlock and request additional processing like feature extraction and captioning.
 image_block = artifact.add_image(image_data,
     format="PNG",
-    extract_features=True,
-    generate_caption=True
+    extract_features=True, # Extract features like objects and faces.
+    generate_caption=True # Automatically generate a descriptive caption.
 )
 
+# Create an EmbeddingBlock with specific details about the embedding model.
 embedding_block = artifact.add_embedding(vector,
-    model="bert-base",
-    dimension=768,
-    normalize=True
+    model="bert-base", # The model used to generate the embedding.
+    dimension=768,     # The dimensionality of the vector.
+    normalize=True     # Normalize the embedding vector to unit length.
 )
 ```
 
@@ -399,16 +413,20 @@ graph TB
 
 ### Parallel Processing
 
-MAIF supports parallel operations for maximum throughput:
+MAIF is designed to leverage multi-core processors for parallel operations. This example shows how to configure the client for high concurrency.
 
 ```python
-# Parallel processing configuration
+# Configure the MAIF client for parallel processing to maximize throughput.
 client = create_client(
     "high-performance-agent",
-    max_concurrent_writers=8,      # Parallel writes
-    max_concurrent_readers=16,     # Parallel reads
-    thread_pool_size=32,           # Worker threads
-    enable_async=True              # Async operations
+    # Set the number of concurrent writers to allow parallel write operations.
+    max_concurrent_writers=8,
+    # Set the number of concurrent readers to allow parallel read operations.
+    max_concurrent_readers=16,
+    # Define the total size of the internal thread pool for worker tasks.
+    thread_pool_size=32,
+    # Enable asynchronous operations for non-blocking calls.
+    enable_async=True
 )
 ```
 

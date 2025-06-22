@@ -55,17 +55,19 @@ graph TB
 
 ### Encryption Algorithms
 
-MAIF supports multiple encryption algorithms, with automatic selection based on security requirements:
+MAIF supports multiple modern, authenticated encryption algorithms. You can configure the desired security level and algorithm when creating a client.
 
 ```python
-from maif import SecurityLevel, EncryptionAlgorithm
+from maif_sdk import create_client
+from maif.security import SecurityLevel, EncryptionAlgorithm
 
-# Configure encryption
+# Configure a client with a top-secret security level, using AES-GCM encryption
+# with a high number of key derivation rounds for added security.
 client = create_client(
     "secure-agent",
     security_level=SecurityLevel.TOP_SECRET,
     encryption_algorithm=EncryptionAlgorithm.AES_GCM,
-    key_derivation_rounds=100000
+    key_derivation_rounds=100000 # Increases resistance to brute-force attacks.
 )
 ```
 
@@ -76,19 +78,22 @@ client = create_client(
 
 ### Digital Signatures
 
-All blocks can be digitally signed for integrity and authenticity:
+All data blocks can be digitally signed to ensure their integrity and authenticity. You can enable automatic signing at the client level or apply signatures manually.
 
 ```python
-# Enable automatic signing
+from maif_sdk import create_client, create_artifact
+
+# Configure a client to automatically sign all data blocks using the Ed25519 algorithm.
 client = create_client(
     "signed-agent",
     enable_signing=True,
     signature_algorithm="Ed25519"
 )
 
-# Manual signing
+# You can also sign individual blocks manually for more granular control.
+artifact = create_artifact("manual-signing-demo", client=client)
 artifact.add_text(
-    "Important document",
+    "Important document that requires a signature.",
     sign=True,
     signature_algorithm="Ed25519"
 )
@@ -101,52 +106,22 @@ artifact.add_text(
 
 ### Key Management
 
-MAIF implements secure key management with multiple options:
-
-```mermaid
-graph TB
-    subgraph "Key Management Architecture"
-        KM[Key Manager]
-        
-        KM --> KD[Key Derivation]
-        KM --> KS[Key Storage]
-        KM --> KR[Key Rotation]
-        KM --> KE[Key Escrow]
-        
-        KD --> PBKDF2[PBKDF2]
-        KD --> Argon2[Argon2]
-        KD --> Scrypt[Scrypt]
-        
-        KS --> Memory[In-Memory]
-        KS --> File[File-based]
-        KS --> HSM[Hardware Security Module]
-        KS --> KMS[Cloud KMS]
-        
-        KR --> Auto[Automatic Rotation]
-        KR --> Manual[Manual Rotation]
-        KR --> Policy[Policy-based]
-        
-        KE --> Backup[Key Backup]
-        KE --> Recovery[Key Recovery]
-        KE --> Compliance[Compliance Export]
-    end
-    
-    style KM fill:#3c82f6,stroke:#1e40af,stroke-width:2px,color:#fff
-    style HSM fill:#ef4444,stroke:#dc2626,stroke-width:2px,color:#fff
-    style KMS fill:#10b981,stroke:#059669,stroke-width:2px,color:#fff
-```
+MAIF implements secure key management with options for derivation, storage, and rotation, including support for Hardware Security Modules (HSMs).
 
 ```python
-# Configure key management
+from maif_sdk import create_client
 from maif.security import KeyManager, KeyStorage
 
+# Configure a key manager to use the Argon2 algorithm for key derivation,
+# store keys in an HSM, and automatically rotate them every 30 days.
 key_manager = KeyManager(
     derivation_algorithm="Argon2",
     derivation_rounds=100000,
-    storage_backend=KeyStorage.HSM,
+    storage_backend=KeyStorage.HSM, # For enterprise-grade security.
     rotation_policy="30_days"
 )
 
+# Create a client that uses this robust key management configuration.
 client = create_client(
     "enterprise-agent",
     key_manager=key_manager
@@ -155,43 +130,56 @@ client = create_client(
 
 ## Access Control
 
-MAIF implements fine-grained access control with multiple models:
+MAIF implements fine-grained access control with support for multiple models, including Role-Based and Attribute-Based Access Control.
 
 ### Role-Based Access Control (RBAC)
 
+Define roles with specific permissions and assign users to those roles to manage access to artifacts.
+
 ```python
 from maif.security import AccessController, Role, Permission
+from maif_sdk import create_artifact
 
-# Define roles
+# Assume an artifact is already created.
+artifact = create_artifact("rbac-demo")
+
+# Define roles with a specific set of permissions.
 admin_role = Role("admin", [
     Permission.READ,
     Permission.WRITE,
     Permission.DELETE,
-    Permission.ADMIN
+    Permission.ADMIN # Permission to manage access control itself.
 ])
-
 user_role = Role("user", [
     Permission.READ,
     Permission.WRITE
 ])
 
-# Configure access control
+# Configure an access controller with the RBAC model and the defined roles.
 access_controller = AccessController(
     model="RBAC",
     roles=[admin_role, user_role]
 )
 
-# Set artifact permissions
-artifact.set_access_control({
-    "admin": ["alice", "bob"],
-    "user": ["charlie", "diana"]
-})
+# Apply the access control policy to the artifact, assigning users to roles.
+artifact.set_access_control(
+    controller=access_controller,
+    assignments={
+        "admin": ["alice", "bob"],
+        "user": ["charlie", "diana"]
+    }
+)
 ```
 
 ### Attribute-Based Access Control (ABAC)
 
+Define complex, attribute-based rules to govern access based on user, resource, and environmental conditions.
+
 ```python
-# Define ABAC policy
+from maif.security import AccessController
+
+# This ABAC policy allows access only if the user is in the finance department,
+# the resource is confidential, and the access time is within business hours.
 abac_policy = {
     "rules": [
         {
@@ -205,6 +193,7 @@ abac_policy = {
     ]
 }
 
+# Configure the access controller to use the ABAC model with the defined policy.
 access_controller = AccessController(
     model="ABAC",
     policy=abac_policy
@@ -213,20 +202,29 @@ access_controller = AccessController(
 
 ### Block-Level Permissions
 
+Apply fine-grained permissions directly to individual data blocks within an artifact for maximum control.
+
 ```python
-# Set fine-grained permissions
+from maif_sdk import create_artifact
+
+# Mock artifact and block_id for demonstration.
+artifact = create_artifact("block-level-permission-demo")
+block_id = artifact.add_text("A highly sensitive data block.")
+
+# Set specific read and write permissions for a single block.
+# Access can be controlled by user, role, and dynamic conditions.
 artifact.set_block_permissions(block_id, {
     "read": {
         "users": ["alice", "bob"],
         "roles": ["analyst"],
         "conditions": {
-            "time_range": "09:00-17:00",
-            "location": "office_network"
+            "time_range": "09:00-17:00", # Condition: only during business hours
+            "location": "office_network" # Condition: only from the office network
         }
     },
     "write": {
         "users": ["admin"],
-        "require_mfa": True
+        "require_mfa": True # Condition: require multi-factor authentication for writes.
     }
 })
 ```
@@ -235,27 +233,30 @@ artifact.set_block_permissions(block_id, {
 
 ### Comprehensive Audit Logging
 
-MAIF maintains detailed audit logs for all operations:
+MAIF maintains detailed, immutable audit logs for all operations, providing a complete history for security analysis and compliance.
 
 ```python
-# Enable audit logging
+from maif_sdk import create_client, create_artifact
+
+# Configure a client to enable detailed, immutable audit logging.
 client = create_client(
     "audited-agent",
     enable_audit_trail=True,
-    audit_level="DETAILED",
-    audit_storage="immutable"
+    audit_level="DETAILED", # Log all operation details.
+    audit_storage="immutable" # Use tamper-proof storage for logs.
 )
+artifact = create_artifact("audited-artifact", client=client)
 
-# Query audit logs
+# Query the audit logs for a specific time range and filter by operation type.
 audit_logs = artifact.get_audit_trail(
     start_time="2024-01-01T00:00:00Z",
     end_time="2024-01-31T23:59:59Z",
-    user="alice",
-    operation="READ"
+    filters={"operation": "WRITE"}
 )
 
+# Process and review the audit logs.
 for log_entry in audit_logs:
-    print(f"{log_entry.timestamp}: {log_entry.user} {log_entry.operation} {log_entry.resource}")
+    print(f"[{log_entry.timestamp}] User '{log_entry.user}' performed '{log_entry.operation}' on block '{log_entry.block_id}'")
 ```
 
 ### Audit Log Structure

@@ -45,22 +45,23 @@ graph TB
 
 ### Design and Planning
 
-Before creating an agent, define its purpose, capabilities, and constraints:
+Before creating an agent, define its purpose, capabilities, and constraints using an `AgentBlueprint`. This serves as a template for creating and versioning your agent.
 
 ```python
-from maif_sdk import create_client, create_artifact
-from maif import AgentBlueprint, CapabilitySet, ConstraintSet
+from maif_sdk import AgentBlueprint, CapabilitySet, ConstraintSet
 
-# Define agent blueprint
+# The AgentBlueprint defines the core identity and purpose of the agent.
 blueprint = AgentBlueprint(
     name="customer-service-agent",
     description="AI agent for customer support with privacy compliance",
+    # Define the agent's capabilities, such as NLP and knowledge retrieval.
     capabilities=CapabilitySet([
         "natural_language_processing",
         "sentiment_analysis", 
         "knowledge_retrieval",
         "ticket_management"
     ]),
+    # Define the constraints the agent must operate under, such as GDPR compliance.
     constraints=ConstraintSet([
         "gdpr_compliance",
         "response_time_under_2s",
@@ -70,32 +71,37 @@ blueprint = AgentBlueprint(
     version="1.0.0"
 )
 
-# Create agent with blueprint
+# Create an agent instance from the blueprint.
 agent = blueprint.create_agent()
+print(f"Agent '{agent.name}' created from blueprint version {agent.version}.")
 ```
 
 ### Resource Allocation
 
-Allocate appropriate resources based on expected workload:
+Allocate appropriate compute, memory, and network resources based on the agent's expected workload.
 
 ```python
-from maif import ResourceConfiguration
+from maif_sdk import ResourceConfiguration
+from types import SimpleNamespace
 
-# Configure resources for the agent
+# Mock agent object from the previous step.
+agent = SimpleNamespace(name="customer-service-agent", configure_resources=lambda config: print("Resources configured."))
+
+# Define the resource limits and performance targets for the agent.
 resource_config = ResourceConfiguration(
     memory_limit="2GB",
     cpu_cores=4,
     storage_quota="10GB",
     network_bandwidth="100Mbps",
-    gpu_enabled=False,
+    gpu_enabled=False, # Set to True if the agent requires GPU for tasks like model inference.
     
-    # Performance targets
+    # Define performance targets for auto-scaling and monitoring.
     max_concurrent_requests=100,
     target_response_time="500ms",
     availability_target="99.9%"
 )
 
-# Apply resource configuration
+# Apply the resource configuration to the agent.
 agent.configure_resources(resource_config)
 ```
 
@@ -103,12 +109,16 @@ agent.configure_resources(resource_config)
 
 ### Memory System Setup
 
-Initialize the agent's memory systems and load initial knowledge:
+Initialize the agent's memory systems, including working, long-term, episodic, and semantic memory, and load it with initial knowledge.
 
 ```python
+from maif_sdk import create_client, create_artifact
+
 class AgentInitializer:
+    """Handles the initialization of an agent's memory and knowledge base."""
     def __init__(self, agent_id: str):
         self.agent_id = agent_id
+        # Initialize a client with performance-oriented settings.
         self.client = create_client(
             agent_id,
             enable_mmap=True,
@@ -116,16 +126,16 @@ class AgentInitializer:
             default_encryption=True
         )
         
-        # Initialize memory artifacts
+        # Initialize different types of memory artifacts for different purposes.
         self.working_memory = create_artifact("working_memory", self.client)
         self.long_term_memory = create_artifact("long_term_memory", self.client)
         self.episodic_memory = create_artifact("episodic_memory", self.client)
         self.semantic_memory = create_artifact("semantic_memory", self.client)
     
     def initialize_knowledge_base(self):
-        """Load initial knowledge and training data"""
+        """Loads the initial knowledge, procedures, and templates into the agent's memory."""
         
-        # Load domain-specific knowledge
+        # Load and store domain-specific knowledge into semantic memory.
         domain_knowledge = self._load_domain_knowledge()
         for knowledge_item in domain_knowledge:
             self.semantic_memory.add_text(
@@ -138,7 +148,7 @@ class AgentInitializer:
                 }
             )
         
-        # Load procedural knowledge
+        # Load and store procedural knowledge (how-to guides) into working memory.
         procedures = self._load_procedures()
         for procedure in procedures:
             self.working_memory.add_structured_data(
@@ -147,7 +157,7 @@ class AgentInitializer:
                 metadata={"type": "procedure", "priority": procedure.get('priority', 'normal')}
             )
         
-        # Initialize conversation templates
+        # Load and store conversation templates into semantic memory.
         templates = self._load_conversation_templates()
         for template in templates:
             self.semantic_memory.add_text(
@@ -157,64 +167,48 @@ class AgentInitializer:
             )
     
     def _load_domain_knowledge(self) -> list:
-        """Load domain-specific knowledge"""
+        """Mock function to load domain-specific knowledge."""
         return [
-            {
-                "title": "Customer Service Principles",
-                "content": "Always be helpful, respectful, and solution-oriented...",
-                "confidence": 0.95,
-                "source": "training_manual"
-            },
-            {
-                "title": "Product Information",
-                "content": "Our products include features such as...",
-                "confidence": 0.9,
-                "source": "product_docs"
-            }
+            {"title": "Customer Service Principles", "content": "Always be helpful..."},
+            {"title": "Product Information", "content": "Our products include..."}
         ]
     
     def _load_procedures(self) -> list:
-        """Load standard operating procedures"""
+        """Mock function to load standard operating procedures."""
         return [
-            {
-                "name": "handle_complaint",
-                "steps": [
-                    "Acknowledge the issue",
-                    "Gather details",
-                    "Propose solution",
-                    "Follow up"
-                ],
-                "priority": "high"
-            },
-            {
-                "name": "escalation_process",
-                "steps": [
-                    "Identify escalation criteria",
-                    "Notify supervisor",
-                    "Transfer context",
-                    "Monitor resolution"
-                ],
-                "priority": "critical"
-            }
+            {"name": "handle_complaint", "steps": ["Acknowledge", "Gather", "Propose", "Follow up"]},
+            {"name": "escalation_process", "steps": ["Identify", "Notify", "Transfer", "Monitor"]}
         ]
 
-# Initialize agent
+    def _load_conversation_templates(self) -> list:
+        """Mock function to load conversation templates."""
+        return [
+            {"name": "greeting", "scenario": "start_of_conversation", "content": "Hello! How can I help you today?"},
+            {"name": "closing", "scenario": "end_of_conversation", "content": "Is there anything else I can assist you with?"}
+        ]
+
+# Example usage of the AgentInitializer.
 initializer = AgentInitializer("customer-service-bot")
 initializer.initialize_knowledge_base()
+print("Agent knowledge base initialized.")
 ```
 
 ### Health Checks and Validation
 
-Perform comprehensive health checks during initialization:
+Perform comprehensive health checks during initialization to ensure all systems are functioning correctly before the agent goes into operation.
 
 ```python
+import datetime
+from types import SimpleNamespace
+
 class AgentHealthChecker:
+    """Performs health checks on an agent's systems."""
     def __init__(self, agent):
+        # The agent object would have attributes for its different memory systems.
         self.agent = agent
         
     def perform_initialization_checks(self) -> dict:
-        """Perform comprehensive health checks"""
-        
+        """Runs a series of checks and returns a health report."""
         results = {
             "memory_systems": self._check_memory_systems(),
             "knowledge_base": self._check_knowledge_base(),
@@ -226,61 +220,48 @@ class AgentHealthChecker:
         overall_health = all(results.values())
         
         return {
-            "overall_health": overall_health,
+            "overall_health": "Healthy" if overall_health else "Unhealthy",
             "checks": results,
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.datetime.now().isoformat(),
             "recommendations": self._generate_recommendations(results)
         }
     
     def _check_memory_systems(self) -> bool:
-        """Check if all memory systems are properly initialized"""
+        """Checks if memory systems are responsive."""
         try:
-            # Test memory operations
             test_id = self.agent.working_memory.add_text("Health check test")
             retrieved = self.agent.working_memory.get_block(test_id)
-            
-            # Clean up test data
             self.agent.working_memory.delete_block(test_id)
-            
             return retrieved is not None
         except Exception:
             return False
     
     def _check_knowledge_base(self) -> bool:
-        """Verify knowledge base is properly loaded"""
+        """Verifies that the knowledge base is loaded and accessible."""
         try:
-            # Check if essential knowledge is present
-            results = self.agent.semantic_memory.search("customer service", top_k=1)
+            # Check if domain knowledge is present.
+            results = self.agent.semantic_memory.search("Customer Service Principles", top_k=1)
             return len(results) > 0
         except Exception:
             return False
-    
-    def _check_security_configuration(self) -> bool:
-        """Verify security settings are properly configured"""
-        try:
-            # Check encryption
-            test_id = self.agent.working_memory.add_text("Security test", encrypt=True)
-            
-            # Verify the data is encrypted
-            block_data = self.agent.working_memory.get_block_metadata(test_id)
-            is_encrypted = block_data.get('encrypted', False)
-            
-            # Clean up
-            self.agent.working_memory.delete_block(test_id)
-            
-            return is_encrypted
-        except Exception:
-            return False
 
-# Perform health checks
-health_checker = AgentHealthChecker(agent)
+    # Mock methods for other checks.
+    def _check_security_configuration(self) -> bool: return True
+    def _check_performance_baseline(self) -> bool: return True
+    def _check_compliance_settings(self) -> bool: return True
+    def _generate_recommendations(self, results) -> list:
+        if not results.get("knowledge_base"):
+            return ["Knowledge base is empty. Consider running initialization."]
+        return []
+
+# Example usage of the AgentHealthChecker.
+mock_agent = SimpleNamespace(
+    working_memory=initializer.working_memory,
+    semantic_memory=initializer.semantic_memory
+)
+health_checker = AgentHealthChecker(mock_agent)
 health_report = health_checker.perform_initialization_checks()
-
-if health_report["overall_health"]:
-    print("✅ Agent initialization successful")
-else:
-    print("❌ Agent initialization failed")
-    print("Recommendations:", health_report["recommendations"])
+print(f"Agent health check result: {health_report['overall_health']}")
 ```
 
 ## Phase 3: Training and Learning

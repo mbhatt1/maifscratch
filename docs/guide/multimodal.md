@@ -47,24 +47,30 @@ graph TB
 
 ### 1. Cross-Modal Embeddings
 
-MAIF automatically generates embeddings that capture relationships between different modalities:
+MAIF automatically generates embeddings that capture relationships between different modalities. The following example demonstrates how adding text, image, and audio content to an artifact enables cross-modal similarity search.
 
 ```python
-from maif_sdk import create_artifact
+from maif_sdk import create_artifact, create_client
+import numpy as np
 
-# Create multi-modal artifact
+client = create_client()
+# Mock data for demonstration.
+sunset_image_data = np.random.rand(100, 100, 3)
+ocean_sounds_data = np.random.rand(44100)
+
+# Create a multi-modal artifact.
 artifact = create_artifact("multimodal-demo", client)
 
-# Add different modalities
+# Add content of different data types.
 text_id = artifact.add_text("A beautiful sunset over the ocean")
 image_id = artifact.add_image(sunset_image_data)
 audio_id = artifact.add_audio(ocean_sounds_data)
 
-# MAIF automatically creates cross-modal relationships
+# MAIF automatically identifies and creates relationships between related content.
 relationships = artifact.get_relationships(text_id)
-print(f"Text relates to {len(relationships)} other blocks")
+print(f"Text block relates to {len(relationships)} other blocks.")
 
-# Find similar content across modalities
+# Search for content similar to the text, but across all modalities.
 similar_blocks = artifact.search_similar(text_id, cross_modal=True)
 for block in similar_blocks:
     print(f"Similar {block.type}: {block.title} (similarity: {block.similarity:.3f})")
@@ -72,14 +78,17 @@ for block in similar_blocks:
 
 ### 2. Semantic Alignment
 
-MAIF uses advanced algorithms to align semantic meaning across modalities:
+MAIF uses advanced algorithms to align semantic meaning across modalities. This allows you to query for concepts and have MAIF return relevant results regardless of the data type.
 
 ```python
-# Semantic alignment example
+# Mock image data.
+red_car_image = np.random.rand(100, 100, 3)
+
+# Add text and an image that are semantically related.
 artifact.add_text("Red sports car", metadata={"category": "vehicle"})
 artifact.add_image(red_car_image, metadata={"category": "vehicle"})
 
-# Query across modalities
+# Query for a general concept and retrieve results from both text and image modalities.
 results = artifact.search("fast vehicle", modalities=["text", "image"])
 for result in results:
     print(f"{result.type}: {result.title} - Score: {result.relevance:.3f}")
@@ -87,19 +96,22 @@ for result in results:
 
 ### 3. Contextual Understanding
 
-MAIF maintains context across different data types:
+MAIF maintains context across different data types within an artifact, enabling a holistic understanding of conversational or sequential multi-modal data.
 
 ```python
-# Context-aware multi-modal processing
+# Mock image data.
+user_uploaded_image = np.random.rand(100, 100, 3)
+
+# Create an artifact to hold a conversation.
 conversation_artifact = create_artifact("conversation", client)
 
-# Add conversation context
+# Add a sequence of text and image blocks representing a conversation.
 conversation_artifact.add_text("User: Can you describe this image?")
 conversation_artifact.add_image(user_uploaded_image)
 conversation_artifact.add_text("AI: This image shows a golden retriever playing in a park")
 conversation_artifact.add_text("User: What breed characteristics can you identify?")
 
-# The system maintains context across all modalities
+# The system can retrieve the full context, including all modalities.
 context = conversation_artifact.get_context()
 print(f"Conversation has {len(context.blocks)} blocks across {len(context.modalities)} modalities")
 ```
@@ -108,26 +120,21 @@ print(f"Conversation has {len(context.blocks)} blocks across {len(context.modali
 
 ### Text Processing
 
-Advanced natural language understanding with:
-- Sentiment analysis
-- Named entity recognition
-- Topic modeling
-- Language detection
-- PII identification
+MAIF provides advanced natural language understanding features that can be enabled when adding text data.
 
 ```python
-# Advanced text processing
+# Enable specific NLP features when adding a text block.
 text_block = artifact.add_text(
     "John Smith from Acme Corp called about the Q4 financial report",
     features={
-        "extract_entities": True,
-        "detect_pii": True,
-        "analyze_sentiment": True,
-        "extract_topics": True
+        "extract_entities": True,   # Named Entity Recognition (NER)
+        "detect_pii": True,         # Personally Identifiable Information detection
+        "analyze_sentiment": True,  # Sentiment analysis
+        "extract_topics": True      # Topic modeling
     }
 )
 
-# Access extracted features
+# Access the features extracted by the processing pipeline.
 features = text_block.get_features()
 print(f"Entities: {features.entities}")
 print(f"PII detected: {features.pii_detected}")
@@ -136,26 +143,24 @@ print(f"Sentiment: {features.sentiment}")
 
 ### Image Processing
 
-Computer vision capabilities including:
-- Object detection
-- Scene understanding
-- Facial recognition
-- OCR (text extraction)
-- Image classification
+MAIF offers a range of computer vision capabilities that can be applied to image data.
 
 ```python
-# Advanced image processing
+# Mock image data.
+image_data = np.random.rand(100, 100, 3)
+
+# Enable specific computer vision features for an image block.
 image_block = artifact.add_image(
     image_data,
     features={
-        "detect_objects": True,
-        "extract_text": True,
-        "analyze_scene": True,
-        "detect_faces": False  # Privacy-conscious
+        "detect_objects": True,     # Object detection
+        "extract_text": True,       # Optical Character Recognition (OCR)
+        "analyze_scene": True,      # Scene understanding
+        "detect_faces": False       # Disable face detection for privacy
     }
 )
 
-# Access visual features
+# Access the visual features extracted from the image.
 features = image_block.get_features()
 print(f"Objects detected: {features.objects}")
 print(f"Text in image: {features.extracted_text}")
@@ -164,27 +169,25 @@ print(f"Scene description: {features.scene_description}")
 
 ### Audio Processing
 
-Audio analysis and understanding:
-- Speech-to-text
-- Speaker identification
-- Emotion detection
-- Audio classification
-- Noise reduction
+MAIF can process audio data to extract speech, identify speakers, and understand emotional tone.
 
 ```python
-# Audio processing
+# Mock audio data.
+audio_data = np.random.rand(44100)
+
+# Enable audio analysis features when adding an audio block.
 audio_block = artifact.add_audio(
     audio_data,
     sample_rate=44100,
     features={
-        "transcribe": True,
-        "identify_speaker": True,
-        "detect_emotion": True,
-        "classify_audio": True
+        "transcribe": True,         # Speech-to-text
+        "identify_speaker": True,   # Speaker diarization/identification
+        "detect_emotion": True,     # Emotion detection from speech
+        "classify_audio": True      # Classify sounds (e.g., music, speech)
     }
 )
 
-# Access audio features
+# Access the features extracted from the audio.
 features = audio_block.get_features()
 print(f"Transcription: {features.transcription}")
 print(f"Speaker: {features.speaker_id}")
@@ -193,27 +196,25 @@ print(f"Emotion: {features.emotion}")
 
 ### Video Processing
 
-Video understanding capabilities:
-- Scene detection
-- Action recognition
-- Object tracking
-- Subtitle generation
-- Content moderation
+MAIF supports comprehensive video analysis, including scene detection, action recognition, and content moderation.
 
 ```python
-# Video processing
+# Mock video data.
+video_data = np.random.rand(10, 100, 100, 3) # 10 frames
+
+# Enable video processing features.
 video_block = artifact.add_video(
     video_data,
     features={
-        "detect_scenes": True,
-        "recognize_actions": True,
-        "track_objects": True,
-        "generate_captions": True,
-        "moderate_content": True
+        "detect_scenes": True,      # Detect scene changes
+        "recognize_actions": True,  # Recognize actions within the video
+        "track_objects": True,      # Track objects across frames
+        "generate_captions": True,  # Generate subtitles/captions
+        "moderate_content": True    # Check for sensitive content
     }
 )
 
-# Access video features
+# Access the features extracted from the video.
 features = video_block.get_features()
 print(f"Scenes: {len(features.scenes)}")
 print(f"Actions: {features.actions}")
@@ -224,18 +225,23 @@ print(f"Captions: {features.captions}")
 
 ### 1. Document Understanding
 
-Process documents with text, images, and tables:
+Process documents that contain a mix of text, images, and structured data to achieve a holistic understanding.
 
 ```python
-# Document processing
+# Mock data for a financial report.
+report_text = "The Q4 financial performance was strong..."
+chart_image = np.random.rand(100, 100, 3)
+financial_data = {"revenue": 1000, "profit": 200}
+
+# Create an artifact for the document.
 document_artifact = create_artifact("financial-report", client)
 
-# Add document components
+# Add the different components of the document to the artifact.
 document_artifact.add_text(report_text)
 document_artifact.add_image(chart_image, metadata={"type": "chart"})
 document_artifact.add_structured_data(financial_data, metadata={"type": "table"})
 
-# Unified document understanding
+# Generate a summary that considers all modalities to provide a complete overview.
 summary = document_artifact.summarize(
     include_modalities=["text", "image", "structured"],
     focus="financial_performance"
@@ -245,26 +251,37 @@ print(f"Document summary: {summary}")
 
 ### 2. Content Moderation
 
-Multi-modal content safety:
+MAIF can perform multi-modal content safety analysis to detect inappropriate content across text, images, and video simultaneously. This is crucial for maintaining safe online platforms.
 
 ```python
-# Content moderation across modalities
-content_artifact = create_artifact("user-content", client)
+from maif_sdk import ModerationPolicy
 
-# Add user-generated content
-content_artifact.add_text(user_comment)
-content_artifact.add_image(user_image)
-content_artifact.add_video(user_video)
-
-# Comprehensive moderation
-moderation_result = content_artifact.moderate_content(
-    policies=["hate_speech", "violence", "adult_content"],
-    confidence_threshold=0.8
+# Define a content moderation policy.
+moderation_policy = ModerationPolicy(
+    rules={
+        "hate_speech": {"threshold": 0.8, "action": "block"},
+        "violence": {"threshold": 0.9, "action": "alert"},
+        "adult_content": {"threshold": 0.7, "action": "blur"}
+    }
 )
 
-if moderation_result.requires_action:
-    print(f"Content flagged: {moderation_result.violations}")
-    print(f"Confidence: {moderation_result.confidence}")
+# Create an artifact with the moderation policy attached.
+moderation_artifact = create_artifact(
+    "content-feed", client, moderation_policy=moderation_policy
+)
+
+# Add multi-modal content to the artifact.
+# MAIF will automatically check it against the policy.
+moderation_result = moderation_artifact.add_post(
+    text="Some user-generated text.",
+    image=user_uploaded_image,
+    video=user_uploaded_video # Assuming this variable exists
+)
+
+# Check the moderation results.
+if moderation_result.is_flagged:
+    print(f"Content flagged for: {moderation_result.reasons}")
+    print(f"Action taken: {moderation_result.action}")
 ```
 
 ### 3. Interactive AI Assistant

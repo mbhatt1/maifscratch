@@ -66,12 +66,13 @@ graph TB
 
 ### 1. Basic Cluster Configuration
 
-Set up a multi-node MAIF cluster:
+Set up a multi-node MAIF cluster. The following Python code demonstrates how to define a cluster configuration and use the `ClusterManager` to initialize, monitor, and verify the health of a distributed MAIF cluster.
 
 ```python
 from maif_sdk import ClusterManager, NodeConfig
+import asyncio
 
-# Define cluster configuration
+# Define the configuration for a three-node cluster with different roles.
 cluster_config = {
     "cluster_name": "production-cluster",
     "nodes": [
@@ -79,50 +80,51 @@ cluster_config = {
             "id": "node-1",
             "host": "10.0.1.10",
             "port": 8080,
-            "role": "primary",
+            "role": "primary",  # Handles write operations and coordination.
             "resources": {"cpu": 8, "memory": "32GB", "storage": "1TB"}
         },
         {
             "id": "node-2", 
             "host": "10.0.1.11",
             "port": 8080,
-            "role": "secondary",
+            "role": "secondary", # Serves as a replica for high availability.
             "resources": {"cpu": 8, "memory": "32GB", "storage": "1TB"}
         },
         {
             "id": "node-3",
             "host": "10.0.1.12", 
             "port": 8080,
-            "role": "cache",
+            "role": "cache", # Provides low-latency read access.
             "resources": {"cpu": 4, "memory": "64GB", "storage": "500GB"}
         }
     ],
-    "replication_factor": 3,
-    "consistency_level": "quorum"
+    "replication_factor": 3, # Ensures data is replicated across 3 nodes.
+    "consistency_level": "quorum" # Requires a majority of nodes to acknowledge a write.
 }
 
-# Initialize cluster manager
+# Initialize the cluster manager with the defined configuration.
 cluster_manager = ClusterManager(cluster_config)
 
 async def setup_cluster():
-    # Start cluster
+    # Start the cluster and all its nodes.
     await cluster_manager.start_cluster()
     
-    # Wait for all nodes to join
+    # Wait for all nodes to join and the cluster to become operational.
     await cluster_manager.wait_for_cluster_ready(timeout="300s")
     
-    # Verify cluster health
+    # Perform a health check to verify the cluster's status.
     health_status = await cluster_manager.check_cluster_health()
     print(f"Cluster status: {health_status.status}")
     print(f"Active nodes: {health_status.active_nodes}")
     print(f"Replication status: {health_status.replication_status}")
 
-await setup_cluster()
+# Run the asynchronous setup function.
+asyncio.run(setup_cluster())
 ```
 
 ### 2. Kubernetes Deployment
 
-Deploy MAIF on Kubernetes:
+Deploy MAIF on Kubernetes using a `StatefulSet` for stable, persistent storage and network identifiers. The following YAML configuration defines the necessary `ConfigMap`, `StatefulSet`, and `VolumeClaimTemplates`.
 
 ```yaml
 # maif-cluster.yaml
@@ -131,29 +133,27 @@ kind: ConfigMap
 metadata:
   name: maif-config
 data:
+  # cluster.yaml provides configuration for the MAIF cluster.
   cluster.yaml: |
     cluster:
       name: "k8s-maif-cluster"
       replication_factor: 3
       consistency_level: "quorum"
-    
     storage:
       type: "distributed"
       backend: "persistent-volume"
       size: "1Ti"
-    
     networking:
       service_type: "ClusterIP"
       port: 8080
-      
 ---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: maif-cluster
 spec:
-  serviceName: maif-headless
-  replicas: 3
+  serviceName: maif-headless # Headless service for direct pod communication.
+  replicas: 3 # Creates a 3-node cluster.
   selector:
     matchLabels:
       app: maif
@@ -168,17 +168,19 @@ spec:
         ports:
         - containerPort: 8080
         env:
+        # Each pod gets a unique ID from its metadata name.
         - name: MAIF_NODE_ID
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        # Mount the configuration from the ConfigMap.
         - name: MAIF_CLUSTER_CONFIG
           value: "/config/cluster.yaml"
         volumeMounts:
         - name: config
           mountPath: /config
         - name: data
-          mountPath: /data
+          mountPath: /data # Mount for persistent data.
         resources:
           requests:
             cpu: 2
@@ -190,6 +192,7 @@ spec:
       - name: config
         configMap:
           name: maif-config
+  # Persistent storage for each pod.
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -200,133 +203,90 @@ spec:
           storage: 1Ti
 ```
 
+You can then use the `KubernetesDeployer` to apply this configuration and manage the deployment.
+
 ```python
 # Deploy to Kubernetes
 from kubernetes import client, config
 from maif_sdk import KubernetesDeployer
+import asyncio
 
-# Load Kubernetes configuration
-config.load_incluster_config()  # or load_kube_config() for local
+# Load Kubernetes configuration from within a cluster or from a local kubeconfig file.
+try:
+    config.load_incluster_config()
+except config.ConfigException:
+    config.load_kube_config()
 
-# Deploy MAIF cluster
+# Initialize the MAIF Kubernetes deployer.
 k8s_deployer = KubernetesDeployer()
 
 async def deploy_to_kubernetes():
-    # Deploy the cluster
+    # Deploy the cluster using the YAML file.
     deployment_result = await k8s_deployer.deploy_from_yaml("maif-cluster.yaml")
     
-    # Wait for deployment to be ready
+    # Wait for the StatefulSet to become ready.
     await k8s_deployer.wait_for_ready(
         namespace="default",
         statefulset="maif-cluster",
         timeout="600s"
     )
     
-    # Get cluster endpoints
+    # Retrieve the network endpoints for the cluster services.
     endpoints = await k8s_deployer.get_cluster_endpoints("maif-cluster")
     
-    print(f"MAIF cluster deployed successfully")
+    print("MAIF cluster deployed successfully")
     print(f"Endpoints: {endpoints}")
 
-await deploy_to_kubernetes()
+# Run the asynchronous deployment function.
+asyncio.run(deploy_to_kubernetes())
 ```
 
 ### 3. Docker Swarm Deployment
 
-Deploy using Docker Swarm:
+Deploy MAIF on Docker Swarm using a `docker-compose.yml` file. This configuration sets up a 3-node MAIF cluster as a stack, with constraints to ensure proper node placement.
 
 ```yaml
 # docker-compose.yml
 version: '3.8'
 
 services:
-  maif-node-1:
+  maif-manager:
     image: maif/maif-enterprise:latest
-    deploy:
-      replicas: 1
-      placement:
-        constraints:
-          - node.role == manager
-    environment:
-      - MAIF_NODE_ID=node-1
-      - MAIF_NODE_ROLE=primary
-      - MAIF_CLUSTER_NODES=maif-node-1,maif-node-2,maif-node-3
+    command: maif --role manager --join-token-file /data/join-token
     ports:
       - "8080:8080"
     volumes:
-      - maif-data-1:/data
-    networks:
-      - maif-network
-
-  maif-node-2:
-    image: maif/maif-enterprise:latest
+      - maif-data:/data
+    environment:
+      - MAIF_CLUSTER_NAME=swarm-cluster
+      - MAIF_REPLICATION_FACTOR=3
     deploy:
       replicas: 1
       placement:
         constraints:
-          - node.role == worker
-    environment:
-      - MAIF_NODE_ID=node-2
-      - MAIF_NODE_ROLE=secondary
-      - MAIF_CLUSTER_NODES=maif-node-1,maif-node-2,maif-node-3
-    ports:
-      - "8081:8080"
-    volumes:
-      - maif-data-2:/data
-    networks:
-      - maif-network
-
-  maif-node-3:
+          - node.role == manager # Place the manager on a swarm manager node.
+  
+  maif-worker:
     image: maif/maif-enterprise:latest
+    command: maif --role worker --join-token $$(cat /data/join-token)
+    volumes:
+      - maif-data:/data
+    depends_on:
+      - maif-manager
     deploy:
-      replicas: 1
+      replicas: 2 # Create two worker nodes.
       placement:
         constraints:
-          - node.role == worker
-    environment:
-      - MAIF_NODE_ID=node-3
-      - MAIF_NODE_ROLE=cache
-      - MAIF_CLUSTER_NODES=maif-node-1,maif-node-2,maif-node-3
-    ports:
-      - "8082:8080"
-    volumes:
-      - maif-data-3:/data
-    networks:
-      - maif-network
+          - node.role == worker # Place workers on swarm worker nodes.
 
 volumes:
-  maif-data-1:
-  maif-data-2:
-  maif-data-3:
-
-networks:
-  maif-network:
-    driver: overlay
-    attachable: true
+  maif-data: # Shared volume for cluster state and data.
 ```
 
-```python
-# Deploy with Docker Swarm
-from maif_sdk import DockerSwarmDeployer
+To deploy this stack to your Docker Swarm cluster, you would run the following command:
 
-swarm_deployer = DockerSwarmDeployer()
-
-async def deploy_to_swarm():
-    # Deploy the stack
-    await swarm_deployer.deploy_stack(
-        stack_name="maif-cluster",
-        compose_file="docker-compose.yml"
-    )
-    
-    # Monitor deployment
-    deployment_status = await swarm_deployer.monitor_deployment(
-        stack_name="maif-cluster",
-        timeout="300s"
-    )
-    
-    print(f"Swarm deployment status: {deployment_status}")
-
-await deploy_to_swarm()
+```bash
+docker stack deploy -c docker-compose.yml maif_stack
 ```
 
 ## Load Balancing

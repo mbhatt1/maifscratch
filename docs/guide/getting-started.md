@@ -71,22 +71,25 @@ Let's build a privacy-aware AI agent that can remember conversations, understand
 
 ### Step 1: Basic Agent Setup
 
+This first step initializes the MAIF client and creates a secure, persistent memory space for our agent called an "artifact". The following code sets up the client and the agent's memory.
+
 ```python
 from maif_sdk import create_client, create_artifact
 from maif import PrivacyLevel, SecurityLevel
 
-# Create a high-performance MAIF client
+# Create a high-performance MAIF client.
+# The client is the main entry point for interacting with the MAIF framework.
 client = create_client(
-    agent_id="my-first-agent",
-    enable_mmap=True,        # Memory-mapped I/O for performance
-    enable_compression=True   # Automatic compression
+    agent_id="my-first-agent", # A unique identifier for your agent.
+    enable_mmap=True,        # Use memory-mapped I/O for faster data access, ideal for large artifacts.
+    enable_compression=True   # Automatically compress data to save space.
 )
 
-# Create an artifact (agent's persistent memory)
+# Create an artifact, which acts as the agent's persistent and verifiable memory.
 memory = create_artifact(
-    name="agent-memory", 
-    client=client,
-    security_level=SecurityLevel.CONFIDENTIAL
+    name="agent-memory",      # A human-readable name for the memory artifact.
+    client=client,            # Associate the artifact with our client.
+    security_level=SecurityLevel.CONFIDENTIAL # Set a default security level for all data in this artifact.
 )
 
 print("✅ Agent memory initialized!")
@@ -94,27 +97,30 @@ print("✅ Agent memory initialized!")
 
 ### Step 2: Add Encrypted Content
 
+Here, we add both unstructured text and structured data to the agent's memory. MAIF automatically handles encryption and prepares the data for semantic understanding.
+
 ```python
-# Add text with automatic encryption and semantic embedding
+# Add a text block to the memory.
+# This operation automatically encrypts the content and generates a semantic embedding.
 conversation_id = memory.add_text(
-    "User asked about quarterly sales data. Need to analyze revenue trends.",
-    title="Sales Query",
-    encrypt=True,                    # Automatic AES-GCM encryption
-    privacy_level=PrivacyLevel.CONFIDENTIAL,
-    metadata={
+    "User asked about quarterly sales data. Need to analyze revenue trends.", # The content to be stored.
+    title="Sales Query", # A title for easy identification.
+    encrypt=True,        # Explicitly request AES-GCM encryption for this block.
+    privacy_level=PrivacyLevel.CONFIDENTIAL, # Define the privacy level, which can trigger specific policies.
+    metadata={           # Add structured metadata for filtering and context.
         "topic": "sales_analysis",
         "timestamp": "2024-01-15T10:30:00Z",
         "user_id": "user_123"
     }
 )
 
-# Add structured data with semantic understanding
+# Add a multi-modal block, which can store complex, structured data.
 analysis_id = memory.add_multimodal({
     "query": "quarterly sales analysis",
     "data_sources": ["crm_db", "sales_reports"],
     "analysis_type": "trend_analysis",
     "confidence": 0.87
-}, title="Analysis Request")
+}, title="Analysis Request") # This data is also ready for semantic search.
 
 print(f"✅ Added encrypted conversation: {conversation_id}")
 print(f"✅ Added semantic analysis: {analysis_id}")
@@ -122,40 +128,52 @@ print(f"✅ Added semantic analysis: {analysis_id}")
 
 ### Step 3: Semantic Search & Retrieval
 
+Next, we persist the agent's memory by saving it to a file, then load it back and perform a semantic search to retrieve information based on conceptual relevance.
+
 ```python
-# Save the artifact with cryptographic signatures
+# Save the artifact to a file. This creates a secure, portable `.maif` file.
+# The `sign=True` parameter adds a cryptographic signature to prevent tampering.
 signature = memory.save("agent-memory.maif", sign=True)
 print(f"✅ Memory saved with signature: {signature[:16]}...")
 
-# Reload and perform semantic search
+# Load the artifact from the file.
 from maif_sdk import load_artifact
 
+# The loaded artifact is now ready to be used, with its integrity verified.
 loaded_memory = load_artifact("agent-memory.maif")
 
-# Search for related content using semantic understanding
+# Perform a semantic search on the artifact's content.
+# The query doesn't need to match the stored text exactly.
 results = loaded_memory.search(
-    query="sales data analysis revenue",
-    top_k=5,
-    include_metadata=True
+    query="sales data analysis revenue", # The search query.
+    top_k=5,                             # Return the top 5 most relevant results.
+    include_metadata=True                # Include metadata in the search results.
 )
 
+# Print the search results.
 for result in results:
     print(f"Found: {result['title']} (similarity: {result['score']:.3f})")
 ```
 
 ### Step 4: Privacy & Audit Verification
 
+Finally, we showcase MAIF's built-in security features by verifying the artifact's integrity, generating a privacy report, and retrieving the complete audit trail.
+
 ```python
-# Verify integrity and audit trail
+# Verify the cryptographic integrity of the artifact.
 integrity_report = loaded_memory.verify_integrity()
+
+# Get a report on the privacy status of the data.
 privacy_report = loaded_memory.get_privacy_report()
+
+# Retrieve the complete, immutable audit trail.
 audit_trail = loaded_memory.get_audit_trail()
 
 print(f"🔒 Integrity verified: {integrity_report['valid']}")
 print(f"🛡️  Privacy level: {privacy_report['encryption_status']}")
 print(f"📋 Audit entries: {len(audit_trail)} operations recorded")
 
-# Check what data is encrypted
+# Display the operations recorded in the audit trail.
 for entry in audit_trail:
     print(f"  - {entry['timestamp']}: {entry['operation']} by {entry['agent_id']}")
 ```
@@ -172,29 +190,33 @@ for entry in audit_trail:
 
 ## Real-World Example: Chat Agent with Memory
 
-Now let's build a more realistic chat agent that remembers conversations and learns from interactions:
+The code below defines a `PrivacyAwareChatAgent` class that uses MAIF to manage its memory. It demonstrates how to initialize the agent, handle chat messages, search for context, and store both user inputs and agent responses securely.
 
 ```python
 from maif_sdk import create_client, create_artifact
-from maif import PrivacyPolicy, EncryptionMode
+from maif import PrivacyPolicy, EncryptionMode, PrivacyLevel
 import datetime
 
 class PrivacyAwareChatAgent:
+    """A chat agent that uses MAIF to maintain a persistent, private memory."""
     def __init__(self, agent_id: str):
-        self.client = create_client(agent_id)
+        """Initializes the agent, client, and memory artifact."""
+        self.agent_id = agent_id
+        self.client = create_client(self.agent_id)
         self.memory = create_artifact(f"{agent_id}-memory", self.client)
         
-        # Set up privacy policy
+        # Define a strict privacy policy for all data handled by this agent.
         self.privacy_policy = PrivacyPolicy(
-            privacy_level=PrivacyLevel.CONFIDENTIAL,
-            encryption_mode=EncryptionMode.AES_GCM,
-            anonymization_required=True,
-            audit_required=True
+            privacy_level=PrivacyLevel.CONFIDENTIAL, # Classify data as confidential.
+            encryption_mode=EncryptionMode.AES_GCM,   # Use strong AES-GCM encryption.
+            anonymization_required=True,              # Require anonymization where applicable.
+            audit_required=True                       # Ensure all operations are audited.
         )
     
-    def chat(self, user_message: str, user_id: str = None) -> str:
-        # Store user message with privacy protection
-        msg_id = self.memory.add_text(
+    def chat(self, user_message: str, user_id: str = "user_abc") -> str:
+        """Handles a user message, stores it, retrieves context, and generates a response."""
+        # Store the user's message securely according to the privacy policy.
+        self.memory.add_text(
             user_message,
             title="User Message",
             privacy_policy=self.privacy_policy,
@@ -205,14 +227,15 @@ class PrivacyAwareChatAgent:
             }
         )
         
-        # Search for relevant context from previous conversations
+        # Search memory for relevant context to inform the response.
         context = self.memory.search(user_message, top_k=3)
         
-        # Generate response (integrate with your LLM here)
+        # Generate a response using the message and retrieved context.
+        # In a real application, you would integrate your Language Model (LLM) here.
         response = self._generate_response(user_message, context)
         
-        # Store agent response
-        response_id = self.memory.add_text(
+        # Store the agent's response for future context.
+        self.memory.add_text(
             response,
             title="Agent Response", 
             privacy_policy=self.privacy_policy,
@@ -220,42 +243,36 @@ class PrivacyAwareChatAgent:
                 "user_id": user_id,
                 "timestamp": datetime.datetime.now().isoformat(),
                 "message_type": "agent_response",
-                "context_used": [c['id'] for c in context]
+                "context_used": [c['id'] for c in context] # Link to context blocks.
             }
         )
         
-        # Periodic save with signature
-        if self.memory.get_unsaved_count() > 10:
-            self.memory.save(f"{self.client.agent_id}-memory.maif", sign=True)
+        # Periodically save the memory artifact to disk to ensure persistence.
+        if self.memory.get_unsaved_count() > 5:
+            self.memory.save(f"{self.agent_id}-memory.maif", sign=True)
+            print(f"📝 Memory saved for agent {self.agent_id}")
         
         return response
-    
+
     def _generate_response(self, message: str, context: list) -> str:
-        # Placeholder for your LLM integration
-        context_str = "\n".join([c['content'][:100] for c in context])
-        return f"Based on our previous conversations about: {context_str}\n\nI understand you're asking about: {message}"
-    
-    def get_conversation_summary(self) -> dict:
-        """Get privacy-compliant conversation analytics"""
-        return {
-            "total_messages": self.memory.count_blocks_by_type("text"),
-            "privacy_status": self.memory.get_privacy_report(),
-            "audit_entries": len(self.memory.get_audit_trail()),
-            "semantic_clusters": self.memory.analyze_semantic_clusters()
-        }
+        """A simple mock response generator."""
+        if context:
+            return f"Based on our previous discussion about '{context[0]['title']}', I think..."
+        return f"I understand you're asking about '{message}'. I'm still learning about that."
 
-# Usage
-agent = PrivacyAwareChatAgent("customer-support-bot")
+# --- Example Usage ---
+# Initialize the agent
+chat_agent = PrivacyAwareChatAgent("financial-advisor-001")
 
-# Simulate conversation
-response1 = agent.chat("I'm having trouble with my account login", "user_123")
-response2 = agent.chat("The password reset email isn't arriving", "user_123")
-response3 = agent.chat("Thanks, that fixed it!", "user_123")
+# Simulate a conversation
+chat_agent.chat("What were our sales figures last quarter?")
+response = chat_agent.chat("Can you analyze the revenue trend?")
+print(f"Agent Response: {response}")
 
-# Get insights while respecting privacy
-summary = agent.get_conversation_summary()
-print(f"💬 Handled {summary['total_messages']} messages with full privacy compliance")
+# The agent's memory is automatically saved as `financial-advisor-001-memory.maif`
 ```
+
+This comprehensive example illustrates how MAIF can be integrated into a practical application to create sophisticated, privacy-aware AI agents.
 
 ## What You Just Built
 

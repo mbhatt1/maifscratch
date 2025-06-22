@@ -58,58 +58,68 @@ graph TB
 
 ### 1. Basic Transactions
 
-Simple transaction operations:
+Simple transaction operations. The following example demonstrates how to use a `Transaction` context manager to ensure that a series of operations (creating an artifact and adding blocks) are treated as a single, atomic unit.
 
 ```python
 from maif_sdk import create_client, Transaction
+import asyncio
+import numpy as np
 
-# Create client with transaction support
+# Create a client with transaction support enabled in 'strict_acid' mode.
 client = create_client(
     endpoint="https://api.maif.ai",
     api_key="your-api-key",
     transaction_mode="strict_acid"
 )
 
-# Basic transaction
+# Mock image data for the example.
+document_image = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
+# This example shows a basic transaction that commits automatically on success.
 async def basic_transaction_example():
-    # Start transaction
+    # The `async with` statement ensures the transaction is either committed or rolled back.
     async with Transaction(client) as tx:
-        # Create artifact within transaction
+        # 1. Create an artifact within the transaction scope.
         artifact = await tx.create_artifact("transaction-demo")
         
-        # Add multiple blocks atomically
+        # 2. Add multiple blocks atomically. If any of these fail, the transaction rolls back.
         text_id = await artifact.add_text("Important document")
         image_id = await artifact.add_image(document_image)
         
-        # Add metadata
+        # 3. Add metadata to the artifact.
         await artifact.add_metadata({
             "document_type": "contract",
             "status": "draft",
             "created_by": "user123"
         })
         
-        # Transaction automatically commits on success
-        # or rolls back on any exception
+        # The transaction automatically commits here if no exceptions were raised.
         
     print("Transaction completed successfully")
 
-# Run the transaction
-await basic_transaction_example()
+# Run the asynchronous transaction example.
+asyncio.run(basic_transaction_example())
 ```
 
 ### 2. Complex Multi-Artifact Transactions
 
-Coordinate operations across multiple artifacts:
+Coordinate operations across multiple artifacts within a single transaction. This is useful for maintaining referential integrity between related but separate data entities.
 
 ```python
+import asyncio
+from maif_sdk import create_client, Transaction
+
+# Assume 'client' is already created from the previous example.
+
 async def multi_artifact_transaction():
+    # Use a 'SERIALIZABLE' isolation level to ensure the highest level of data integrity.
     async with Transaction(client, isolation_level="SERIALIZABLE") as tx:
-        # Create multiple related artifacts
+        # 1. Create multiple artifacts that will be linked together.
         user_artifact = await tx.create_artifact("user-profile")
         document_artifact = await tx.create_artifact("user-documents")
         analytics_artifact = await tx.create_artifact("user-analytics")
         
-        # Add user profile data
+        # 2. Add data to the user profile artifact.
         profile_id = await user_artifact.add_structured_data({
             "user_id": "user123",
             "name": "John Doe",
@@ -117,13 +127,13 @@ async def multi_artifact_transaction():
             "status": "active"
         })
         
-        # Add user documents
+        # 3. Add a document related to the user.
         doc_id = await document_artifact.add_text(
             "User agreement document",
             metadata={"user_id": "user123", "type": "agreement"}
         )
         
-        # Create relationships between artifacts
+        # 4. Create an explicit relationship between the user's profile and their document.
         await tx.create_relationship(
             source_artifact=user_artifact,
             source_block=profile_id,
@@ -132,26 +142,31 @@ async def multi_artifact_transaction():
             relationship_type="owns"
         )
         
-        # Update analytics
+        # 5. Update an analytics artifact with the new information.
         await analytics_artifact.add_structured_data({
             "user_id": "user123",
             "documents_count": 1,
             "last_activity": "2024-01-15T10:30:00Z"
         })
         
-        # All operations commit together or roll back together
+        # All of the above operations will commit or roll back together.
 
-await multi_artifact_transaction()
+# Run the asynchronous multi-artifact transaction example.
+asyncio.run(multi_artifact_transaction())
 ```
 
 ## Consistency Models
 
 ### 1. Strong Consistency
 
-Ensure immediate consistency across all operations:
+Ensure immediate consistency across all operations. This model is ideal for use cases where data must be perfectly up-to-date across all replicas, such as financial transactions.
 
 ```python
-# Strong consistency configuration
+from maif_sdk import create_client, Transaction
+import asyncio
+
+# This client is configured for strong consistency, reading from the primary
+# node and requiring a majority of nodes to acknowledge writes.
 strong_client = create_client(
     endpoint="https://api.maif.ai",
     consistency_model="strong",
@@ -163,25 +178,31 @@ async def strong_consistency_example():
     async with Transaction(strong_client) as tx:
         artifact = await tx.create_artifact("strong-consistency")
         
-        # Write data
+        # Write some critical data.
         block_id = await artifact.add_text("Critical financial data")
         
-        # Immediate read will see the write
+        # An immediate read is guaranteed to see the write.
         retrieved_block = await artifact.get_block(block_id)
         assert retrieved_block.content == "Critical financial data"
         
-        # All replicas are immediately consistent
+        # Ensure the data is consistent across all replicas before proceeding.
         await tx.ensure_global_consistency()
+        print("Data is now globally consistent.")
 
-await strong_consistency_example()
+# Run the asynchronous strong consistency example.
+asyncio.run(strong_consistency_example())
 ```
 
 ### 2. Eventual Consistency
 
-Optimize for performance with eventual consistency:
+Optimize for performance and availability with eventual consistency. This model allows for temporary inconsistencies between replicas, which is suitable for less critical data like analytics.
 
 ```python
-# Eventual consistency configuration
+from maif_sdk import create_client, Transaction
+import asyncio
+
+# This client is configured for eventual consistency, with a timeout
+# to specify how long the system might be in an inconsistent state.
 eventual_client = create_client(
     endpoint="https://api.maif.ai",
     consistency_model="eventual",
@@ -192,25 +213,31 @@ async def eventual_consistency_example():
     async with Transaction(eventual_client) as tx:
         artifact = await tx.create_artifact("eventual-consistency")
         
-        # Write data
+        # Write data that doesn't need to be immediately consistent.
         block_id = await artifact.add_text("High-volume analytics data")
         
-        # May need to wait for consistency
+        # In an eventually consistent system, you may need to wait for replicas to catch up.
         await tx.wait_for_consistency(block_id, timeout="5s")
         
-        # Now guaranteed to be consistent across replicas
+        # After waiting, the data is guaranteed to be consistent.
         retrieved_block = await artifact.get_block(block_id)
         assert retrieved_block is not None
+        print("Data has reached eventual consistency.")
 
-await eventual_consistency_example()
+# Run the asynchronous eventual consistency example.
+asyncio.run(eventual_consistency_example())
 ```
 
 ### 3. Causal Consistency
 
-Maintain causal relationships between operations:
+Maintain causal relationships between operations, ensuring that if one operation logically depends on another, the dependency is respected across replicas.
 
 ```python
-# Causal consistency for related operations
+from maif_sdk import create_client, Transaction
+import asyncio
+
+# This client is configured for causal consistency, using vector clocks
+# to track dependencies between operations.
 causal_client = create_client(
     endpoint="https://api.maif.ai",
     consistency_model="causal",
@@ -221,46 +248,54 @@ async def causal_consistency_example():
     async with Transaction(causal_client) as tx:
         artifact = await tx.create_artifact("causal-consistency")
         
-        # First operation
+        # The first operation creates a user.
         user_id = await artifact.add_structured_data({
             "user_id": "user123",
             "name": "John Doe"
         })
         
-        # Causally dependent operation
-        # This will always see the user creation
+        # This second operation is causally dependent on the first.
+        # It will always see the user creation event before executing.
         profile_id = await artifact.add_structured_data({
-            "user_id": "user123",  # References the user
+            "user_id": "user123",
             "preferences": {"theme": "dark"},
-            "depends_on": user_id  # Explicit causal dependency
+            "depends_on": user_id  # This explicitly defines the causal link.
         })
         
-        # Causal consistency ensures proper ordering
+        # This function enforces that the operations are applied in the correct causal order.
         await tx.enforce_causal_ordering([user_id, profile_id])
+        print("Causal ordering has been enforced.")
 
-await causal_consistency_example()
+# Run the asynchronous causal consistency example.
+asyncio.run(causal_consistency_example())
 ```
 
 ## Isolation Levels
 
 ### 1. Read Uncommitted
 
-Lowest isolation level for maximum performance:
+The `Read Uncommitted` isolation level provides the highest performance but the lowest level of data integrity. In this mode, one transaction can read data that has been modified by another transaction but has not yet been committed. This can lead to "dirty reads." It is suitable for applications where performance is critical and occasional inconsistent data is acceptable.
 
 ```python
-async def read_uncommitted_example():
-    async with Transaction(client, isolation_level="READ_UNCOMMITTED") as tx:
-        artifact = await tx.create_artifact("read-uncommitted")
-        
-        # Can read uncommitted changes from other transactions
-        # Fastest but may see dirty reads
-        blocks = await artifact.search("recent data", 
-                                     include_uncommitted=True)
-        
-        for block in blocks:
-            print(f"Block: {block.content} (committed: {block.is_committed})")
+from maif_sdk import create_client, Transaction, IsolationLevel
+import asyncio
 
-await read_uncommitted_example()
+# This client is configured for Read Uncommitted isolation.
+client = create_client(
+    endpoint="https://api.maif.ai",
+    default_isolation_level=IsolationLevel.READ_UNCOMMITTED
+)
+
+async def read_uncommitted_example():
+    # In this transaction, we can read data that other transactions have modified
+    # but not yet committed.
+    async with Transaction(client) as tx:
+        # This read might retrieve a "dirty" value from another concurrent transaction.
+        value = await tx.get_value("some_key")
+        print(f"Read value: {value} (might be uncommitted)")
+
+# Run the asynchronous example.
+asyncio.run(read_uncommitted_example())
 ```
 
 ### 2. Read Committed

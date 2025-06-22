@@ -46,31 +46,45 @@ graph TB
 
 ### 1. Differential Privacy
 
-Differential Privacy provides mathematical guarantees that individual data cannot be identified from aggregate results.
+Differential Privacy provides mathematical guarantees that individual data cannot be identified from aggregate results. MAIF allows you to apply differential privacy mechanisms when adding or querying data.
 
 ```python
 from maif.privacy import DifferentialPrivacy
+from maif_sdk import create_artifact
 
-# Configure differential privacy
-dp = DifferentialPrivacy(
-    epsilon=1.0,        # Privacy budget
-    delta=1e-5,         # Failure probability
-    mechanism="Laplace" # Noise mechanism
+# Assume an artifact object is already created.
+artifact = create_artifact("privacy-demo")
+
+# Configure an advanced differential privacy mechanism.
+# Epsilon is the privacy budget (lower is more private).
+# Delta is the probability of the privacy guarantee failing (lower is better).
+# We use Rényi Differential Privacy (RDP) for tighter composition of budgets.
+dp_advanced = DifferentialPrivacy(
+    epsilon=0.5,
+    delta=1e-6,
+    mechanism="Gaussian",
+    composition="RDP",
+    privacy_accounting=True # Track privacy budget consumption.
 )
 
-# Add data with differential privacy
+# Add sensitive data to an artifact with differential privacy enabled.
+# The privacy engine will automatically add noise to the data's representation.
 artifact.add_text(
-    "Sensitive customer feedback",
-    privacy_engine=dp,
+    "Sensitive customer feedback about product X",
+    privacy_engine=dp_advanced,
     anonymize=True
 )
 
-# Query with privacy guarantees
+# When querying the data, the results are perturbed to protect privacy.
 results = artifact.search(
     "customer satisfaction",
-    privacy_engine=dp,
-    noise_scale="auto"
+    privacy_engine=dp_advanced,
+    noise_scale="auto" # Automatically calibrate noise based on query sensitivity.
 )
+
+# You can track the consumption of the privacy budget.
+remaining_budget = dp_advanced.get_remaining_budget()
+print(f"Remaining privacy budget: {remaining_budget}")
 ```
 
 **Key Features:**
@@ -78,52 +92,42 @@ results = artifact.search(
 - **Adaptive Noise**: Automatic noise calibration based on query sensitivity
 - **Privacy Accounting**: Track and manage privacy budget consumption
 
-```python
-# Advanced differential privacy configuration
-dp_advanced = DifferentialPrivacy(
-    epsilon=0.5,
-    delta=1e-6,
-    mechanism="Gaussian",
-    composition="RDP",  # Rényi Differential Privacy
-    privacy_accounting=True
-)
-
-# Check remaining privacy budget
-remaining_budget = dp_advanced.get_remaining_budget()
-print(f"Remaining privacy budget: {remaining_budget}")
-```
-
 ### 2. Data Anonymization
 
-Automatic detection and anonymization of personally identifiable information (PII).
+MAIF provides tools for the automatic detection and anonymization of personally identifiable information (PII) to help comply with regulations like GDPR.
 
 ```python
 from maif.privacy import Anonymizer, PIIDetector
+from maif_sdk import create_artifact
 
-# Configure PII detection
+artifact = create_artifact("anonymization-demo")
+
+# Configure a PII detector to find common identifiers and custom patterns.
 pii_detector = PIIDetector(
     detect_names=True,
     detect_emails=True,
     detect_phone_numbers=True,
     detect_ssn=True,
-    detect_credit_cards=True,
-    custom_patterns=["CUST-\d{6}"]  # Custom patterns
+    custom_patterns=["CUST-\d{6}"] # Example: Find custom customer IDs.
 )
 
-# Configure anonymization
+# Configure an anonymizer using the k-anonymity method.
+# This ensures each record is indistinguishable from at least k-1 other records.
 anonymizer = Anonymizer(
     method="k_anonymity",
     k_value=5,
-    preserve_utility=True,
-    reversible=False  # Set to True for pseudonymization
+    preserve_utility=True, # Attempt to preserve data utility post-anonymization.
+    reversible=False
 )
 
-# Process data with anonymization
+# Process a text block containing PII. The detector and anonymizer will
+# automatically find and mask the sensitive information before storage.
 artifact.add_text(
-    "Customer John Smith (john@email.com, SSN: 123-45-6789) called about his account CUST-123456",
+    "Customer John Smith (john@email.com, SSN: 123-45-6789) called about CUST-123456",
     pii_detector=pii_detector,
     anonymizer=anonymizer
 )
+print("PII has been detected and anonymized.")
 ```
 
 **Anonymization Methods:**
@@ -134,142 +138,157 @@ artifact.add_text(
 
 ### 3. Homomorphic Encryption
 
-Perform computations on encrypted data without decrypting it.
+Homomorphic Encryption allows you to perform computations directly on encrypted data without needing to decrypt it first, which is ideal for secure analytics.
 
 ```python
 from maif.privacy import HomomorphicEncryption
+from maif_sdk import create_artifact
 
-# Configure homomorphic encryption
+artifact = create_artifact("he-demo")
+
+# Configure a homomorphic encryption scheme.
+# CKKS is suitable for computations on real numbers (e.g., for machine learning).
 he = HomomorphicEncryption(
-    scheme="CKKS",      # Complex numbers
+    scheme="CKKS",
     poly_modulus_degree=8192,
     coeff_modulus=[40, 40, 40, 40, 40],
     scale=2**40
 )
 
-# Encrypt sensitive numerical data
+# Encrypt a list of sensitive numerical data points.
 encrypted_data = he.encrypt([1.5, 2.3, 3.7, 4.1])
 
-# Perform computations on encrypted data
+# Perform computations (e.g., addition, multiplication) on the encrypted data.
 encrypted_sum = he.add(encrypted_data, encrypted_data)
 encrypted_product = he.multiply(encrypted_data, 2.0)
 
-# Store encrypted results
+# The results remain encrypted and can be stored securely in an artifact.
 artifact.add_encrypted_data(
     encrypted_sum,
     title="Encrypted Analytics Result",
     encryption_scheme="homomorphic"
 )
+print("Homomorphic computation performed and result stored securely.")
 ```
 
 ### 4. Secure Multi-party Computation (SMPC)
 
-Enable multiple parties to jointly compute functions over their inputs while keeping those inputs private.
+SMPC enables multiple parties to jointly compute a function over their private inputs without revealing those inputs to each other.
 
 ```python
 from maif.privacy import SecureMultipartyComputation
 
-# Configure SMPC
+# Mock sensitive data from one party.
+sensitive_data = {"value": 100}
+
+# Configure an SMPC instance with a list of participating parties and a protocol.
 smpc = SecureMultipartyComputation(
     parties=["party_a", "party_b", "party_c"],
-    protocol="BGW",
-    threshold=2
+    protocol="BGW", # Ben-Or, Goldwasser, Wigderson protocol
+    threshold=2 # Minimum number of parties required to perform the computation.
 )
 
-# Contribute data to joint computation
+# A party contributes its private data to a joint computation.
 smpc.contribute_data(
     party_id="party_a",
     data=sensitive_data,
     computation_id="joint_analysis"
 )
 
-# Execute secure computation
+# Once enough parties have contributed, the secure computation can be executed.
+# The result is revealed without revealing the individual private inputs.
 result = smpc.compute(
     function="aggregate_statistics",
     computation_id="joint_analysis"
 )
+print(f"SMPC joint computation result: {result}")
 ```
 
 ### 5. Zero-Knowledge Proofs
 
-Prove knowledge of information without revealing the information itself.
+Zero-Knowledge Proofs (ZKPs) allow one party to prove to another that they know a piece of information without revealing the information itself.
 
 ```python
 from maif.privacy import ZeroKnowledgeProof
 
-# Create zero-knowledge proof
+# Create a ZKP instance using a specific protocol (e.g., zk-SNARKs)
+# and for a specific computational problem (a "circuit").
 zkp = ZeroKnowledgeProof(
     protocol="zk-SNARKs",
     circuit="age_verification"
 )
 
-# Generate proof without revealing actual age
+# A user can generate a proof that they meet a condition (e.g., age is over 18)
+# without revealing their actual age.
 proof = zkp.generate_proof(
     private_input={"age": 25},
     public_input={"minimum_age": 18},
     statement="age >= minimum_age"
 )
 
-# Verify proof without learning the age
+# The verifier can check the proof without learning the user's age.
 is_valid = zkp.verify_proof(proof)
-print(f"Age verification: {'Passed' if is_valid else 'Failed'}")
+print(f"Age verification proof is valid: {is_valid}")
 ```
 
 ## Privacy-Preserving Analytics
 
 ### Federated Learning Integration
 
-Train AI models without centralizing sensitive data.
+Train AI models on decentralized data without needing to centralize sensitive user information. MAIF provides tools to facilitate this process securely.
 
 ```python
 from maif.privacy import FederatedLearning
 
-# Configure federated learning
+# Mock data for demonstration.
+local_sensitive_data = [{"feature": 1, "label": 0}]
+model_updates = []
+
+# Configure a federated learning process with secure aggregation and differential privacy.
 fl = FederatedLearning(
-    aggregation_method="FedAvg",
+    aggregation_method="FedAvg", # Federated Averaging algorithm
     differential_privacy=True,
     secure_aggregation=True,
     min_participants=5
 )
 
-# Participate in federated training
+# A participant trains a model on their local data and generates an update.
+# Only the model updates (gradients) are shared, not the raw data.
 fl.train_local_model(
     data=local_sensitive_data,
     model_updates_only=True,
-    privacy_budget=0.1
+    privacy_budget=0.1 # Apply differential privacy to the update.
 )
 
-# Aggregate global model (coordinator)
+# The central coordinator securely aggregates the updates from all participants
+# to create an improved global model.
 global_model = fl.aggregate_models(
     participant_updates=model_updates,
     privacy_preserving=True
 )
+print("Federated learning cycle complete.")
 ```
 
 ### Private Information Retrieval
 
-Query databases without revealing what you're searching for.
+Private Information Retrieval (PIR) allows a user to retrieve an item from a server's database without the server learning which item was retrieved.
 
 ```python
 from maif.privacy import PrivateInformationRetrieval
 
-# Configure PIR
-pir = PrivateInformationRetrieval(
-    scheme="XPIR",
-    database_size=1000000,
-    privacy_level="computational"
-)
+# Configure PIR with a specific scheme.
+pir = PrivateInformationRetrieval(scheme="SealPIR")
 
-# Perform private query
-private_query = pir.create_query(
-    index=search_index,
-    hide_access_pattern=True
-)
+# The client generates a query for a specific index without revealing the index itself.
+query = pir.generate_query(database_size=1000, desired_index=42)
 
-result = pir.execute_query(
-    query=private_query,
-    database=encrypted_database
-)
+# The server processes the query on its database and returns a response.
+# The server does not know which index (42) was requested.
+response = pir.process_query(server_database, query)
+
+# The client decodes the response to retrieve the desired item.
+retrieved_item = pir.decode_response(response)
+print(f"Retrieved item privately: {retrieved_item}")
 ```
 
 ## Compliance and Regulatory Support

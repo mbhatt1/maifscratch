@@ -49,13 +49,17 @@ graph TB
 
 ### Simple Conversational Agent
 
+The following example implements a `ConversationalAgent` that can handle conversations, remember context, and manage user profiles using separate MAIF artifacts for different types of memory.
+
 ```python
 from maif_sdk import create_client, create_artifact
 from datetime import datetime
 import json
 
 class ConversationalAgent:
+    """A basic agent for handling text-based conversations."""
     def __init__(self, agent_id: str):
+        # Initialize the MAIF client with performance-oriented settings.
         self.client = create_client(
             agent_id,
             enable_mmap=True,
@@ -63,16 +67,16 @@ class ConversationalAgent:
             default_encryption=True
         )
         
-        # Create memory artifacts
+        # Create separate artifacts for different memory functions.
         self.conversation_memory = create_artifact("conversations", self.client)
         self.knowledge_base = create_artifact("knowledge", self.client)
         self.user_profiles = create_artifact("user_profiles", self.client)
         
-        # Initialize system knowledge
+        # Load the agent's initial knowledge base.
         self._initialize_knowledge()
     
     def _initialize_knowledge(self):
-        """Initialize the agent's knowledge base"""
+        """Initializes the agent's knowledge base with a system prompt."""
         system_prompt = """
         You are a helpful AI assistant powered by MAIF. You have access to:
         - Persistent conversation memory
@@ -82,7 +86,7 @@ class ConversationalAgent:
         
         Always be helpful, accurate, and respect user privacy.
         """
-        
+        # Store the system prompt in the knowledge base.
         self.knowledge_base.add_text(
             system_prompt,
             title="System Prompt",
@@ -90,9 +94,9 @@ class ConversationalAgent:
         )
     
     def process_message(self, user_id: str, message: str) -> str:
-        """Process a user message and generate a response"""
+        """Processes a user message, retrieves context, generates a response, and stores the interaction."""
         
-        # Store user message
+        # Store the incoming user message in the conversation memory.
         self.conversation_memory.add_text(
             f"User ({user_id}): {message}",
             title="User Message",
@@ -103,13 +107,13 @@ class ConversationalAgent:
             }
         )
         
-        # Search for relevant context
+        # Retrieve relevant context from both conversation history and the knowledge base.
         relevant_context = self._get_relevant_context(message, user_id)
         
-        # Generate response
+        # Generate a response based on the message and the retrieved context.
         response = self._generate_response(message, relevant_context, user_id)
         
-        # Store agent response
+        # Store the agent's response to maintain a complete conversation history.
         self.conversation_memory.add_text(
             f"Assistant: {response}",
             title="Agent Response",
@@ -123,42 +127,45 @@ class ConversationalAgent:
         return response
     
     def _get_relevant_context(self, message: str, user_id: str) -> list:
-        """Retrieve relevant context from memory"""
+        """Retrieves relevant context by searching conversation history and the knowledge base."""
         
-        # Search conversation history
+        # Search the user's past conversations for relevant messages.
         conversation_context = self.conversation_memory.search(
             query=message,
             top_k=3,
             filters={"metadata.user_id": user_id}
         )
         
-        # Search knowledge base
+        # Search the knowledge base for relevant information.
         knowledge_context = self.knowledge_base.search(
             query=message,
             top_k=2
         )
         
+        # Combine and return the context.
         return conversation_context + knowledge_context
     
     def _generate_response(self, message: str, context: list, user_id: str) -> str:
-        """Generate a response based on message and context"""
+        """Generates a response using the message, context, and user profile."""
         
-        # Get user profile for personalization
+        # Retrieve the user's profile for personalization.
         user_profile = self._get_user_profile(user_id)
         
-        # Simple response generation (in practice, use LLM)
+        # This is a simplified response generation logic. In a real application,
+        # you would likely integrate a Large Language Model (LLM) here.
         context_text = "\n".join([item['content'] for item in context])
         
         if "hello" in message.lower():
-            return f"Hello! How can I help you today?"
+            return f"Hello, {user_profile.get('name', 'there')}! How can I help you today?"
         elif "remember" in message.lower():
             return f"I remember our previous conversations. Based on our history: {context_text[:100]}..."
         else:
-            return f"I understand you're asking about: {message}. Let me help you with that."
+            return f"I understand you're asking about: '{message}'. Let me find some information for you."
     
     def _get_user_profile(self, user_id: str) -> dict:
-        """Get or create user profile"""
+        """Gets or creates a user profile to store preferences and interaction history."""
         try:
+            # Search for an existing profile for the user.
             profiles = self.user_profiles.search(
                 query=user_id,
                 filters={"metadata.user_id": user_id},
@@ -166,33 +173,25 @@ class ConversationalAgent:
             )
             
             if profiles:
+                # If a profile exists, load and return it.
                 return json.loads(profiles[0]['content'])
             else:
-                # Create new profile
-                profile = {
-                    "user_id": user_id,
-                    "created_at": datetime.now().isoformat(),
-                    "preferences": {},
-                    "interaction_count": 0
-                }
-                
+                # If no profile exists, create a new one.
+                profile = {"user_id": user_id, "created_at": datetime.now().isoformat()}
                 self.user_profiles.add_structured_data(
                     profile,
                     title=f"Profile: {user_id}",
                     metadata={"user_id": user_id, "type": "profile"}
                 )
-                
                 return profile
         except Exception:
+            # Return a default profile in case of an error.
             return {"user_id": user_id, "preferences": {}}
 
-# Usage example
+# --- Usage Example ---
 agent = ConversationalAgent("helpful-assistant")
-
-# Simulate conversation
 response1 = agent.process_message("user123", "Hello!")
 print(f"Agent: {response1}")
-
 response2 = agent.process_message("user123", "Can you remember what we talked about?")
 print(f"Agent: {response2}")
 ```
@@ -201,201 +200,78 @@ print(f"Agent: {response2}")
 
 ### Multi-Modal Agent
 
+This example demonstrates a `MultiModalAgent` capable of processing text, image, and audio inputs. It uses different artifacts for each modality and a combined artifact for cross-modal understanding.
+
 ```python
 from maif_sdk import create_client, create_artifact
 import numpy as np
-from PIL import Image
-import librosa
+from datetime import datetime
 
 class MultiModalAgent:
+    """An agent that can process and understand text, image, and audio data."""
     def __init__(self, agent_id: str):
-        self.client = create_client(
-            agent_id,
-            enable_mmap=True,
-            enable_compression=True,
-            default_encryption=True
-        )
+        self.client = create_client(agent_id)
         
-        # Create specialized memory for different modalities
+        # Create specialized memory artifacts for each data modality.
         self.text_memory = create_artifact("text_memory", self.client)
         self.image_memory = create_artifact("image_memory", self.client)
         self.audio_memory = create_artifact("audio_memory", self.client)
+        # This artifact stores relationships and unified embeddings.
         self.multimodal_memory = create_artifact("multimodal_memory", self.client)
     
-    def process_text(self, text: str, user_id: str) -> str:
-        """Process text input"""
-        
-        # Store text
+    def process_text(self, text: str, user_id: str):
+        """Processes a text input and stores it."""
         text_id = self.text_memory.add_text(
             text,
-            title="User Text Input",
-            metadata={
-                "user_id": user_id,
-                "modality": "text",
-                "timestamp": datetime.now().isoformat()
-            }
+            metadata={"user_id": user_id, "timestamp": datetime.now().isoformat()}
         )
-        
-        # Generate response
-        response = self._generate_text_response(text, user_id)
-        
-        # Store response
-        self.text_memory.add_text(
-            response,
-            title="Agent Text Response",
-            metadata={
-                "user_id": user_id,
-                "modality": "text",
-                "type": "response",
-                "timestamp": datetime.now().isoformat()
-            }
-        )
-        
-        return response
-    
-    def process_image(self, image_data: np.ndarray, user_id: str) -> str:
-        """Process image input"""
-        
-        # Store image
+        print(f"Processed text input with ID: {text_id}")
+        return text_id
+
+    def process_image(self, image_data: np.ndarray, user_id: str):
+        """Processes an image input and stores it."""
         image_id = self.image_memory.add_image(
             image_data,
-            title="User Image Input",
-            metadata={
-                "user_id": user_id,
-                "modality": "image",
-                "timestamp": datetime.now().isoformat()
-            }
+            metadata={"user_id": user_id, "timestamp": datetime.now().isoformat()}
         )
-        
-        # Analyze image (placeholder for actual vision processing)
-        analysis = self._analyze_image(image_data)
-        
-        # Store analysis
-        self.multimodal_memory.add_text(
-            f"Image analysis: {analysis}",
-            title="Image Analysis",
-            metadata={
-                "user_id": user_id,
-                "source_image_id": image_id,
-                "type": "analysis"
-            }
-        )
-        
-        return f"I can see {analysis} in your image. How can I help you with this?"
-    
-    def process_audio(self, audio_data: np.ndarray, sample_rate: int, user_id: str) -> str:
-        """Process audio input"""
-        
-        # Store audio
+        print(f"Processed image input with ID: {image_id}")
+        return image_id
+
+    def process_audio(self, audio_data: np.ndarray, user_id: str):
+        """Processes an audio input and stores it."""
         audio_id = self.audio_memory.add_audio(
             audio_data,
-            sample_rate=sample_rate,
-            title="User Audio Input",
-            metadata={
-                "user_id": user_id,
-                "modality": "audio",
-                "timestamp": datetime.now().isoformat()
-            }
+            metadata={"user_id": user_id, "timestamp": datetime.now().isoformat()}
         )
-        
-        # Transcribe audio (placeholder)
-        transcription = self._transcribe_audio(audio_data, sample_rate)
-        
-        # Process transcription as text
-        text_response = self.process_text(transcription, user_id)
-        
-        # Link audio to text
-        self.multimodal_memory.add_text(
-            f"Audio transcription: {transcription}",
-            title="Audio Transcription",
-            metadata={
-                "user_id": user_id,
-                "source_audio_id": audio_id,
-                "type": "transcription"
-            }
-        )
-        
-        return text_response
+        print(f"Processed audio input with ID: {audio_id}")
+        return audio_id
     
-    def process_multimodal(self, inputs: dict, user_id: str) -> str:
-        """Process multiple modalities together"""
-        
-        results = {}
-        
-        # Process each modality
-        if "text" in inputs:
-            results["text"] = self.process_text(inputs["text"], user_id)
-        
-        if "image" in inputs:
-            results["image"] = self.process_image(inputs["image"], user_id)
-        
-        if "audio" in inputs:
-            results["audio"] = self.process_audio(
-                inputs["audio"]["data"], 
-                inputs["audio"]["sample_rate"], 
-                user_id
-            )
-        
-        # Cross-modal analysis
-        cross_modal_insight = self._cross_modal_analysis(inputs, user_id)
-        
-        # Store cross-modal result
-        self.multimodal_memory.add_structured_data(
-            {
-                "user_id": user_id,
-                "inputs": list(inputs.keys()),
-                "results": results,
-                "cross_modal_insight": cross_modal_insight,
-                "timestamp": datetime.now().isoformat()
-            },
-            title="Multimodal Processing Result"
-        )
-        
-        return cross_modal_insight
-    
-    def _analyze_image(self, image_data: np.ndarray) -> str:
-        """Analyze image content (placeholder)"""
-        # In practice, use computer vision models
-        return "objects, people, and scenery"
-    
-    def _transcribe_audio(self, audio_data: np.ndarray, sample_rate: int) -> str:
-        """Transcribe audio to text (placeholder)"""
-        # In practice, use speech-to-text models
-        return "transcribed speech content"
-    
-    def _cross_modal_analysis(self, inputs: dict, user_id: str) -> str:
-        """Analyze relationships between different modalities"""
-        
-        modalities = list(inputs.keys())
-        
-        if len(modalities) == 1:
-            return f"Processed {modalities[0]} input successfully."
-        
-        # Search for related content across modalities
-        combined_query = ""
-        if "text" in inputs:
-            combined_query += inputs["text"]
-        
-        related_content = self.multimodal_memory.search(
-            query=combined_query,
-            top_k=3,
-            filters={"metadata.user_id": user_id}
-        )
-        
-        return f"I've analyzed your {', '.join(modalities)} inputs together. " \
-               f"Based on our conversation history, I can see connections to previous topics."
+    def generate_multimodal_response(self, query: str, user_id: str) -> str:
+        """Generates a response by searching across all modalities."""
+        # Search each modality's memory for relevant context.
+        text_context = self.text_memory.search(query, top_k=2, filters={"metadata.user_id": user_id})
+        image_context = self.image_memory.search(query, top_k=1, filters={"metadata.user_id": user_id})
+        audio_context = self.audio_memory.search(query, top_k=1, filters={"metadata.user_id": user_id})
 
-# Usage example
+        # Combine the context (a real implementation would be more sophisticated).
+        full_context = text_context + image_context + audio_context
+        
+        if not full_context:
+            return "I don't have enough information to respond to that."
+            
+        return f"Based on the information I have across different formats, I can tell you this..."
+
+# --- Usage Example ---
 multimodal_agent = MultiModalAgent("multimodal-assistant")
 
-# Process different types of input
-text_response = multimodal_agent.process_text("What's in this image?", "user123")
-print(f"Text response: {text_response}")
+# Simulate multi-modal inputs from a user.
+multimodal_agent.process_text("Can you find a picture of a sunset I sent?", "user456")
+multimodal_agent.process_image(np.random.rand(100, 100, 3), "user456")
+multimodal_agent.process_audio(np.random.rand(44100), "user456")
 
-# Simulate image processing
-fake_image = np.random.randint(0, 255, (224, 224, 3), dtype=np.uint8)
-image_response = multimodal_agent.process_image(fake_image, "user123")
-print(f"Image response: {image_response}")
+# Generate a response based on a query that spans modalities.
+response = multimodal_agent.generate_multimodal_response("sunset", "user456")
+print(f"Agent Response: {response}")
 ```
 
 ## Agent Lifecycle Management

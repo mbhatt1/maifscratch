@@ -61,52 +61,56 @@ graph TB
 
 ### Essential Imports
 
+This snippet shows the most common imports for interacting with MAIF, from the high-level SDK to the low-level core components and novel algorithms.
+
 ```python
-# High-level SDK (recommended for most users)
+# The high-level SDK is the recommended entry point for most users.
 from maif_sdk import (
-    create_client,          # Create MAIF client
-    create_artifact,        # Create artifact container
-    load_artifact,          # Load existing artifact
-    quick_write,            # One-line write operations
-    quick_read              # One-line read operations
+    create_client,          # Factory function to create a MAIFClient instance.
+    create_artifact,        # Factory function to create a new Artifact.
+    load_artifact,          # Function to load an existing Artifact from a file.
+    quick_write,            # A convenient one-line function for simple write operations.
+    quick_read              # A convenient one-line function for simple read operations.
 )
 
-# Core components (for advanced users)
+# For advanced use cases, you can import the core components directly.
 from maif import (
-    MAIFEncoder,            # Low-level encoding
-    MAIFDecoder,            # Low-level decoding
-    PrivacyEngine,          # Privacy operations
-    SecurityEngine,         # Security operations
-    SemanticEmbedder        # Semantic processing
+    MAIFEncoder,            # The low-level engine for encoding data into the MAIF binary format.
+    MAIFDecoder,            # The low-level engine for decoding data from the MAIF binary format.
+    PrivacyEngine,          # The engine for managing encryption, anonymization, and other privacy features.
+    SecurityEngine,         # The engine for managing digital signatures, access control, and auditing.
+    SemanticEmbedder        # The component responsible for generating semantic embeddings.
 )
 
-# Novel algorithms (cutting-edge AI)
+# For cutting-edge AI applications, you can directly use MAIF's novel algorithms.
 from maif.semantic_optimized import (
-    AdaptiveCrossModalAttention,      # ACAM
-    HierarchicalSemanticCompression,  # HSC
-    CryptographicSemanticBinding      # CSB
+    AdaptiveCrossModalAttention,      # The ACAM algorithm for multi-modal understanding.
+    HierarchicalSemanticCompression,  # The HSC algorithm for semantic-aware compression.
+    CryptographicSemanticBinding      # The CSB algorithm for binding semantics to cryptography.
 )
 ```
 
 ### Basic Usage Pattern
 
+This example demonstrates the fundamental workflow of using MAIF: create a client and artifact, add content, save, and then load and search.
+
 ```python
-# 1. Create client and artifact
+# 1. Initialize the client and create a new artifact for the agent's memory.
 client = create_client("my-agent")
 artifact = create_artifact("agent-memory", client)
 
-# 2. Add content with built-in features
+# 2. Add content to the artifact with built-in features enabled.
 text_id = artifact.add_text(
     "Important data",
-    encrypt=True,                    # Privacy
-    anonymize=True,                  # PII protection
-    compress=True                    # Performance
+    encrypt=True,                    # Encrypt the data at rest.
+    anonymize=True,                  # Automatically detect and redact PII.
+    compress=True                    # Compress the data to save space.
 )
 
-# 3. Save with cryptographic signature
+# 3. Save the artifact to a file with a cryptographic signature to ensure integrity.
 artifact.save("memory.maif", sign=True)
 
-# 4. Load and search semantically
+# 4. Load the artifact and perform a semantic search.
 loaded = load_artifact("memory.maif")
 results = loaded.search("query", top_k=5)
 ```
@@ -115,7 +119,7 @@ results = loaded.search("query", top_k=5)
 
 ### 🏗️ Core API
 
-The foundation of MAIF operations:
+The foundation of MAIF operations, providing the essential building blocks for creating and managing agents and artifacts.
 
 - **[MAIFClient](/api/core/client)** - High-performance client with memory-mapped I/O
 - **[Artifact](/api/core/artifact)** - Container for agent data and memory
@@ -129,7 +133,7 @@ from maif import MAIFEncoder, MAIFDecoder
 
 ### 🔒 Privacy & Security API
 
-Enterprise-grade privacy and security:
+A comprehensive suite of tools for building secure and privacy-preserving AI systems.
 
 - **[Privacy Engine](/api/privacy/engine)** - Encryption, anonymization, differential privacy
 - **[Security](/api/security/index)** - Digital signatures, tamper detection
@@ -143,7 +147,7 @@ from maif.security import MAIFSigner, AccessController
 
 ### 🧠 Semantic Processing API
 
-AI-native semantic understanding:
+Advanced tools for AI-native semantic understanding, including embedding generation, knowledge graphs, and cross-modal analysis.
 
 - **[Semantic Embedder](/api/semantic/embedder)** - Generate and manage embeddings
 - **[Novel Algorithms](/api/semantic/algorithms)** - ACAM, HSC, CSB implementations
@@ -157,7 +161,7 @@ from maif.semantic_optimized import AdaptiveCrossModalAttention
 
 ### ⚡ Streaming & Performance API
 
-High-throughput operations:
+High-throughput components for real-time data processing and performance optimization.
 
 - **[Stream Reader/Writer](/api/streaming/streams)** - Memory-efficient streaming
 - **[Compression](/api/streaming/compression)** - Advanced compression algorithms
@@ -173,6 +177,8 @@ from maif.acid_optimized import ACIDTransaction
 
 ### Client Configuration
 
+The `MAIFClient` is highly configurable. This example shows some of the most common options for tuning performance, security, and other features.
+
 ```python
 from maif_sdk import create_client
 from maif import SecurityLevel, CompressionLevel
@@ -180,74 +186,82 @@ from maif import SecurityLevel, CompressionLevel
 client = create_client(
     agent_id="my-agent",
     
-    # Performance options
-    enable_mmap=True,                    # Memory-mapped I/O
-    buffer_size=128*1024,                # Write buffer size
-    max_concurrent_writers=8,            # Parallel operations
+    # --- Performance Tuning ---
+    enable_mmap=True,                    # Use memory-mapped I/O for faster file access.
+    buffer_size=128*1024,                # Set the size of the write buffer (in bytes).
+    max_concurrent_writers=8,            # Allow up to 8 parallel write operations.
     
-    # Security options
-    default_security_level=SecurityLevel.CONFIDENTIAL,
-    enable_signing=True,                 # Automatic signatures
-    key_derivation_rounds=100000,        # PBKDF2 rounds
+    # --- Security Configuration ---
+    default_security_level=SecurityLevel.CONFIDENTIAL, # Set the default security level for all operations.
+    enable_signing=True,                 # Automatically add a digital signature when saving artifacts.
+    key_derivation_rounds=100000,        # Use 100,000 rounds for PBKDF2 key derivation.
     
-    # Privacy options
-    enable_privacy=True,                 # Privacy engine
-    default_encryption=True,             # Encrypt by default
-    anonymization_patterns=["ssn", "email", "phone"],
+    # --- Privacy Configuration ---
+    enable_privacy=True,                 # Enable the privacy engine.
+    default_encryption=True,             # Encrypt all new data blocks by default.
+    anonymization_patterns=["ssn", "email", "phone"], # Define custom patterns for PII detection.
     
-    # Semantic options
-    embedding_model="all-MiniLM-L6-v2",  # Default model
-    enable_semantic_search=True,         # Automatic indexing
-    semantic_threshold=0.75,             # Similarity threshold
+    # --- Semantic Configuration ---
+    embedding_model="all-MiniLM-L6-v2",  # Specify the default model for generating embeddings.
+    enable_semantic_search=True,         # Automatically index new data for semantic search.
+    semantic_threshold=0.75,             # Set the default similarity threshold for search results.
     
-    # Compression options
-    default_compression=CompressionLevel.BALANCED,
-    semantic_compression=True,           # Use HSC algorithm
-    compression_threshold=1024           # Min size to compress
+    # --- Compression Configuration ---
+    default_compression=CompressionLevel.BALANCED, # Set the default compression level.
+    semantic_compression=True,           # Use the novel HSC algorithm for semantic-aware compression.
+    compression_threshold=1024           # Only compress data blocks larger than 1 KB.
 )
 ```
 
 ### Privacy Policies
 
+MAIF provides predefined privacy policies and allows you to create custom policies to meet specific compliance requirements.
+
 ```python
 from maif import PrivacyPolicy, PrivacyLevel, EncryptionMode
 
-# Predefined policies
+# Use one of the predefined policies for common use cases.
 public_policy = PrivacyPolicy.PUBLIC
 internal_policy = PrivacyPolicy.INTERNAL
 confidential_policy = PrivacyPolicy.CONFIDENTIAL
 restricted_policy = PrivacyPolicy.RESTRICTED
 
-# Custom policy
+# Or, create a custom policy with specific rules.
 custom_policy = PrivacyPolicy(
-    privacy_level=PrivacyLevel.CONFIDENTIAL,
-    encryption_mode=EncryptionMode.CHACHA20_POLY1305,
-    anonymization_required=True,
-    differential_privacy=True,
-    audit_required=True,
-    retention_days=365
+    privacy_level=PrivacyLevel.CONFIDENTIAL,          # Set the privacy level.
+    encryption_mode=EncryptionMode.CHACHA20_POLY1305, # Specify a strong encryption cipher.
+    anonymization_required=True,                      # Require that data be anonymized.
+    differential_privacy=True,                        # Apply differential privacy techniques.
+    audit_required=True,                              # Ensure all operations on data with this policy are audited.
+    retention_days=365                                # Set a data retention period of 365 days.
 )
 ```
 
 ### Error Handling
 
+MAIF has a rich set of custom exceptions that allow you to handle specific errors gracefully.
+
 ```python
 from maif.exceptions import (
-    MAIFError,                    # Base exception
-    PrivacyViolationError,        # Privacy policy violation
-    SecurityError,                # Security verification failure
-    CompressionError,             # Compression/decompression failure
-    SemanticError,                # Semantic processing failure
-    IntegrityError                # Data integrity failure
+    MAIFError,                    # The base exception for all MAIF errors.
+    PrivacyViolationError,        # Raised when a privacy policy is violated.
+    SecurityError,                # Raised on security failures, such as invalid signatures.
+    CompressionError,             # Raised on failures during compression or decompression.
+    SemanticError,                # Raised on errors during semantic processing.
+    IntegrityError                # Raised when data integrity checks fail.
 )
 
 try:
+    # Attempt a potentially problematic operation.
     artifact.add_text("sensitive data", encrypt=True)
 except PrivacyViolationError as e:
+    # Handle a specific privacy violation.
     logger.error(f"Privacy violation: {e}")
 except SecurityError as e:
+    # Handle a specific security error.
     logger.error(f"Security error: {e}")
 except MAIFError as e:
+    # Handle any other MAIF-related error.
     logger.error(f"General MAIF error: {e}")
 ```
 

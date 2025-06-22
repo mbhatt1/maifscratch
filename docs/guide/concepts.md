@@ -34,45 +34,42 @@ graph TB
 
 ### What is an Artifact?
 
-An **Artifact** is MAIF's core data structure - a container that holds:
-- **Data**: Text, images, embeddings, structured data
-- **Metadata**: Timestamps, sources, relationships
-- **Security**: Encryption, signatures, access controls
-- **Provenance**: Complete history of operations
-- **Semantics**: Embeddings and relationships
+An **Artifact** is MAIF's core data structure - a container that holds all the essential components of intelligent, trustworthy data. This code snippet shows how to create an artifact and add various types of data to it.
 
 ```python
 from maif_sdk import create_artifact
 
-# Create an artifact
+# Create a new artifact, associating it with an existing client.
+# The client manages the connection and configuration.
 artifact = create_artifact("my-data", client)
 
-# Add different types of data
+# Add different types of data blocks to the artifact.
 text_id = artifact.add_text("Hello, world!")
 image_id = artifact.add_image(image_data)
 data_id = artifact.add_structured_data({"key": "value"})
 
-# All data is automatically:
-# - Encrypted (if enabled)
-# - Timestamped
-# - Semantically indexed
-# - Cryptographically signed
+# When you add data, MAIF automatically handles several critical operations:
+# - Encryption: Data is encrypted based on the artifact's or block's security policy.
+# - Timestamping: Every block is timestamped to maintain a verifiable history.
+# - Semantic Indexing: Embeddings are generated and indexed for semantic search.
+# - Auditing: An immutable record of the operation is added to the audit trail.
 ```
 
 ## Core Components
 
 ### 1. MAIF Client
 
-The **MAIFClient** is your entry point to the MAIF ecosystem. It manages connections, configurations, and provides high-level operations.
+The **MAIFClient** is your main entry point for interacting with the MAIF framework. This example shows how to create a client with some common performance and security configurations.
 
 ```python
 from maif_sdk import create_client
 
+# Create a client instance with a unique agent ID.
 client = create_client(
     agent_id="my-agent",
-    enable_mmap=True,        # Memory-mapped I/O
-    enable_compression=True,  # Automatic compression
-    security_level="CONFIDENTIAL"
+    enable_mmap=True,        # Use memory-mapped I/O for high-performance file access.
+    enable_compression=True,  # Automatically compress data blocks to reduce storage size.
+    security_level="CONFIDENTIAL" # Set a default security level for all operations.
 )
 ```
 
@@ -113,20 +110,18 @@ graph TB
 
 ### 3. Block System
 
-MAIF uses a **block-based architecture** where each piece of data is stored as a typed block:
-
-- **TextBlock**: Natural language text
-- **ImageBlock**: Images with metadata
-- **EmbeddingBlock**: Vector embeddings
-- **StructuredDataBlock**: JSON-like data
-- **AudioBlock**: Audio data
-- **VideoBlock**: Video content
+MAIF uses a **block-based architecture**, where each piece of data is stored as a strongly-typed block. This allows MAIF to apply specific optimizations, security controls, and semantic processing based on the data type.
 
 ```python
-# Each block type has specific features
-artifact.add_text("Hello", encrypt=True)        # TextBlock with encryption
-artifact.add_image(img_data, format="png")      # ImageBlock with format info
-artifact.add_embedding(vector, model="bert")    # EmbeddingBlock with model info
+# Each method for adding data creates a specific block type with relevant options.
+# This creates a TextBlock and applies AES-GCM encryption.
+artifact.add_text("Hello", encrypt=True)
+
+# This creates an ImageBlock and stores the image format in its metadata.
+artifact.add_image(img_data, format="png")
+
+# This creates an EmbeddingBlock and records the model used to generate the embedding.
+artifact.add_embedding(vector, model="bert")
 ```
 
 ## Security & Privacy Architecture
@@ -174,13 +169,15 @@ graph TB
 3. **Differential Privacy**: Mathematical privacy guarantees
 4. **Zero-Knowledge Proofs**: Verify without revealing data
 
+This example demonstrates how to apply multiple privacy features to a single piece of data.
+
 ```python
-# Privacy features in action
+# Add a text block and apply several privacy-enhancing features at once.
 artifact.add_text(
     "Customer John Smith called about his account",
-    encrypt=True,           # Encrypt the data
-    anonymize=True,         # Replace PII with tokens
-    differential_privacy=True  # Add noise for privacy
+    encrypt=True,           # 1. Encrypt the data at rest.
+    anonymize=True,         # 2. Automatically detect and redact PII (e.g., "John Smith").
+    differential_privacy=True  # 3. Add statistical noise to prevent re-identification.
 )
 ```
 
@@ -222,14 +219,18 @@ graph LR
 3. **Semantic Search**: Find relevant content by meaning
 4. **Relationship Discovery**: Identify connections between data
 
+This code shows how semantic search works across different data modalities.
+
 ```python
-# Semantic features
+# Add both text and image data to the same artifact.
 artifact.add_text("The cat sat on the mat")
 artifact.add_image(cat_image)
 
-# Semantic search works across modalities
+# Perform a semantic search using a query that is conceptually related to the stored data.
+# MAIF's cross-modal understanding allows it to find both the text and the image.
 results = artifact.search("feline animal", top_k=5)
-# Returns both text and image results
+
+# The search results will contain references to both the text and image blocks.
 ```
 
 ## Novel AI Algorithms
@@ -238,12 +239,16 @@ MAIF implements three cutting-edge algorithms that push the boundaries of AI cap
 
 ### 1. ACAM (Adaptive Cross-Modal Attention)
 
-Dynamically adjusts attention weights across different data modalities (text, image, audio) based on context and relevance.
+Dynamically adjusts attention weights across different data modalities (text, image, audio) based on context and relevance. This example shows how to use the ACAM module to compute attention weights for a set of multi-modal embeddings.
 
 ```python
 from maif.semantic_optimized import AdaptiveCrossModalAttention
 
+# Initialize the ACAM module with the embedding dimension of your models.
 acam = AdaptiveCrossModalAttention(embedding_dim=384)
+
+# Compute attention weights for a set of embeddings from different modalities.
+# The weights indicate the relative importance of each modality for the given data.
 attention_weights = acam.compute_attention_weights({
     'text': text_embeddings,
     'image': image_embeddings,

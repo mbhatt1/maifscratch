@@ -21,7 +21,7 @@ This guide covers all installation methods for MAIF, from basic setup to advance
 
 ### 1. Basic Installation
 
-For most users, the basic installation provides core MAIF functionality:
+For most users, the basic installation provides core MAIF functionality. This command installs the core `maif` package.
 
 ```bash
 pip install maif
@@ -35,7 +35,7 @@ This includes:
 
 ### 2. Full Installation (Recommended)
 
-For production use and advanced features:
+For production use and advanced features, install with the `[full]` extra. This command installs all optional dependencies for a feature-complete deployment.
 
 ```bash
 pip install maif[full]
@@ -50,7 +50,7 @@ This includes everything from basic installation plus:
 
 ### 3. Development Installation
 
-For contributors and advanced users:
+For contributors who need to set up a local development environment. These commands clone the repository and install the package in editable mode with all development dependencies.
 
 ```bash
 # Clone the repository
@@ -66,7 +66,7 @@ pytest tests/
 
 ### 4. Docker Installation
 
-For containerized deployments:
+For containerized deployments, use the official Docker image. These commands pull the latest image and run it with a volume for persistent data storage.
 
 ```bash
 # Pull the official image
@@ -79,6 +79,8 @@ docker run -v $(pwd)/data:/app/data maif/maif:latest
 ## Platform-Specific Instructions
 
 ### Linux (Ubuntu/Debian)
+
+These commands update your system, install Python, create a virtual environment, and install MAIF.
 
 ```bash
 # Update system packages
@@ -98,6 +100,8 @@ pip install maif[full]
 
 ### Linux (CentOS/RHEL)
 
+These commands install Python, create a virtual environment, and install MAIF on CentOS or RHEL.
+
 ```bash
 # Install Python 3.11
 sudo dnf install python3.11 python3.11-pip -y
@@ -113,6 +117,8 @@ pip install maif[full]
 
 ### macOS
 
+These commands use Homebrew to install Python, then create a virtual environment and install MAIF.
+
 ```bash
 # Install Python via Homebrew (recommended)
 brew install python@3.11
@@ -127,6 +133,8 @@ pip install maif[full]
 ```
 
 ### Windows
+
+These PowerShell commands create a virtual environment and install MAIF on Windows.
 
 ```powershell
 # Install Python from python.org or Microsoft Store
@@ -145,7 +153,7 @@ pip install maif[full]
 
 ### High-Performance Computing
 
-For maximum performance on large datasets:
+Install these dependencies for high-performance computing, including GPU acceleration and HPC library integrations.
 
 ```bash
 pip install maif[hpc]
@@ -158,7 +166,7 @@ Includes:
 
 ### Cloud Integrations
 
-For cloud-native deployments:
+Install these dependencies to enable integration with major cloud storage providers.
 
 ```bash
 pip install maif[cloud]
@@ -172,7 +180,7 @@ Includes:
 
 ### Enterprise Features
 
-For enterprise deployments:
+Install these dependencies for enterprise-grade features like SSO and advanced compliance tooling.
 
 ```bash
 pip install maif[enterprise]
@@ -186,28 +194,31 @@ Includes:
 
 ## Verification
 
-After installation, verify MAIF is working correctly:
+After installation, run this Python script to verify that MAIF is working correctly.
 
 ```python
 import maif
 from maif_sdk import create_client, create_artifact
 
-# Check version
+# 1. Check the installed version of MAIF.
 print(f"MAIF version: {maif.__version__}")
 
-# Test basic functionality
+# 2. Test basic client and artifact creation.
+# This ensures the core SDK is functioning.
 client = create_client("test-agent")
 artifact = create_artifact("test-artifact", client)
 
-# Add some test data
+# 3. Add some test data to the artifact.
 text_id = artifact.add_text("Hello, MAIF!")
 print(f"✅ Successfully created artifact with ID: {text_id}")
 
-# Test encryption
+# 4. Test the encryption functionality.
+# This adds a block of text that will be encrypted at rest.
 encrypted_id = artifact.add_text("Secret data", encrypt=True)
 print(f"✅ Successfully encrypted data with ID: {encrypted_id}")
 
-# Test semantic search
+# 5. Test the semantic search capability.
+# This verifies that the embedding models are working.
 results = artifact.search("Hello", top_k=1)
 print(f"✅ Semantic search returned {len(results)} results")
 

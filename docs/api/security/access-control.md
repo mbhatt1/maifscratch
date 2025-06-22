@@ -43,58 +43,62 @@ graph TB
 
 ## Quick Start
 
+This example provides a brief overview of the Access Control module's core functionality: creating roles and users, and checking access permissions.
+
 ```python
 from maif.security import AccessController, Role, Permission
 
-# Create access controller
+# Create a new access controller instance.
 access_control = AccessController()
 
-# Define roles
+# Define roles with specific permissions.
 admin_role = Role("admin", permissions=["read", "write", "delete"])
 user_role = Role("user", permissions=["read", "write"])
 
-# Create user
+# Create a new user, assign them a role, and add attributes for ABAC.
 user = access_control.create_user(
     user_id="alice",
     roles=[user_role],
     attributes={"department": "engineering"}
 )
 
-# Check access
+# Check if the user has permission to perform an action on a resource.
 can_access = access_control.check_access(
     user_id="alice",
-    resource="artifact:financial-data",
-    action="read"
+    resource="artifact:financial-data", # The resource being accessed.
+    action="read" # The action being performed.
 )
 ```
 
 ## Constructor & Configuration
 
+The `AccessController` constructor allows you to configure its behavior for authentication, authorization, auditing, and performance.
+
 ```python
 access_control = AccessController(
-    # Authentication
-    enable_multi_factor_auth=True,
-    session_timeout_minutes=30,
-    max_failed_attempts=3,
+    # --- Authentication Settings ---
+    enable_multi_factor_auth=True, # Enable MFA for all users.
+    session_timeout_minutes=30, # The default session timeout.
+    max_failed_attempts=3, # Lock accounts after 3 failed login attempts.
     
-    # Authorization
-    authorization_model="RBAC",  # or "ABAC", "hybrid"
-    default_deny=True,
+    # --- Authorization Settings ---
+    authorization_model="RBAC",  # The authorization model to use (RBAC, ABAC, or hybrid).
+    default_deny=True, # Deny access by default if no explicit allow rule is found.
     
-    # Policy enforcement
-    strict_enforcement=True,
-    cache_decisions=True,
+    # --- Policy Enforcement ---
+    strict_enforcement=True, # Strictly enforce all policies.
+    cache_decisions=True, # Cache authorization decisions to improve performance.
     
-    # Audit
-    audit_all_access=True,
-    audit_retention_days=365,
+    # --- Audit Settings ---
+    audit_all_access=True, # Audit all access attempts (both allowed and denied).
+    audit_retention_days=365, # The retention period for audit logs.
     
-    # Integration
-    ldap_integration=True,
-    sso_enabled=True,
+    # --- Integration ---
+    ldap_integration=True, # Enable integration with an LDAP directory.
+    sso_enabled=True, # Enable Single Sign-On (SSO).
     
-    # Performance
-    parallel_authorization=True
+    # --- Performance ---
+    parallel_authorization=True # Use multiple threads for parallel authorization checks.
 )
 ```
 
@@ -104,53 +108,58 @@ access_control = AccessController(
 
 #### `create_user(user_id, **options) -> User`
 
+Creates a new user with specified roles, attributes, and authentication settings.
+
 ```python
-# Create user with roles and attributes
+# Create a new user with a comprehensive set of options.
 user = access_control.create_user(
     user_id="alice.smith",
     display_name="Alice Smith",
     email="alice@company.com",
     
-    # Authentication
-    password="secure-password",
-    enable_mfa=True,
+    # --- Authentication Details ---
+    password="secure-password", # The user's initial password.
+    enable_mfa=True, # Enable Multi-Factor Authentication for this user.
     
-    # Authorization
-    roles=["developer", "analyst"],
-    groups=["engineering_team"],
+    # --- Authorization Details ---
+    roles=["developer", "analyst"], # The roles assigned to the user.
+    groups=["engineering_team"], # The groups the user belongs to.
     
-    # Attributes for ABAC
+    # --- Attributes for ABAC ---
     attributes={
         "clearance_level": "secret",
         "department": "engineering",
         "location": "headquarters"
     },
     
-    # Account settings
-    account_expires="2024-12-31",
-    max_sessions=3
+    # --- Account Settings ---
+    account_expires="2024-12-31", # The date the user's account expires.
+    max_sessions=3 # The maximum number of concurrent sessions for the user.
 )
 ```
 
 #### `authenticate_user(user_id, credentials, **options) -> AuthResult`
 
+Authenticates a user with their credentials and, if successful, creates a new session.
+
 ```python
-# Authentication with MFA
+# Authenticate a user with a password and MFA token.
 auth_result = access_control.authenticate_user(
     user_id="alice.smith",
     credentials={
         "password": "user-password",
-        "mfa_token": "123456"
+        "mfa_token": "123456" # The user's MFA token.
     },
-    require_mfa=True,
-    session_duration_hours=8,
-    client_ip="192.168.1.100"
+    require_mfa=True, # Require MFA for this authentication attempt.
+    session_duration_hours=8, # The duration of the session if authentication is successful.
+    client_ip="192.168.1.100" # The client's IP address for session binding.
 )
 
+# Check the authentication result.
 if auth_result.success:
     print(f"Session ID: {auth_result.session_id}")
 else:
-    print(f"Auth failed: {auth_result.failure_reason}")
+    print(f"Authentication failed: {auth_result.failure_reason}")
 ```
 
 ## Role & Permission Management
@@ -159,28 +168,31 @@ else:
 
 #### `create_role(role_name, **options) -> Role`
 
+Creates a new role with a set of associated permissions.
+
 ```python
-# System administrator role
+# Create a system administrator role with wide-ranging permissions.
 admin_role = access_control.create_role(
     role_name="system_admin",
     permissions=[
-        "artifact:*:read",
-        "artifact:*:write", 
-        "artifact:*:delete",
-        "user:*:manage"
+        "artifact:*:read", # Read access to all artifacts.
+        "artifact:*:write", # Write access to all artifacts.
+        "artifact:*:delete", # Delete access to all artifacts.
+        "user:*:manage" # Management access to all users.
     ],
-    description="System administrator",
-    max_users=5,
-    requires_approval=True
+    description="System administrator with full permissions.",
+    max_users=5, # The maximum number of users that can have this role.
+    requires_approval=True # Require approval before assigning this role to a user.
 )
 
-# Data analyst role
+# Create a data analyst role with more specific permissions.
 analyst_role = access_control.create_role(
     role_name="data_analyst",
     permissions=[
         "artifact:analytics:read",
         "artifact:reports:write"
     ],
+    # Grant specific permissions on specific resources.
     resource_permissions={
         "artifact:financial": ["read"],
         "artifact:public": ["read", "write"]
@@ -192,18 +204,21 @@ analyst_role = access_control.create_role(
 
 #### `create_permission(permission_name, **options) -> Permission`
 
+Creates a new permission, which can be a simple action on a resource or a complex rule with conditions.
+
 ```python
-# Basic permission
+# Create a basic permission for reading artifacts.
 read_permission = access_control.create_permission(
     permission_name="artifact:read",
-    description="Read access to artifacts",
+    description="Allows reading the content of an artifact.",
     resource_type="artifact",
     action="read"
 )
 
-# Complex permission with conditions
+# Create a complex permission with conditions for accessing sensitive data.
 sensitive_access = access_control.create_permission(
     permission_name="artifact:sensitive:read",
+    # Define the conditions under which this permission is granted.
     conditions={
         "and": [
             {"user.clearance_level": {"gte": "secret"}},
@@ -211,8 +226,8 @@ sensitive_access = access_control.create_permission(
             {"context.location": {"eq": "secure_facility"}}
         ]
     },
-    requires_mfa=True,
-    audit_level="detailed"
+    requires_mfa=True, # Require that the user has verified with MFA in their session.
+    audit_level="detailed" # Use a detailed audit level for this permission.
 )
 ```
 
@@ -222,21 +237,23 @@ sensitive_access = access_control.create_permission(
 
 #### `check_access(user_id, resource, action, **options) -> AccessResult`
 
+Checks if a user has permission to perform a specific action on a resource, taking into account their roles, attributes, and the current context.
+
 ```python
-# Simple access check
+# Perform a simple access check.
 can_read = access_control.check_access(
     user_id="alice.smith",
     resource="artifact:financial-report",
     action="read"
 )
 
-# Comprehensive check with context
+# Perform a comprehensive check with context for ABAC.
 access_result = access_control.check_access(
     user_id="alice.smith",
     resource="artifact:sensitive-data",
     action="read",
     
-    # Context for ABAC
+    # --- Context for Attribute-Based Access Control (ABAC) ---
     context={
         "time": datetime.now(),
         "location": "office",
@@ -244,33 +261,37 @@ access_result = access_control.check_access(
         "purpose": "analysis"
     },
     
-    # Resource attributes
+    # --- Attributes of the resource being accessed ---
     resource_attributes={
         "classification": "confidential",
         "owner": "finance_team"
     },
     
-    include_reasoning=True,
-    audit_access_check=True
+    include_reasoning=True, # Include an explanation of why access was allowed or denied.
+    audit_access_check=True # Ensure this access check is audited.
 )
 
+# Check the result.
 if access_result.allowed:
-    print("Access granted")
-    print(f"Permissions: {access_result.effective_permissions}")
+    print("Access granted.")
+    print(f"Effective permissions: {access_result.effective_permissions}")
 else:
-    print(f"Access denied: {access_result.denial_reason}")
+    print(f"Access denied. Reason: {access_result.denial_reason}")
 ```
 
 #### `batch_check_access(requests) -> List[AccessResult]`
 
+Performs a batch of access control checks for multiple requests in a single call.
+
 ```python
-# Batch authorization
+# A list of access control requests to be checked in a batch.
 requests = [
     {"user_id": "alice", "resource": "artifact:A", "action": "read"},
     {"user_id": "alice", "resource": "artifact:B", "action": "write"},
     {"user_id": "bob", "resource": "artifact:C", "action": "delete"}
 ]
 
+# Perform the batch check with parallel processing enabled.
 results = access_control.batch_check_access(
     requests=requests,
     parallel_processing=True
@@ -281,29 +302,33 @@ results = access_control.batch_check_access(
 
 #### `delegate_access(delegator, delegatee, permissions, **options) -> DelegationResult`
 
+Allows a user to temporarily delegate some of their permissions to another user.
+
 ```python
-# Delegate permissions temporarily
+# Delegate read and write permissions for reports from a manager to an analyst for 24 hours.
 delegation = access_control.delegate_access(
     delegator="manager.alice",
     delegatee="analyst.bob",
     permissions=["artifact:reports:read", "artifact:reports:write"],
-    duration_hours=24,
-    conditions={"purpose": "quarterly_analysis"},
-    requires_approval=True
+    duration_hours=24, # The duration of the delegation.
+    conditions={"purpose": "quarterly_analysis"}, # Conditions under which the delegated permissions can be used.
+    requires_approval=True # Require another manager to approve the delegation.
 )
 ```
 
 #### `grant_temporary_access(user_id, resource, **options) -> TemporaryAccess`
 
+Grants temporary, emergency access to a resource, with detailed justification and monitoring.
+
 ```python
-# Emergency access
+# Grant a user emergency access to incident data for 60 minutes.
 temp_access = access_control.grant_temporary_access(
     user_id="emergency.responder",
     resource="artifact:incident-data",
     permissions=["read", "analyze"],
-    duration_minutes=60,
-    emergency_justification="security incident",
-    continuous_monitoring=True
+    duration_minutes=60, # The duration of the temporary access.
+    emergency_justification="security incident response", # The reason for the emergency access.
+    continuous_monitoring=True # Enable continuous monitoring of all actions taken with this temporary access.
 )
 ```
 
@@ -313,34 +338,38 @@ temp_access = access_control.grant_temporary_access(
 
 #### `create_session(user_id, **options) -> Session`
 
+Creates a new authenticated session for a user.
+
 ```python
-# Create authenticated session
+# Create a new session for a user with several security options.
 session = access_control.create_session(
     user_id="alice.smith",
-    duration_hours=8,
-    max_idle_minutes=30,
-    bind_to_device=True,
-    device_fingerprint="device-123",
-    security_level="high"
+    duration_hours=8, # The total duration of the session.
+    max_idle_minutes=30, # The maximum idle time before the session expires.
+    bind_to_device=True, # Bind the session to the user's device.
+    device_fingerprint="device-123", # A fingerprint of the user's device.
+    security_level="high" # The security level of the session.
 )
 ```
 
 #### `validate_session(session_id, **options) -> SessionValidation`
 
+Validates an existing session to ensure it is still active and valid.
+
 ```python
-# Validate session
+# Validate a session, checking for expiry and device binding.
 validation = access_control.validate_session(
     session_id="sess_abc123",
-    check_expiry=True,
-    check_device_binding=True,
-    current_ip="192.168.1.100",
-    extend_on_activity=True
+    check_expiry=True, # Check if the session has expired.
+    check_device_binding=True, # Check if the session is still bound to the original device.
+    current_ip="192.168.1.100", # The current IP address of the client.
+    extend_on_activity=True # Extend the session's idle timeout on activity.
 )
 
 if validation.valid:
-    print(f"Session valid for: {validation.user_id}")
+    print(f"Session is valid for user: {validation.user_id}")
 else:
-    print(f"Invalid: {validation.invalid_reason}")
+    print(f"Session is invalid. Reason: {validation.invalid_reason}")
 ```
 
 ## Multi-Factor Authentication
@@ -349,23 +378,26 @@ else:
 
 #### `setup_mfa(user_id, mfa_method, **options) -> MFASetup`
 
+Sets up a new Multi-Factor Authentication method for a user.
+
 ```python
-# Setup TOTP
+# Set up Time-based One-Time Password (TOTP) for a user.
 totp_setup = access_control.setup_mfa(
     user_id="alice.smith",
-    mfa_method="totp",
-    issuer="Company MAIF",
-    generate_backup_codes=True
+    mfa_method="totp", # The MFA method to set up.
+    issuer="Company MAIF", # The issuer name to display in the authenticator app.
+    generate_backup_codes=True # Generate backup codes for the user.
 )
 
-print(f"QR Code: {totp_setup.qr_code_url}")
+# Display the QR code for the user to scan.
+print(f"QR Code URL: {totp_setup.qr_code_url}")
 print(f"Backup codes: {totp_setup.backup_codes}")
 
-# Setup SMS MFA
+# Set up SMS-based MFA for another user.
 sms_setup = access_control.setup_mfa(
     user_id="bob.jones",
     mfa_method="sms",
-    phone_number="+1-555-123-4567"
+    phone_number="+1-555-123-4567" # The user's phone number for SMS codes.
 )
 ```
 
@@ -373,20 +405,22 @@ sms_setup = access_control.setup_mfa(
 
 #### `verify_mfa(user_id, mfa_token, **options) -> MFAResult`
 
+Verifies an MFA token provided by a user.
+
 ```python
-# Verify MFA token
+# Verify a TOTP token provided by a user.
 mfa_result = access_control.verify_mfa(
     user_id="alice.smith",
-    mfa_token="123456",
+    mfa_token="123456", # The token from the user's authenticator app.
     mfa_method="totp",
-    allow_backup_codes=True,
-    check_replay_attack=True
+    allow_backup_codes=True, # Allow the use of backup codes for verification.
+    check_replay_attack=True # Check for replay attacks by ensuring the token has not been used before.
 )
 
 if mfa_result.verified:
-    print("MFA verification successful")
+    print("MFA verification was successful.")
 else:
-    print(f"Failed: {mfa_result.failure_reason}")
+    print(f"MFA verification failed. Reason: {mfa_result.failure_reason}")
 ```
 
 ## Access Policies
@@ -395,25 +429,27 @@ else:
 
 #### `create_access_policy(policy_name, **options) -> AccessPolicy`
 
+Creates a comprehensive, human-readable access policy that combines roles, attributes, and conditions.
+
 ```python
-# Comprehensive access policy
+# Create an access policy for financial data.
 policy = access_control.create_access_policy(
     policy_name="financial_data_policy",
     rules=[
         {
-            "effect": "allow",
-            "principals": ["role:financial_analyst"],
-            "resources": ["artifact:financial:*"],
-            "actions": ["read", "analyze"],
-            "conditions": {
+            "effect": "allow", # The effect of the rule (allow or deny).
+            "principals": ["role:financial_analyst"], # The principals this rule applies to.
+            "resources": ["artifact:financial:*"], # The resources this rule applies to.
+            "actions": ["read", "analyze"], # The actions this rule allows.
+            "conditions": { # The conditions under which this rule is active.
                 "time_of_day": "business_hours",
                 "location": "office",
                 "mfa_verified": True
             }
         }
     ],
-    compliance_frameworks=["SOX"],
-    enforcement_mode="strict"
+    compliance_frameworks=["SOX"], # The compliance frameworks this policy helps to enforce.
+    enforcement_mode="strict" # The enforcement mode (strict or permissive).
 )
 ```
 
@@ -421,8 +457,10 @@ policy = access_control.create_access_policy(
 
 #### `evaluate_policy(policy, request) -> PolicyResult`
 
+Evaluates an access request against a specific policy.
+
 ```python
-# Evaluate access request
+# Evaluate an access request against the financial data policy.
 result = access_control.evaluate_policy(
     policy=financial_data_policy,
     request={
@@ -431,10 +469,10 @@ result = access_control.evaluate_policy(
         "action": "read",
         "context": {"location": "office", "mfa_verified": True}
     },
-    include_explanation=True
+    include_explanation=True # Include a detailed explanation of the evaluation logic.
 )
 
-print(f"Decision: {result.decision}")
+print(f"Policy evaluation decision: {result.decision}")
 print(f"Explanation: {result.explanation}")
 ```
 
@@ -444,53 +482,60 @@ print(f"Explanation: {result.explanation}")
 
 #### `get_access_audit_log(**filters) -> List[AccessAuditEntry]`
 
+Retrieves detailed access audit logs with filtering capabilities.
+
 ```python
-# Get audit logs
+# Retrieve audit logs for denied access attempts to financial artifacts by a specific user.
 audits = access_control.get_access_audit_log(
     start_date="2024-01-01",
-    user_ids=["alice.smith"],
-    resources=["artifact:financial:*"],
-    access_results=["denied"],
-    include_context=True
+    user_ids=["alice.smith"], # Filter by user ID.
+    resources=["artifact:financial:*"], # Filter by resource.
+    access_results=["denied"], # Filter by the result of the access check.
+    include_context=True # Include the full context of the access attempt.
 )
 
+# Iterate through the audit log entries.
 for entry in audits:
     print(f"User: {entry.user_id}")
     print(f"Resource: {entry.resource}")
     print(f"Result: {entry.result}")
     if entry.result == "denied":
-        print(f"Reason: {entry.denial_reason}")
+        print(f"Denial Reason: {entry.denial_reason}")
 ```
 
 ### Access Analytics
 
 #### `generate_access_report(**options) -> AccessReport`
 
+Generates a comprehensive report on access patterns, violations, and potential risks.
+
 ```python
-# Generate access report
+# Generate a monthly access report with risk assessment.
 report = access_control.generate_access_report(
     period="monthly",
     start_date="2024-01-01",
-    include_violations=True,
-    identify_anomalies=True,
-    risk_assessment=True,
-    format="pdf"
+    include_violations=True, # Include a summary of policy violations.
+    identify_anomalies=True, # Use ML to identify anomalous access patterns.
+    risk_assessment=True, # Include a risk assessment score.
+    format="pdf" # The output format of the report.
 )
 
-print(f"Access attempts: {report.total_access_attempts}")
-print(f"Violations: {report.policy_violations}")
-print(f"Risk score: {report.risk_score}")
+print(f"Total access attempts: {report.total_access_attempts}")
+print(f"Number of policy violations: {report.policy_violations}")
+print(f"Overall risk score: {report.risk_score}")
 ```
 
 ## Error Handling
 
+The Access Control module raises specific exceptions for different types of access-related errors.
+
 ```python
 from maif.exceptions import (
-    AccessControlError,
-    AuthenticationError,
-    AuthorizationError,
-    SessionError,
-    MFAError
+    AccessControlError,  # Base exception for access control errors.
+    AuthenticationError, # Raised on authentication failures.
+    AuthorizationError,  # Raised on authorization failures.
+    SessionError,        # Raised on session management errors.
+    MFAError             # Raised on MFA-related errors.
 )
 
 try:

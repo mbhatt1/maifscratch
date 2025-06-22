@@ -41,22 +41,24 @@ graph TB
 
 ## Block Types
 
-MAIF supports multiple block types, each optimized for specific data types and use cases:
+MAIF supports multiple block types, each optimized for specific data types and use cases.
 
 ### 1. TextBlock
 
 Stores natural language text with linguistic metadata and semantic embeddings.
 
 ```python
-from maif_sdk import create_artifact
+from maif_sdk import create_artifact, create_client
 
+# Assume a client is already created.
+client = create_client()
 artifact = create_artifact("text-demo", client)
 
-# Basic text block
-text_id = artifact.add_text("Hello, world!")
+# Create a basic text block with simple content.
+text_id_1 = artifact.add_text("Hello, world!")
 
-# Advanced text block with features
-text_id = artifact.add_text(
+# Create an advanced text block with a title, language, encryption, and custom metadata.
+text_id_2 = artifact.add_text(
     "The quick brown fox jumps over the lazy dog.",
     title="Sample Text",
     language="en",
@@ -78,17 +80,19 @@ text_id = artifact.add_text(
 
 ### 2. ImageBlock
 
-Stores image data with visual metadata and features.
+Stores image data with visual metadata and features. It can handle raw image data, typically as NumPy arrays.
 
 ```python
 import numpy as np
-from PIL import Image
+from maif_sdk import create_artifact
 
-# Load image
-image = Image.open("photo.jpg")
-image_data = np.array(image)
+# Assume an artifact is already created.
+artifact = create_artifact("image-demo")
 
-# Store image block
+# Create mock image data (e.g., a 100x100 RGB image).
+image_data = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+
+# Store the image data in an ImageBlock with a title and metadata.
 image_id = artifact.add_image(
     image_data,
     title="Sample Photo",
@@ -111,19 +115,23 @@ image_id = artifact.add_image(
 
 ### 3. EmbeddingBlock
 
-Stores vector embeddings with model information and semantic metadata.
+Stores vector embeddings along with information about the model used to generate them.
 
 ```python
 import numpy as np
+from maif_sdk import create_artifact
 
-# Generate or load embeddings
+# Assume an artifact is already created.
+artifact = create_artifact("embedding-demo")
+
+# Generate a mock 384-dimensional embedding vector.
 embedding_vector = np.random.rand(384).astype(np.float32)
 
-# Store embedding block
+# Store the embedding vector in an EmbeddingBlock with provenance information.
 embedding_id = artifact.add_embedding(
     embedding_vector,
     title="Text Embedding",
-    model="all-MiniLM-L6-v2",
+    model="all-MiniLM-L6-v2", # The name of the model that generated the embedding.
     metadata={
         "source_text": "Original text that generated this embedding",
         "model_version": "1.0.0",
@@ -141,10 +149,15 @@ embedding_id = artifact.add_embedding(
 
 ### 4. StructuredDataBlock
 
-Stores JSON-like structured data with schema validation.
+Stores JSON-like structured data, which is useful for configuration, profiles, or complex metadata.
 
 ```python
-# Store structured data
+from maif_sdk import create_artifact
+
+# Assume an artifact is already created.
+artifact = create_artifact("structured-data-demo")
+
+# Store a dictionary as a structured data block.
 data_id = artifact.add_structured_data({
     "user_profile": {
         "id": "user_123",
@@ -174,19 +187,24 @@ data_id = artifact.add_structured_data({
 Stores audio data with acoustic metadata and features.
 
 ```python
-# Load audio file
-import librosa
+import numpy as np
+from maif_sdk import create_artifact
 
-audio_data, sample_rate = librosa.load("speech.wav")
+# Assume an artifact is already created.
+artifact = create_artifact("audio-demo")
 
-# Store audio block
+# Create mock audio data (e.g., 1 second of audio at 44.1kHz).
+audio_data = np.random.randn(44100)
+sample_rate = 44100
+
+# Store the audio data in an AudioBlock.
 audio_id = artifact.add_audio(
     audio_data,
     sample_rate=sample_rate,
     title="Speech Sample",
     format="WAV",
     metadata={
-        "duration": "30.5s",
+        "duration": "1.0s",
         "speaker": "unknown",
         "language": "en"
     }
@@ -205,14 +223,23 @@ audio_id = artifact.add_audio(
 Stores video data with temporal metadata and scene analysis.
 
 ```python
-# Store video block
+import numpy as np
+from maif_sdk import create_artifact
+
+# Assume an artifact is already created.
+artifact = create_artifact("video-demo")
+
+# Create mock video data (e.g., 10 frames of a 64x64 RGB video).
+video_data = np.random.randint(0, 256, (10, 64, 64, 3), dtype=np.uint8)
+
+# Store the video data in a VideoBlock.
 video_id = artifact.add_video(
     video_data,
     title="Demo Video",
     format="MP4",
     metadata={
-        "duration": "2m 15s",
-        "resolution": "1920x1080",
+        "duration": "0.33s",
+        "resolution": "64x64",
         "fps": 30,
         "codec": "H.264"
     }
@@ -230,33 +257,34 @@ video_id = artifact.add_video(
 
 ### Block Header
 
-Every block starts with a standardized header:
+Every block starts with a standardized header that contains essential information for parsing and validation.
 
 ```python
+# Conceptual representation of the block header structure.
 class BlockHeader:
-    magic_number: bytes      # MAIF magic number
-    version: int            # Block format version
-    block_type: int         # Type identifier
-    flags: int              # Feature flags
-    data_size: int          # Size of data section
-    metadata_size: int      # Size of metadata section
-    checksum: bytes         # Header checksum
+    magic_number: bytes      # MAIF magic number to identify the file type.
+    version: int            # Block format version for backward compatibility.
+    block_type: int         # An enum identifying the block type (e.g., Text, Image).
+    flags: int              # Feature flags (e.g., is_encrypted, is_signed).
+    data_size: int          # The size of the data section in bytes.
+    metadata_size: int      # The size of the metadata section in bytes.
+    checksum: bytes         # A checksum of the header to ensure its integrity.
 ```
 
 ### Metadata Section
 
-The metadata section contains structured information about the block:
+The metadata section contains structured information about the block, its source, and its relationships.
 
 ```python
-class BlockMetadata:
-    creation_timestamp: datetime
-    modification_timestamp: datetime
-    creator_id: str
-    source_info: dict
-    relationships: list
-    privacy_level: int
-    security_flags: int
-    custom_metadata: dict
+# Conceptual representation of the metadata section structure.
+class MetadataSection:
+    block_id: str           # A unique identifier for the block.
+    artifact_id: str        # The ID of the artifact this block belongs to.
+    timestamp: str          # ISO 8601 timestamp of block creation.
+    source: str             # The origin of the data (e.g., 'user_input', 'api').
+    privacy_level: str      # The privacy level (e.g., 'public', 'confidential').
+    relationships: list     # A list of relationships to other blocks.
+    custom_metadata: dict   # A flexible dictionary for user-defined metadata.
 ```
 
 ### Data Section
