@@ -442,12 +442,14 @@ class TrulyOptimizedAcidMAIF:
         # Current transaction
         self._current_transaction = None
         
-        # Security manager if enabled
+        # Privacy engine if security is enabled
         if enable_security:
-            from .security import SecurityManager
-            self._security_manager = SecurityManager(agent_id=self.agent_id)
+            from .privacy import PrivacyEngine, EncryptionMode
+            self._privacy_engine = PrivacyEngine()
+            self._encryption_mode = EncryptionMode.AES_GCM
         else:
-            self._security_manager = None
+            self._privacy_engine = None
+            self._encryption_mode = None
     
     def begin_transaction(self) -> str:
         """Begin a new transaction."""
@@ -475,7 +477,9 @@ class TrulyOptimizedAcidMAIF:
         self._current_transaction = None
         return result
     
-    def add_text_block(self, text: str, metadata: Dict = None) -> str:
+    def add_text_block(self, text: str, metadata: Dict = None,
+                      encryption_enabled: bool = False,
+                      access_control_enabled: bool = False) -> str:
         """Add a text block with transaction support."""
         # Ensure we have a transaction
         if not self._current_transaction:
@@ -487,11 +491,22 @@ class TrulyOptimizedAcidMAIF:
         # Add to transaction
         data = text.encode('utf-8')
         
-        # Apply security if enabled
-        if self._security_manager:
-            data = self._security_manager.encrypt_data(data)
+        # Apply privacy/encryption if enabled
+        if self._privacy_engine and (encryption_enabled or self.enable_security):
+            encrypted_data, encryption_metadata = self._privacy_engine.encrypt_data(
+                data,
+                block_id,
+                encryption_mode=self._encryption_mode
+            )
+            data = encrypted_data
             metadata = metadata or {}
-            metadata["security"] = "encrypted"
+            metadata["encryption"] = encryption_metadata
+            
+            if access_control_enabled:
+                metadata["access_control"] = {
+                    "owner": self.agent_id,
+                    "permissions": "rw"
+                }
         
         self._transaction_manager.write_block(
             self._current_transaction,
@@ -502,7 +517,9 @@ class TrulyOptimizedAcidMAIF:
         
         return block_id
     
-    def add_binary_block(self, data: bytes, block_type: str, metadata: Dict = None) -> str:
+    def add_binary_block(self, data: bytes, block_type: str, metadata: Dict = None,
+                        encryption_enabled: bool = False,
+                        access_control_enabled: bool = False) -> str:
         """Add a binary block with transaction support."""
         # Ensure we have a transaction
         if not self._current_transaction:
@@ -511,11 +528,22 @@ class TrulyOptimizedAcidMAIF:
         # Add block to base encoder
         block_id = self._encoder.add_binary_block(data, block_type, metadata)
         
-        # Apply security if enabled
-        if self._security_manager:
-            data = self._security_manager.encrypt_data(data)
+        # Apply privacy/encryption if enabled
+        if self._privacy_engine and (encryption_enabled or self.enable_security):
+            encrypted_data, encryption_metadata = self._privacy_engine.encrypt_data(
+                data,
+                block_id,
+                encryption_mode=self._encryption_mode
+            )
+            data = encrypted_data
             metadata = metadata or {}
-            metadata["security"] = "encrypted"
+            metadata["encryption"] = encryption_metadata
+            
+            if access_control_enabled:
+                metadata["access_control"] = {
+                    "owner": self.agent_id,
+                    "permissions": "rw"
+                }
         
         # Add to transaction
         self._transaction_manager.write_block(

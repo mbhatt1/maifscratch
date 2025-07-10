@@ -367,4 +367,35 @@ class SecurityManager:
             'events_logged': len(self.security_events),
             'last_event': self.security_events[-1] if self.security_events else None
         }
+    
+    def encrypt_data(self, data: bytes) -> bytes:
+        """
+        Encrypt data for security.
+        
+        This is a simple implementation for benchmarking purposes.
+        In a real implementation, this would use proper encryption.
+        """
+        # Log the encryption event
+        self.log_security_event('encrypt', {'data_size': len(data)})
+        
+        # For benchmarking, we'll just add a simple header to simulate encryption
+        # In a real implementation, this would use proper encryption algorithms
+        header = b'ENCRYPTED:'
+        return header + data
+    
+    def decrypt_data(self, data: bytes) -> bytes:
+        """
+        Decrypt data.
+        
+        This is a simple implementation for benchmarking purposes.
+        In a real implementation, this would use proper decryption.
+        """
+        # Log the decryption event
+        self.log_security_event('decrypt', {'data_size': len(data)})
+        
+        # For benchmarking, we'll just remove the header
+        # In a real implementation, this would use proper decryption algorithms
+        if data.startswith(b'ENCRYPTED:'):
+            return data[len(b'ENCRYPTED:'):]
+        return data
 
