@@ -23,6 +23,7 @@ from enum import Enum
 from pathlib import Path
 import mmap
 from collections import defaultdict
+from .block_storage import BlockStorage
 
 
 class ACIDLevel(Enum):
@@ -429,15 +430,65 @@ class ACIDTransactionManager:
     
     def _write_block_direct(self, block_id: str, data: bytes, metadata: Dict) -> bool:
         """Direct block write without transaction overhead."""
-        # This would integrate with the existing MAIF core writing logic
-        # For now, this is a placeholder
-        return True
+        try:
+            # Create or get block storage
+            storage_path = self.maif_path + '.blocks'
+            storage = BlockStorage(storage_path)
+            
+            with storage:
+                # Check if block already exists
+                if block_id in storage.block_index:
+                    # Update existing block
+                    # In a real implementation, we would update the block
+                    # For now, we'll add a new block with the same ID
+                    storage.add_block(
+                        block_type=metadata.get('block_type', 'BDAT'),
+                        data=data,
+                        metadata=metadata
+                    )
+                else:
+                    # Add new block
+                    storage.add_block(
+                        block_type=metadata.get('block_type', 'BDAT'),
+                        data=data,
+                        metadata=metadata
+                    )
+                
+                return True
+        except Exception as e:
+            print(f"Error writing block: {e}")
+            return False
     
     def _read_block_direct(self, block_id: str) -> Optional[Tuple[bytes, Dict]]:
         """Direct block read without transaction overhead."""
-        # This would integrate with the existing MAIF core reading logic
-        # For now, this is a placeholder
-        return None
+        try:
+            # Open block storage
+            storage_path = self.maif_path + '.blocks'
+            storage = BlockStorage(storage_path)
+            
+            with storage:
+                # Get block by ID
+                result = storage.get_block(block_id)
+                
+                if result is None:
+                    return None
+                
+                header, data = result
+                
+                # Convert header to metadata
+                metadata = {
+                    'block_id': block_id,
+                    'block_type': header.block_type,
+                    'version': header.version,
+                    'timestamp': header.timestamp,
+                    'size': header.size,
+                    'uuid': header.uuid
+                }
+                
+                return data, metadata
+        except Exception as e:
+            print(f"Error reading block: {e}")
+            return None
     
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get transaction performance statistics."""

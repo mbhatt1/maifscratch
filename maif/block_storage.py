@@ -11,6 +11,10 @@ from typing import Dict, List, Optional, Union, BinaryIO, Any, Tuple
 from dataclasses import dataclass
 from enum import Enum
 import io
+from .signature_verification import (
+    SignatureVerifier, create_default_verifier, sign_block_data,
+    verify_block_signature, SignatureInfo
+)
 
 class BlockType(Enum):
     """MAIF Block Types as defined in the paper."""
@@ -86,12 +90,17 @@ class BlockStorage:
     
     HEADER_SIZE = 72  # Fixed header size
     
-    def __init__(self, file_path: Optional[str] = None):
+    def __init__(self, file_path: Optional[str] = None, verify_signatures: bool = True):
         self.file_path = file_path
         self.blocks: List[Tuple[BlockHeader, int]] = []  # (header, data_offset)
         self.block_index: Dict[str, int] = {}  # uuid -> block_index
         self.file_handle: Optional[BinaryIO] = None
         self.memory_mapped = False
+        
+        # Signature verification
+        self.verify_signatures = verify_signatures
+        self.signature_verifier = create_default_verifier() if verify_signatures else None
+        self.block_signatures: Dict[str, Dict[str, Any]] = {}  # block_uuid -> signature_metadata
         
     def __enter__(self):
         if self.file_path:
@@ -103,9 +112,13 @@ class BlockStorage:
             self.file_handle.close()
     
     def add_block(self, block_type: str, data: bytes, metadata: Optional[Dict] = None) -> str:
-        """Add a new block to storage."""
+        """Add a new block to storage with signature."""
         block_uuid = str(uuid.uuid4())
         timestamp = time.time()
+        
+        # Ensure metadata is a dictionary
+        if metadata is None:
+            metadata = {}
         
         # Calculate previous hash for chain integrity
         previous_hash = None
@@ -122,6 +135,24 @@ class BlockStorage:
             timestamp=timestamp,
             previous_hash=previous_hash
         )
+        
+        # Sign the block if signature verification is enabled
+        if self.verify_signatures and self.signature_verifier:
+            try:
+                # Sign the block data
+                signature_metadata = sign_block_data(
+                    self.signature_verifier,
+                    data,
+                    key_id="default"  # Use default key for now
+                )
+                
+                # Store signature metadata
+                self.block_signatures[block_uuid] = signature_metadata
+                
+                # Add signature info to block metadata
+                metadata["signature"] = signature_metadata
+            except Exception as e:
+                print(f"Warning: Failed to sign block {block_uuid}: {e}")
         
         # Store block
         if self.file_handle:
@@ -141,8 +172,8 @@ class BlockStorage:
         
         return block_uuid
     
-    def get_block(self, block_uuid: str) -> Optional[Tuple[BlockHeader, bytes]]:
-        """Retrieve a block by UUID."""
+    def get_block(self, block_uuid: str) -> Optional[Tuple[BlockHeader, bytes, Dict]]:
+        """Retrieve a block by UUID with signature verification."""
         if block_uuid not in self.block_index:
             return None
         
@@ -157,7 +188,35 @@ class BlockStorage:
             # Mock data for in-memory
             data = b"mock_data"
         
-        return header, data
+        # Prepare metadata
+        metadata = {}
+        
+        # Verify signature if enabled
+        if self.verify_signatures and self.signature_verifier:
+            signature_metadata = self.block_signatures.get(block_uuid)
+            
+            if signature_metadata:
+                # Add signature info to metadata
+                metadata["signature"] = signature_metadata
+                
+                # Verify signature
+                is_valid = verify_block_signature(
+                    self.signature_verifier,
+                    data,
+                    signature_metadata
+                )
+                
+                # Add verification result to metadata
+                metadata["signature_verified"] = is_valid
+                
+                # Raise warning if signature is invalid
+                if not is_valid:
+                    print(f"Warning: Invalid signature for block {block_uuid}")
+            else:
+                metadata["signature_verified"] = False
+                print(f"Warning: No signature found for block {block_uuid}")
+        
+        return header, data, metadata
     
     def list_blocks(self) -> List[BlockHeader]:
         """List all block headers."""
@@ -183,6 +242,60 @@ class BlockStorage:
                 return False
         
         return True
+    
+    def validate_all_signatures(self) -> Dict[str, Any]:
+        """Validate signatures for all blocks."""
+        if not self.verify_signatures or not self.signature_verifier:
+            return {"enabled": False, "message": "Signature verification not enabled"}
+        
+        results = {
+            "total_blocks": len(self.blocks),
+            "signed_blocks": 0,
+            "valid_signatures": 0,
+            "invalid_signatures": 0,
+            "missing_signatures": 0,
+            "blocks_with_issues": []
+        }
+        
+        for header, data_offset in self.blocks:
+            block_uuid = header.uuid
+            
+            # Check if block has signature
+            if block_uuid not in self.block_signatures:
+                results["missing_signatures"] += 1
+                results["blocks_with_issues"].append({
+                    "block_uuid": block_uuid,
+                    "issue": "missing_signature"
+                })
+                continue
+            
+            results["signed_blocks"] += 1
+            
+            # Read block data
+            if self.file_handle:
+                self.file_handle.seek(data_offset + self.HEADER_SIZE)
+                data = self.file_handle.read(header.size)
+            else:
+                data = b"mock_data"
+            
+            # Verify signature
+            signature_metadata = self.block_signatures[block_uuid]
+            is_valid = verify_block_signature(
+                self.signature_verifier,
+                data,
+                signature_metadata
+            )
+            
+            if is_valid:
+                results["valid_signatures"] += 1
+            else:
+                results["invalid_signatures"] += 1
+                results["blocks_with_issues"].append({
+                    "block_uuid": block_uuid,
+                    "issue": "invalid_signature"
+                })
+        
+        return results
 
 class HighPerformanceBlockParser:
     """Optimized block parser for streaming operations."""

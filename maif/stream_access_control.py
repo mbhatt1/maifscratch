@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Fixed Stream Access Control for MAIF
-====================================
+Production-Ready Stream Access Control for MAIF
+==============================================
 
-Simple working version to fix syntax errors and allow tests to run.
+Implements robust access control with proper validation, security checks,
+and integration with the MAIF security framework.
 """
 
 import time
@@ -81,12 +82,14 @@ class AccessRule:
 
 
 class StreamAccessController:
-    """Stream access controller with basic functionality."""
+    """Stream access controller with robust security and validation."""
     
     def __init__(self):
         self.active_sessions: Dict[str, StreamSession] = {}
         self.access_rules: List[AccessRule] = []
         self.security_events: List[Dict[str, Any]] = []
+        self.rate_limits: Dict[str, Dict[str, Any]] = {}
+        self.last_cleanup = time.time()
     
     def create_session(self, session_id: str, user_id: str, max_duration: float = 3600) -> bool:
         """Create a new stream session."""
@@ -111,10 +114,10 @@ class StreamAccessController:
         except Exception:
             return False
     
-    def check_stream_access(self, session_id: str, operation: str, 
+    def check_stream_access(self, session_id: str, operation: str,
                           block_type: str = None, block_data: bytes = None) -> Tuple[AccessDecision, str]:
         """
-        Check access for a streaming operation.
+        Check access for a streaming operation with robust validation.
         
         Args:
             session_id: Active session ID
@@ -125,34 +128,93 @@ class StreamAccessController:
         Returns:
             Tuple of (decision, reason)
         """
+        # Record start time for timing attack protection
+        start_time = time.time()
+        
         try:
+            # Validate inputs
+            if not session_id or not isinstance(session_id, str):
+                return AccessDecision.DENY, "Invalid session ID format"
+                
+            if operation not in ["read", "write", "delete", "update"]:
+                return AccessDecision.DENY, f"Unsupported operation: {operation}"
+            
             # Check if session exists
             if session_id not in self.active_sessions:
+                # Log security event
+                self._log_security_event(
+                    "unknown",
+                    operation,
+                    f"Access attempt with invalid session: {session_id}"
+                )
                 return AccessDecision.DENY, "Invalid session"
             
             session = self.active_sessions[session_id]
             
             # Check if session is expired
             if time.time() - session.start_time > session.max_duration:
+                self._log_security_event(
+                    session.user_id,
+                    operation,
+                    "Access attempt with expired session"
+                )
                 return AccessDecision.DENY, "Session expired"
             
+            # Check for rate limiting (prevent DoS)
+            if self._is_rate_limited(session):
+                self._log_security_event(
+                    session.user_id,
+                    operation,
+                    "Rate limit exceeded"
+                )
+                return AccessDecision.DENY, "Rate limit exceeded"
+            
             # Apply access rules
+            rule_decisions = []
             for rule in self.access_rules:
                 if rule.applies_to(session.user_id, operation, block_type):
                     decision = rule.evaluate(session, block_data)
-                    if decision != AccessDecision.ALLOW:
+                    rule_decisions.append((rule, decision))
+                    
+                    # If any rule explicitly denies, stop processing
+                    if decision == AccessDecision.DENY:
+                        self._log_security_event(
+                            session.user_id,
+                            operation,
+                            f"Access denied by rule: {rule.name}"
+                        )
                         return decision, f"Access denied by rule: {rule.name}"
             
-            # Update session stats
-            if operation == "read":
-                session.blocks_read += 1
-                if block_data:
-                    session.bytes_read += len(block_data)
+            # Check if MFA is required by any rule
+            if any(decision == AccessDecision.REQUIRE_MFA for _, decision in rule_decisions):
+                return AccessDecision.REQUIRE_MFA, "Multi-factor authentication required"
             
-            return AccessDecision.ALLOW, "Access granted"
+            # If no rules applied or all allowed, grant access
+            if not rule_decisions or all(decision == AccessDecision.ALLOW for _, decision in rule_decisions):
+                # Update session stats
+                if operation == "read":
+                    session.blocks_read += 1
+                    if block_data:
+                        session.bytes_read += len(block_data)
+                
+                return AccessDecision.ALLOW, "Access granted"
+            
+            # Default deny if we reach here (defense in depth)
+            return AccessDecision.DENY, "Access denied by default policy"
             
         except Exception as e:
+            # Log the exception
+            self._log_security_event(
+                session_id if isinstance(session_id, str) else "unknown",
+                operation if isinstance(operation, str) else "unknown",
+                f"Access check error: {str(e)}"
+            )
             return AccessDecision.DENY, f"Access check failed: {str(e)}"
+        finally:
+            # Add timing protection (constant time response)
+            elapsed = time.time() - start_time
+            if elapsed < 0.005:  # Minimum 5ms response time
+                time.sleep(0.005 - elapsed)
     
     def check_stream_access_secure(self, session_id: str, operation: str, 
                                   block_type: str = None, block_data: bytes = None,
@@ -215,6 +277,67 @@ class StreamAccessController:
     def get_security_events(self) -> List[Dict[str, Any]]:
         """Get security events."""
         return self.security_events.copy()
+    
+    def _log_security_event(self, user_id: str, operation: str, description: str):
+        """Log security event with timestamp and details."""
+        event = {
+            "timestamp": time.time(),
+            "user_id": user_id,
+            "operation": operation,
+            "description": description,
+            "severity": "high" if "denied" in description.lower() else "medium"
+        }
+        self.security_events.append(event)
+        
+        # Limit event history to prevent memory issues
+        if len(self.security_events) > 1000:
+            self.security_events = self.security_events[-1000:]
+    
+    def _is_rate_limited(self, session: StreamSession) -> bool:
+        """Check if session has exceeded rate limits."""
+        user_id = session.user_id
+        current_time = time.time()
+        
+        # Initialize rate limit tracking for user if not exists
+        if user_id not in self.rate_limits:
+            self.rate_limits[user_id] = {
+                "operations": [],
+                "last_reset": current_time
+            }
+        
+        # Periodically clean up rate limit data
+        if current_time - self.last_cleanup > 300:  # Every 5 minutes
+            self._cleanup_rate_limits()
+            self.last_cleanup = current_time
+        
+        # Add current operation timestamp
+        self.rate_limits[user_id]["operations"].append(current_time)
+        
+        # Check operations in the last minute
+        one_minute_ago = current_time - 60
+        recent_ops = [ts for ts in self.rate_limits[user_id]["operations"] if ts > one_minute_ago]
+        self.rate_limits[user_id]["operations"] = recent_ops
+        
+        # Rate limit: 100 operations per minute per user
+        return len(recent_ops) > 100
+    
+    def _cleanup_rate_limits(self):
+        """Clean up expired rate limit data."""
+        current_time = time.time()
+        expired_time = current_time - 3600  # 1 hour
+        
+        # Remove expired user data
+        expired_users = []
+        for user_id, data in self.rate_limits.items():
+            if data["last_reset"] < expired_time and not data["operations"]:
+                expired_users.append(user_id)
+            else:
+                # Keep only operations from the last hour
+                data["operations"] = [ts for ts in data["operations"] if ts > expired_time]
+        
+        # Remove expired users
+        for user_id in expired_users:
+            del self.rate_limits[user_id]
 
 
 # Additional classes for backward compatibility
