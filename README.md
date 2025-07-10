@@ -8,6 +8,7 @@
 [![Security Model](https://img.shields.io/badge/Security-Cryptographic%20Provenance-red.svg)](#security-features)
 
 > **The AI trustworthiness crisis threatens to derail the entire artificial intelligence revolution.** Current AI systems operate on fundamentally opaque data structures that cannot provide the audit trails, provenance tracking, or explainability required by emerging regulations like the EU AI Act.
+> MAIF is the sock to stuff all your data, system state into. 
 
 **MAIF solves this at the data architecture level** — transforming data from passive storage into active trust enforcement through an artifact-centric AI agent paradigm where agent behavior is driven by persistent, verifiable data artifacts rather than ephemeral tasks.
 
