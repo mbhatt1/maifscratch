@@ -20,8 +20,9 @@ logger = logging.getLogger(__name__)
 # Import MAIF components
 from maif.agentic_framework import AgentState, MAIFAgent
 from maif.aws_decorators import (
-    maif_agent, aws_agent, aws_bedrock, aws_s3, aws_kms, aws_lambda, aws_dynamodb,
-    enhance_perception_with_bedrock, enhance_reasoning_with_bedrock, enhance_execution_with_aws
+    maif_agent, aws_agent, aws_bedrock, aws_s3, aws_kms, aws_lambda, aws_dynamodb, aws_step_functions,
+    enhance_perception_with_bedrock, enhance_reasoning_with_bedrock, enhance_execution_with_aws,
+    enhance_with_step_functions
 )
 from maif_sdk.artifact import Artifact as MAIFArtifact
 from maif_sdk.types import SecurityLevel
@@ -223,6 +224,83 @@ class CustomAWSAgent(MAIFAgent):
             except Exception as e:
                 logger.error(f"Agent error: {e}")
                 await asyncio.sleep(5.0)
+
+
+# ===== Step Functions Agent =====
+
+@maif_agent(workspace="./demo_workspace/aws_step_functions")
+@enhance_with_step_functions()
+class StepFunctionsAgent:
+    """Agent that uses AWS Step Functions for workflow orchestration."""
+    
+    def __init__(self, name="StepFunctionsAgent"):
+        self.name = name
+        logger.info(f"Initialized {self.name}")
+        
+        # Register workflows
+        self.workflow.register_workflow(
+            "data_processing",
+            "arn:aws:states:us-east-1:123456789012:stateMachine:DataProcessing",
+            "Process data with Step Functions"
+        )
+        
+        self.workflow.register_workflow(
+            "image_analysis",
+            "arn:aws:states:us-east-1:123456789012:stateMachine:ImageAnalysis",
+            "Analyze images with Step Functions"
+        )
+    
+    @aws_step_functions()
+    async def execute_custom_workflow(self, state_machine_arn, input_data, sfn_client=None):
+        """Execute a custom Step Functions workflow."""
+        logger.info(f"Executing custom workflow: {state_machine_arn}")
+        
+        try:
+            # Start execution
+            response = sfn_client.start_execution(
+                stateMachineArn=state_machine_arn,
+                input=json.dumps(input_data)
+            )
+            
+            return response["executionArn"]
+        except Exception as e:
+            logger.error(f"Error executing workflow: {e}")
+            return None
+    
+    async def process(self):
+        """Main processing loop."""
+        try:
+            # Execute registered workflow
+            logger.info("Executing data processing workflow")
+            execution_arn = await self.workflow.execute_workflow(
+                "data_processing",
+                {"input": "Sample data to process", "timestamp": time.time()}
+            )
+            
+            # Wait for completion
+            logger.info(f"Waiting for execution {execution_arn} to complete")
+            result = await self.workflow.wait_for_execution(execution_arn, timeout=10.0)
+            
+            # Process result
+            if result["status"] == "SUCCEEDED":
+                logger.info(f"Workflow succeeded: {result.get('output')}")
+            else:
+                logger.info(f"Workflow status: {result['status']}")
+            
+            # Execute custom workflow
+            custom_arn = "arn:aws:states:us-east-1:123456789012:stateMachine:CustomWorkflow"
+            custom_execution = await self.execute_custom_workflow(
+                custom_arn,
+                {"custom_input": "Custom workflow data"}
+            )
+            
+            logger.info(f"Custom workflow execution: {custom_execution}")
+            
+            # Simulate work
+            await asyncio.sleep(5.0)
+            
+        except Exception as e:
+            logger.error(f"Process error: {e}")
 
 
 # ===== Demo Functions =====

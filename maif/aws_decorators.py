@@ -11,9 +11,11 @@ import asyncio
 import boto3
 from typing import Optional, Dict, Any, Callable, List, Type, Union
 from pathlib import Path
+import json
+import time
 
 from .agentic_framework import (
-    MAIFAgent, AgentState, PerceptionSystem, 
+    MAIFAgent, AgentState, PerceptionSystem,
     ReasoningSystem, ExecutionSystem
 )
 from .aws_bedrock_integration import BedrockClient, MAIFBedrockIntegration
@@ -388,6 +390,34 @@ def aws_dynamodb(region_name: str = "us-east-1", profile_name: Optional[str] = N
     return decorator
 
 
+def aws_step_functions(region_name: str = "us-east-1", profile_name: Optional[str] = None):
+    """
+    Decorator to add AWS Step Functions capabilities to a method.
+    
+    @aws_step_functions()
+    def execute_workflow(self, state_machine_arn, input_data):
+        # 'sfn_client' is injected into the method
+        execution = sfn_client.start_execution(
+            stateMachineArn=state_machine_arn,
+            input=json.dumps(input_data)
+        )
+        return execution['executionArn']
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(self, *args, **kwargs):
+            # Create Step Functions client if not already available
+            if not hasattr(self, '_sfn_client'):
+                session = boto3.Session(region_name=region_name, profile_name=profile_name)
+                self._sfn_client = session.client('stepfunctions')
+            
+            # Inject Step Functions client into the function call
+            kwargs['sfn_client'] = self._sfn_client
+            return func(self, *args, **kwargs)
+        return wrapper
+    return decorator
+
+
 # ===== Agent System Enhancement Decorators =====
 
 def enhance_perception_with_bedrock(region_name: str = "us-east-1"):
@@ -462,6 +492,123 @@ def enhance_execution_with_aws(region_name: str = "us-east-1"):
     return decorator
 
 
+# ===== Step Functions Workflow System =====
+
+class StepFunctionsWorkflowSystem:
+    """Workflow system that uses AWS Step Functions for orchestration."""
+    
+    def __init__(self, agent: MAIFAgent, region_name: str = "us-east-1"):
+        """Initialize Step Functions workflow system."""
+        self.agent = agent
+        
+        # Initialize AWS Step Functions client
+        session = boto3.Session(region_name=region_name)
+        self.sfn_client = session.client('stepfunctions')
+        
+        # Store workflow definitions and executions
+        self.workflows = {}
+        self.executions = {}
+    
+    def register_workflow(self, name: str, state_machine_arn: str, description: str = ""):
+        """Register a Step Functions workflow."""
+        self.workflows[name] = {
+            "state_machine_arn": state_machine_arn,
+            "description": description,
+            "registered_at": time.time()
+        }
+    
+    async def execute_workflow(self, workflow_name: str, input_data: Dict[str, Any]) -> str:
+        """Execute a Step Functions workflow."""
+        if workflow_name not in self.workflows:
+            raise ValueError(f"Workflow '{workflow_name}' not registered")
+        
+        state_machine_arn = self.workflows[workflow_name]["state_machine_arn"]
+        
+        # Start execution
+        response = self.sfn_client.start_execution(
+            stateMachineArn=state_machine_arn,
+            input=json.dumps(input_data)
+        )
+        
+        execution_arn = response["executionArn"]
+        
+        # Store execution details
+        self.executions[execution_arn] = {
+            "workflow_name": workflow_name,
+            "started_at": time.time(),
+            "status": "RUNNING",
+            "input": input_data
+        }
+        
+        return execution_arn
+    
+    async def check_execution_status(self, execution_arn: str) -> Dict[str, Any]:
+        """Check the status of a workflow execution."""
+        response = self.sfn_client.describe_execution(
+            executionArn=execution_arn
+        )
+        
+        # Update execution status
+        if execution_arn in self.executions:
+            self.executions[execution_arn]["status"] = response["status"]
+            
+            if "output" in response and response["status"] == "SUCCEEDED":
+                self.executions[execution_arn]["output"] = json.loads(response["output"])
+        
+        return {
+            "execution_arn": execution_arn,
+            "status": response["status"],
+            "started_at": response["startDate"].timestamp(),
+            "output": json.loads(response["output"]) if "output" in response else None
+        }
+    
+    async def wait_for_execution(self, execution_arn: str, timeout: float = 300.0) -> Dict[str, Any]:
+        """Wait for a workflow execution to complete."""
+        start_time = time.time()
+        
+        while time.time() - start_time < timeout:
+            status = await self.check_execution_status(execution_arn)
+            
+            if status["status"] in ["SUCCEEDED", "FAILED", "TIMED_OUT", "ABORTED"]:
+                return status
+            
+            # Wait before checking again
+            await asyncio.sleep(2.0)
+        
+        # Timeout reached
+        return {
+            "execution_arn": execution_arn,
+            "status": "TIMEOUT",
+            "error": f"Execution did not complete within {timeout} seconds"
+        }
+
+
+# ===== Step Functions Enhancement Decorator =====
+
+def enhance_with_step_functions(region_name: str = "us-east-1"):
+    """
+    Decorator to enhance an agent class with Step Functions workflow capabilities.
+    
+    @enhance_with_step_functions()
+    class MyAgent(MAIFAgent):
+        # Agent implementation
+    """
+    def decorator(cls):
+        original_init = cls.__init__
+        
+        def new_init(self, *args, **kwargs):
+            # Call original init
+            original_init(self, *args, **kwargs)
+            
+            # Add workflow system
+            self.workflow = StepFunctionsWorkflowSystem(self, region_name)
+        
+        cls.__init__ = new_init
+        return cls
+    
+    return decorator
+
+
 # ===== Full AWS Agent Decorator =====
 
 def aws_agent(region_name: str = "us-east-1", profile_name: Optional[str] = None, **config):
@@ -481,6 +628,7 @@ def aws_agent(region_name: str = "us-east-1", profile_name: Optional[str] = None
         agent_cls = enhance_perception_with_bedrock(region_name)(agent_cls)
         agent_cls = enhance_reasoning_with_bedrock(region_name)(agent_cls)
         agent_cls = enhance_execution_with_aws(region_name)(agent_cls)
+        agent_cls = enhance_with_step_functions(region_name)(agent_cls)
         
         return agent_cls
     

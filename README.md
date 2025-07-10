@@ -165,6 +165,94 @@ maif analyze hello.maif
 - 🗜️ **Compressed**: Advanced compression with semantic preservation
 - 🔐 **Privacy-Ready**: Encryption and anonymization support
 - ☁️ **Cloud-Ready**: Simple AWS service integration with decorators
+- 🤖 **Agent Swarms**: Multi-model Bedrock agent swarms with shared MAIF storage
+
+## 🤖 Bedrock Agent Swarm Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                 BedrockAgentSwarm                           │
+├─────────────────────────────────────────────────────────────┤
+│ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐           │
+│ │ Claude Agent│ │Titan Agent  │ │Jurassic Agent│           │
+│ │             │ │             │ │             │           │
+│ └─────────────┘ └─────────────┘ └─────────────┘           │
+├─────────────────────────────────────────────────────────────┤
+│ ┌─────────────────────────┐ ┌─────────────────────────┐     │
+│ │   Task Distribution     │ │   Result Aggregation    │     │
+│ │ • Task Queue            │ │ • Simple Voting         │     │
+│ │ • Agent Selection       │ │ • Weighted Voting       │     │
+│ │ • Parallel Execution    │ │ • Ensemble Methods      │     │
+│ └─────────────────────────┘ └─────────────────────────┘     │
+├─────────────────────────────────────────────────────────────┤
+│                  Shared MAIF Storage                        │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The `BedrockAgentSwarm` class enables multiple AWS Bedrock models to work together while sharing the same MAIF storage:
+
+### Technical Implementation
+
+```python
+# Create agent swarm with shared storage
+swarm = BedrockAgentSwarm("./workspace")
+
+# Add agents with different models
+swarm.add_agent_with_model(
+    "claude_agent",
+    BedrockModelProvider.ANTHROPIC,
+    "anthropic.claude-3-sonnet-20240229-v1:0"
+)
+
+swarm.add_agent_with_model(
+    "titan_agent",
+    BedrockModelProvider.AMAZON,
+    "amazon.titan-text-express-v1"
+)
+
+# Submit task with advanced aggregation
+task_id = await swarm.submit_task({
+    "task_id": "analysis_task",
+    "type": "all",
+    "data": "Analyze the benefits of multi-model systems",
+    "aggregation": "weighted_vote",
+    "provider_weights": {
+        "anthropic": 1.0,
+        "amazon": 0.8
+    }
+})
+
+# Get aggregated result
+result = await swarm.get_result(task_id)
+```
+
+### Key Technical Components
+
+1. **Shared MAIF Storage Architecture**
+   - Common MAIF file for all agents (`self.shared_maif_path`)
+   - Unified `MAIFClient` for consistent access
+   - Artifact-based result storage with metadata
+
+2. **Agent Factory with Model Specialization**
+   - `BedrockAgentFactory` creates model-specific agents
+   - Each agent configured with different Bedrock models
+   - Common interface through `MAIFAgent` base class
+
+3. **Task Distribution System**
+   - Asynchronous queue-based task processing
+   - Intelligent agent selection based on task requirements
+   - Parallel execution with `asyncio.create_task()`
+
+4. **Advanced Result Aggregation**
+   - Simple voting for consensus determination
+   - Weighted voting based on model provider and confidence
+   - Ensemble techniques combining multiple model outputs
+   - Semantic merging with provider-based organization
+
+5. **Consortium-Based Coordination**
+   - Extends `MAIFAgentConsortium` for built-in coordination
+   - Knowledge sharing across all agents
+   - Unified agent lifecycle management
 
 ## Why MAIF?
 
@@ -186,12 +274,14 @@ Ready to dive deeper? Check out our comprehensive documentation:
 - **[Novel Algorithms](docs/NOVEL_ALGORITHMS_IMPLEMENTATION.md)** - Advanced AI features
 - **[Security Features](docs/MAIF_Security_Verifications_Table.md)** - Trust and privacy
 - **[AWS Integration](docs/AWS_INTEGRATION.md)** - Cloud service integration
+- **[Bedrock Agent Swarm](examples/bedrock_swarm_demo.py)** - Multi-model agent swarms
 
 ### 🎯 Examples
 - **[Simple API Demo](examples/simple_api_demo.py)** - Basic usage patterns
 - **[Privacy Demo](examples/privacy_demo.py)** - Secure data handling
 - **[Advanced Features](examples/advanced_features_demo.py)** - Full capabilities
 - **[AWS Integration Demo](examples/aws_agent_demo.py)** - AWS service integration
+- **[Bedrock Agent Swarm Demo](examples/bedrock_swarm_demo.py)** - Multi-model agent swarms with shared MAIF
 
 ### 🔬 Research
 - **[Academic Paper](README.tex)** - Complete research foundation

@@ -12,9 +12,10 @@ from pathlib import Path
 # Import MAIF components
 from maif.agentic_framework import MAIFAgent, AgentState
 from maif.aws_decorators import (
-    maif_agent, aws_agent, aws_bedrock, aws_s3, aws_kms, aws_lambda, aws_dynamodb,
+    maif_agent, aws_agent, aws_bedrock, aws_s3, aws_kms, aws_lambda, aws_dynamodb, aws_step_functions,
     enhance_perception_with_bedrock, enhance_reasoning_with_bedrock, enhance_execution_with_aws,
-    AWSEnhancedPerceptionSystem, AWSEnhancedReasoningSystem, AWSExecutionSystem
+    enhance_with_step_functions,
+    AWSEnhancedPerceptionSystem, AWSEnhancedReasoningSystem, AWSExecutionSystem, StepFunctionsWorkflowSystem
 )
 
 
@@ -230,6 +231,32 @@ class TestAWSAgentIntegration(unittest.TestCase):
         
         # Verify data
         self.assertEqual(retrieved_data, data)
+    
+    @unittest.skip("Requires AWS credentials")
+    def test_step_functions_integration(self):
+        """Test Step Functions integration."""
+        # Define test agent
+        @maif_agent(workspace="./test_workspace")
+        @enhance_with_step_functions()
+        class TestAgent:
+            pass
+        
+        # Create agent
+        agent = TestAgent()
+        
+        # Register workflow
+        agent.workflow.register_workflow(
+            "test_workflow",
+            "arn:aws:states:us-east-1:123456789012:stateMachine:TestWorkflow",
+            "Test workflow"
+        )
+        
+        # Verify workflow was registered
+        self.assertIn("test_workflow", agent.workflow.workflows)
+        self.assertEqual(
+            "arn:aws:states:us-east-1:123456789012:stateMachine:TestWorkflow",
+            agent.workflow.workflows["test_workflow"]["state_machine_arn"]
+        )
 
 
 if __name__ == '__main__':
