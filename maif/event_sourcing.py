@@ -499,8 +499,34 @@ class EventSourcedMAIF:
                 agent_id=None
             )
         else:
-            # Get all events for this MAIF
+            # Get all events
             return self.event_log.get_events()
+    
+    def get_events(self, event_types: Optional[List[EventType]] = None,
+                  agent_id: Optional[str] = None,
+                  start_time: Optional[float] = None,
+                  end_time: Optional[float] = None,
+                  limit: Optional[int] = None) -> List[Event]:
+        """
+        Get events matching criteria.
+        
+        Args:
+            event_types: Filter by event types
+            agent_id: Filter by agent ID
+            start_time: Filter events after this time
+            end_time: Filter events before this time
+            limit: Maximum number of events to return
+            
+        Returns:
+            List of matching events
+        """
+        return self.event_log.get_events(
+            start_time=start_time,
+            end_time=end_time,
+            event_types=event_types,
+            agent_id=agent_id,
+            limit=limit
+        )
     
     def create_custom_view(self, name: str) -> MaterializedView:
         """

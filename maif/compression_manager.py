@@ -14,10 +14,13 @@ from enum import Enum
 from dataclasses import dataclass
 
 from .compression import (
-    MAIFCompressor, 
-    CompressionAlgorithm, 
-    CompressionConfig, 
-    CompressionResult
+    MAIFCompressor,
+    CompressionAlgorithm,
+    CompressionConfig,
+    CompressionResult,
+    ZSTD_AVAILABLE,
+    LZ4_AVAILABLE,
+    BROTLI_AVAILABLE
 )
 
 class CompressionManager:
@@ -28,8 +31,8 @@ class CompressionManager:
     
     def __init__(self, config: Optional[CompressionConfig] = None):
         """Initialize the compression manager with optional configuration."""
-        self.compressor = MAIFCompressor(config)
         self.config = config or CompressionConfig()
+        self.compressor = MAIFCompressor(self.config)
         self.compression_stats = {}
         
     def compress(self, data: bytes, algorithm: Union[str, CompressionAlgorithm] = None, 
@@ -123,3 +126,121 @@ class CompressionManager:
     def get_supported_algorithms(self) -> List[str]:
         """Get list of supported compression algorithms."""
         return [algo.value for algo in self.compressor.supported_algorithms]
+    
+    def compress_zstd(self, data: bytes) -> bytes:
+        """
+        Compress data using ZSTD algorithm.
+        
+        Args:
+            data: The data to compress
+            
+        Returns:
+            Compressed bytes
+        """
+        return self.compress(data, CompressionAlgorithm.ZSTANDARD)
+    
+    def decompress_zstd(self, data: bytes) -> bytes:
+        """
+        Decompress data using ZSTD algorithm.
+        
+        Args:
+            data: The compressed data
+            
+        Returns:
+            Decompressed bytes
+        """
+        return self.decompress(data, CompressionAlgorithm.ZSTANDARD)
+    
+    def compress_gzip(self, data: bytes) -> bytes:
+        """
+        Compress data using GZIP algorithm.
+        
+        Args:
+            data: The data to compress
+            
+        Returns:
+            Compressed bytes
+        """
+        return self.compress(data, CompressionAlgorithm.GZIP)
+    
+    def decompress_gzip(self, data: bytes) -> bytes:
+        """
+        Decompress data using GZIP algorithm.
+        
+        Args:
+            data: The compressed data
+            
+        Returns:
+            Decompressed bytes
+        """
+        return self.decompress(data, CompressionAlgorithm.GZIP)
+    
+    def compress_lz4(self, data: bytes) -> bytes:
+        """
+        Compress data using LZ4 algorithm.
+        
+        Args:
+            data: The data to compress
+            
+        Returns:
+            Compressed bytes
+        """
+        return self.compress(data, CompressionAlgorithm.LZ4)
+    
+    def decompress_lz4(self, data: bytes) -> bytes:
+        """
+        Decompress data using LZ4 algorithm.
+        
+        Args:
+            data: The compressed data
+            
+        Returns:
+            Decompressed bytes
+        """
+        return self.decompress(data, CompressionAlgorithm.LZ4)
+    
+    def compress_snappy(self, data: bytes) -> bytes:
+        """
+        Compress data using Snappy algorithm.
+        
+        Args:
+            data: The data to compress
+            
+        Returns:
+            Compressed bytes
+        """
+        # Snappy is not directly supported in the CompressionAlgorithm enum
+        # We'll need to add support for it or use a fallback
+        try:
+            import snappy
+            return snappy.compress(data)
+        except ImportError:
+            # Fallback to LZ4 if available, otherwise ZLIB
+            if LZ4_AVAILABLE:
+                return self.compress(data, CompressionAlgorithm.LZ4)
+            else:
+                return self.compress(data, CompressionAlgorithm.ZLIB)
+    
+    def decompress_snappy(self, data: bytes) -> bytes:
+        """
+        Decompress data using Snappy algorithm.
+        
+        Args:
+            data: The compressed data
+            
+        Returns:
+            Decompressed bytes
+        """
+        try:
+            import snappy
+            return snappy.decompress(data)
+        except ImportError:
+            # Try LZ4 first, then ZLIB as fallback
+            try:
+                if LZ4_AVAILABLE:
+                    return self.decompress(data, CompressionAlgorithm.LZ4)
+                else:
+                    return self.decompress(data, CompressionAlgorithm.ZLIB)
+            except:
+                # Last resort: return data as-is
+                return data

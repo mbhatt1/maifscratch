@@ -338,7 +338,14 @@ class PerformanceBenchmark:
         
         elif implementation == "columnar_storage":
             columnar_path = self.temp_dir / "columnar.parquet"
-            return ColumnarFile(str(columnar_path))
+            columnar_file = ColumnarFile(str(columnar_path))
+            
+            # Add columns to schema
+            from maif.columnar_storage import ColumnType
+            columnar_file.add_column("content", ColumnType.STRING)
+            columnar_file.add_column("block_id", ColumnType.INT64)
+            
+            return columnar_file
         
         elif implementation == "version_management":
             # Create schema registry

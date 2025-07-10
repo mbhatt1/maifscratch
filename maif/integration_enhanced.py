@@ -104,6 +104,14 @@ class EnhancedMAIF:
         """Initialize columnar storage components."""
         columnar_path = self.maif_path.with_suffix('.columnar')
         self.columnar_file = ColumnarFile(str(columnar_path))
+        
+        # Initialize schema with required columns
+        self.columnar_file.schema = {
+            "content": ColumnType.STRING,
+            "block_id": ColumnType.STRING,
+            "timestamp": ColumnType.FLOAT64
+        }
+        
         logger.info("Columnar storage initialized")
     
     def _init_version_management(self):

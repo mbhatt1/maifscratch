@@ -410,32 +410,40 @@ class MAIFCompressor:
         
         elif algorithm == CompressionAlgorithm.ZLIB:
             # Validate compression level (zlib accepts 0-9)
-            level = max(0, min(9, self.config.level))
+            level = max(0, min(9, self.config.level if self.config.level is not None else 6))
             return zlib.compress(data, level=level)
         
         elif algorithm == CompressionAlgorithm.GZIP:
             import gzip
-            return gzip.compress(data, compresslevel=self.config.level)
+            level = self.config.level if self.config.level is not None else 6
+            return gzip.compress(data, compresslevel=level)
         
         elif algorithm == CompressionAlgorithm.BZIP2:
-            return bz2.compress(data, compresslevel=self.config.level)
+            level = self.config.level if self.config.level is not None else 9
+            return bz2.compress(data, compresslevel=level)
         
         elif algorithm == CompressionAlgorithm.LZMA:
-            return lzma.compress(data, preset=self.config.level)
+            level = self.config.level if self.config.level is not None else 6
+            return lzma.compress(data, preset=level)
         
         elif algorithm == CompressionAlgorithm.BROTLI and BROTLI_AVAILABLE:
-            return brotli.compress(data, quality=self.config.level)
+            level = self.config.level if self.config.level is not None else 11
+            return brotli.compress(data, quality=level)
         
         elif algorithm == CompressionAlgorithm.LZ4 and LZ4_AVAILABLE:
-            return lz4.frame.compress(data, compression_level=self.config.level)
+            level = self.config.level if self.config.level is not None else 1
+            return lz4.frame.compress(data, compression_level=level)
         
         elif algorithm == CompressionAlgorithm.ZSTANDARD and ZSTD_AVAILABLE:
-            cctx = zstd.ZstdCompressor(level=self.config.level)
+            # Ensure level is not None
+            level = self.config.level if self.config.level is not None else 6
+            cctx = zstd.ZstdCompressor(level=level)
             return cctx.compress(data)
         
         else:
             # Fallback to zlib
-            return zlib.compress(data, level=self.config.level)
+            level = self.config.level if self.config.level is not None else 6
+            return zlib.compress(data, level=level)
     
     def _apply_standard_decompression(self, data: bytes, algorithm: str) -> bytes:
         """Apply standard decompression algorithms."""
