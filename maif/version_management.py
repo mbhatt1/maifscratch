@@ -357,10 +357,10 @@ class DataTransformer:
     def __init__(self, registry: SchemaRegistry):
         self.registry = registry
     
-    def transform(self, data: Dict[str, Any], from_version: str, 
+    def transform(self, data: Dict[str, Any], from_version: str,
                  to_version: str) -> Dict[str, Any]:
         """
-        Transform data from one version to another.
+        Transform data from one version to another using copy-on-write semantics.
         
         Args:
             data: Data to transform
@@ -370,6 +370,7 @@ class DataTransformer:
         Returns:
             Transformed data
         """
+        # Copy-on-write: If versions are the same, return the original data without copying
         if from_version == to_version:
             return data
         
@@ -377,13 +378,26 @@ class DataTransformer:
         upgrade_path = self.registry.find_upgrade_path(from_version, to_version)
         
         if upgrade_path:
-            # Apply upgrades
-            result = copy.deepcopy(data)
+            # Copy-on-write: Only create a copy if we need to transform
+            result = data
+            needs_transform = False
             
+            # Check if any transformations will actually modify the data
             for transition in upgrade_path:
-                result = self._apply_transformations(
-                    result, transition.upgrade_transformations
-                )
+                if transition.upgrade_transformations:
+                    needs_transform = True
+                    break
+            
+            # Only make a deep copy if transformations are needed
+            if needs_transform:
+                result = copy.deepcopy(data)
+                
+                # Apply upgrades
+                for transition in upgrade_path:
+                    if transition.upgrade_transformations:
+                        result = self._apply_transformations(
+                            result, transition.upgrade_transformations
+                        )
             
             return result
         
@@ -391,13 +405,26 @@ class DataTransformer:
         downgrade_path = self.registry.find_downgrade_path(from_version, to_version)
         
         if downgrade_path:
-            # Apply downgrades
-            result = copy.deepcopy(data)
+            # Copy-on-write: Only create a copy if we need to transform
+            result = data
+            needs_transform = False
             
+            # Check if any transformations will actually modify the data
             for transition in downgrade_path:
-                result = self._apply_transformations(
-                    result, transition.downgrade_transformations
-                )
+                if transition.downgrade_transformations:
+                    needs_transform = True
+                    break
+            
+            # Only make a deep copy if transformations are needed
+            if needs_transform:
+                result = copy.deepcopy(data)
+                
+                # Apply downgrades
+                for transition in downgrade_path:
+                    if transition.downgrade_transformations:
+                        result = self._apply_transformations(
+                            result, transition.downgrade_transformations
+                        )
             
             return result
         

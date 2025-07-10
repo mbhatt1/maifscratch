@@ -412,7 +412,7 @@ class EventSourcedMAIF:
     def update_block(self, block_id: str, data: Optional[bytes] = None,
                     metadata: Optional[Dict[str, Any]] = None) -> str:
         """
-        Update an existing block.
+        Update an existing block using copy-on-write semantics.
         
         Args:
             block_id: Block ID
@@ -422,6 +422,28 @@ class EventSourcedMAIF:
         Returns:
             Event ID
         """
+        # Copy-on-write: Check if block exists and if data has actually changed
+        current_block = self.get_block(block_id)
+        if current_block is None:
+            # Block doesn't exist, treat as an add operation
+            if data is not None:
+                return self.add_block(block_id, "unknown", data, metadata)
+            else:
+                raise ValueError(f"Block {block_id} not found and no data provided for creation")
+        
+        # Check if anything has changed
+        if data is None and metadata is None:
+            # No changes, return the existing block ID
+            return block_id
+        
+        # Check if only data has changed
+        if data is not None:
+            new_data_hash = hashlib.sha256(data).hexdigest()
+            if new_data_hash == current_block.get("data_hash") and metadata is None:
+                # Data hasn't changed, return the existing block ID
+                return block_id
+        
+        # Something has changed, create a new event
         payload = {"block_id": block_id}
         
         if data is not None:

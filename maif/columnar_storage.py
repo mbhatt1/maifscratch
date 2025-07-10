@@ -1038,6 +1038,27 @@ class ColumnarFile:
                 if column_name not in self.schema:
                     raise ValueError(f"Column {column_name} not in schema")
             
+            # Copy-on-write: Check if data already exists and is identical
+            if self.row_groups and all(column_name in data for column_name in self.schema):
+                # Check if this is an exact duplicate of existing data
+                is_duplicate = False
+                
+                # Only check for duplicates if we have a reasonable amount of data
+                if len(self.row_groups) > 0 and len(data) > 0:
+                    # Get a hash of the new data for quick comparison
+                    data_hash = self._hash_data(data)
+                    
+                    # Check if we've seen this exact data before
+                    for row_group in self.row_groups:
+                        if row_group.metadata.get("data_hash") == data_hash:
+                            # Found a duplicate, no need to write again
+                            is_duplicate = True
+                            break
+                
+                if is_duplicate:
+                    # Copy-on-write: Data already exists, no need to write again
+                    return
+            
             # Use default encodings/compressions if not provided
             if encodings is None:
                 encodings = {}
@@ -1078,22 +1099,72 @@ class ColumnarFile:
                     for column_name, values in data.items()
                 }
                 
-                self._write_row_group(row_group_data, encodings, compressions)
+                # Add a hash of the data to the row group for future copy-on-write checks
+                row_group_data_hash = self._hash_data(row_group_data)
+                
+                self._write_row_group(row_group_data, encodings, compressions, data_hash=row_group_data_hash)
             
             # Write file if path provided
             if self.file_path:
                 self._write_file()
     
+    def _hash_data(self, data: Dict[str, List[Any]]) -> str:
+        """Generate a hash of the data for copy-on-write comparisons."""
+        import hashlib
+        import json
+        
+        # Create a deterministic representation of the data
+        # For simple types, we can use JSON
+        try:
+            # Try to create a JSON string for simple data types
+            data_str = json.dumps(data, sort_keys=True)
+            return hashlib.sha256(data_str.encode()).hexdigest()
+        except (TypeError, ValueError):
+            # For complex types, use a simpler approach
+            hash_parts = []
+            
+            for column_name, values in sorted(data.items()):
+                # Add column name to hash
+                hash_parts.append(column_name)
+                
+                # Add a sample of values (first, middle, last)
+                if values:
+                    if len(values) <= 10:
+                        # For small lists, use all values
+                        for v in values:
+                            hash_parts.append(str(v))
+                    else:
+                        # For larger lists, sample values
+                        hash_parts.append(str(values[0]))
+                        hash_parts.append(str(values[len(values)//2]))
+                        hash_parts.append(str(values[-1]))
+                        # Add length as well
+                        hash_parts.append(str(len(values)))
+            
+            # Create a hash of the combined parts
+            combined = "|".join(hash_parts)
+            return hashlib.sha256(combined.encode()).hexdigest()
+    
     def _write_row_group(self, data: Dict[str, List[Any]],
                         encodings: Dict[str, EncodingType],
-                        compressions: Dict[str, CompressionType]):
+                        compressions: Dict[str, CompressionType],
+                        data_hash: Optional[str] = None):
         """Write row group to memory."""
         row_count = max(len(values) for values in data.values())
+        
+        # Create row group with metadata including data hash for copy-on-write
+        metadata = {
+            "timestamp": time.time()
+        }
+        
+        # Add data hash if provided
+        if data_hash:
+            metadata["data_hash"] = data_hash
         
         # Create row group
         row_group = RowGroup(
             row_count=row_count,
-            metadata={"timestamp": time.time()}
+            metadata=metadata
         )
         
         # Encode and compress columns

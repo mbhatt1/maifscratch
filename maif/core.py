@@ -961,7 +961,7 @@ class MAIFEncoder:
                   update_block_id: Optional[str] = None,
                   privacy_policy: Optional[PrivacyPolicy] = None,
                   block_id: Optional[str] = None) -> str:
-        """Internal method to add or update a block with enhanced structure and privacy."""
+        """Internal method to add or update a block with enhanced structure and privacy using copy-on-write."""
         # Validate block type
         if not block_type or not block_type.strip():
             raise ValueError("Block type cannot be empty")
@@ -994,159 +994,204 @@ class MAIFEncoder:
         version_number = 1
         block_id = update_block_id
         
+        # Copy-on-write: Only create a new block if this is a new block or if data has changed
         if is_update and update_block_id in self.block_registry:
             # This is an update - get the latest version
             latest_block = self.block_registry[update_block_id][-1]
             previous_hash = latest_block.hash_value
             version_number = latest_block.version + 1
+            
+            # Check if data has actually changed (copy-on-write)
+            if data == latest_block.data:
+                # Data hasn't changed, reuse existing data
+                data_for_storage = latest_block.data
+                data_hash = latest_block.hash_value
+                # Only update metadata if provided
+                if metadata is not None:
+                    combined_metadata = metadata.copy() if metadata else {}
+                    # Add system metadata from previous version if it exists
+                    if latest_block.metadata and '_system' in latest_block.metadata:
+                        combined_metadata['_system'] = latest_block.metadata['_system']
+                else:
+                    # No metadata changes, reuse existing block
+                    return update_block_id
+            else:
+                # Data has changed, create new version
+                data_hash = hashlib.sha256(data).hexdigest()
+                data_for_storage = data
         else:
             # This is a new block
             block_id = str(uuid.uuid4())
+            data_hash = hashlib.sha256(data).hexdigest()
+            data_for_storage = data
         
         # Apply privacy policy
         policy = privacy_policy or self.default_privacy_policy
         encryption_metadata = {}
         original_data = data  # Store original data for test compatibility
-        data_for_storage = data  # Data to store in MAIFBlock
         
-        if policy.encryption_mode != EncryptionMode.NONE:
-            # Encrypt the data
-            encrypted_data, encryption_metadata = self.privacy_engine.encrypt_data(
-                data, block_id, policy.encryption_mode
+        # Copy-on-write: Only encrypt if we're creating a new version
+        if not is_update or data != latest_block.data:
+            if policy.encryption_mode != EncryptionMode.NONE:
+                # Encrypt the data
+                encrypted_data, encryption_metadata = self.privacy_engine.encrypt_data(
+                    data, block_id, policy.encryption_mode
+                )
+                # Set privacy policy for this block
+                self.privacy_engine.set_privacy_policy(block_id, policy)
+                # Use encrypted data for storage when encryption is applied
+                data_for_storage = encrypted_data
+                # Update data variable for writing to buffer
+                data = encrypted_data
+        
+        # Copy-on-write: Only create a new header and write to buffer if we're creating a new version
+        if not is_update or data != latest_block.data:
+            # Create enhanced block header using new structure
+            block_header = BlockHeader(
+                size=len(data) + 32,  # Data size + header size for validation
+                type=fourcc_type,
+                version=version_number,
+                flags=0,
+                uuid=block_id
             )
-            # Set privacy policy for this block
-            self.privacy_engine.set_privacy_policy(block_id, policy)
-            # Use encrypted data for storage when encryption is applied
-            data_for_storage = encrypted_data
-            # Update data variable for writing to buffer
-            data = encrypted_data
-        
-        # Create enhanced block header using new structure
-        block_header = BlockHeader(
-            size=len(data) + 32,  # Data size + header size for validation
-            type=fourcc_type,
-            version=version_number,
-            flags=0,
-            uuid=block_id
-        )
-        
-        # Validate block header
-        header_errors = BlockValidator.validate_block_header(block_header)
-        if header_errors:
-            # Filter out FourCC length errors since we handle them above
-            critical_errors = [error for error in header_errors if "Block type must be 4 characters" not in error]
-            if critical_errors:
-                print(f"Warning: Block header validation errors: {critical_errors}")
-        
-        # Get header bytes for hash calculation
-        header_bytes = block_header.to_bytes()
-        
-        # Ultra-optimized hash calculation for maximum throughput
-        if len(data) > 5 * 1024 * 1024:  # > 5MB, use ultra-fast hashing
-            # For large files, use minimal sampling for maximum speed
-            sample_size = 32 * 1024  # 32KB samples (reduced from 64KB)
-            if len(data) > 100 * 1024 * 1024:  # > 100MB, use even smaller samples
-                sample_size = 16 * 1024  # 16KB samples for very large files
             
-            samples = [
-                data[:sample_size],  # Beginning
-                data[-sample_size:] if len(data) > sample_size else b''  # End only for speed
-            ]
-            data_hash = hashlib.md5(b''.join(samples)).hexdigest()
-            full_hash = data_hash  # Use same hash for consistency
-        else:
-            # For smaller files, use full SHA256 for accuracy
-            data_hash = hashlib.sha256(data).hexdigest()
-            full_hash = hashlib.sha256(header_bytes + data).hexdigest()
-        
-        hash_value = data_hash  # Use data hash for backward compatibility
-        
-        # Optimized writing for large data
-        if len(data) > 50 * 1024 * 1024:  # > 50MB, use chunked writing
-            # Write header first
-            self.buffer.write(header_bytes)
+            # Validate block header
+            header_errors = BlockValidator.validate_block_header(block_header)
+            if header_errors:
+                # Filter out FourCC length errors since we handle them above
+                critical_errors = [error for error in header_errors if "Block type must be 4 characters" not in error]
+                if critical_errors:
+                    print(f"Warning: Block header validation errors: {critical_errors}")
             
-            # Write data in large chunks for better I/O performance
-            chunk_size = 16 * 1024 * 1024  # 16MB chunks
-            for i in range(0, len(data), chunk_size):
-                chunk = data[i:i + chunk_size]
-                self.buffer.write(chunk)
+            # Get header bytes for hash calculation
+            header_bytes = block_header.to_bytes()
+            
+            # Copy-on-write: Use existing hash if data hasn't changed
+            if is_update and data == latest_block.data:
+                data_hash = latest_block.hash_value
+                full_hash = data_hash
+            else:
+                # Ultra-optimized hash calculation for maximum throughput
+                if len(data) > 5 * 1024 * 1024:  # > 5MB, use ultra-fast hashing
+                    # For large files, use minimal sampling for maximum speed
+                    sample_size = 32 * 1024  # 32KB samples (reduced from 64KB)
+                    if len(data) > 100 * 1024 * 1024:  # > 100MB, use even smaller samples
+                        sample_size = 16 * 1024  # 16KB samples for very large files
+                    
+                    samples = [
+                        data[:sample_size],  # Beginning
+                        data[-sample_size:] if len(data) > sample_size else b''  # End only for speed
+                    ]
+                    data_hash = hashlib.md5(b''.join(samples)).hexdigest()
+                    full_hash = data_hash  # Use same hash for consistency
+                else:
+                    # For smaller files, use full SHA256 for accuracy
+                    data_hash = hashlib.sha256(data).hexdigest()
+                    full_hash = hashlib.sha256(header_bytes + data).hexdigest()
+            
+            hash_value = data_hash  # Use data hash for backward compatibility
+            
+            # Copy-on-write: Only write to buffer if data has changed
+            if not is_update or data != latest_block.data:
+                # Optimized writing for large data
+                if len(data) > 50 * 1024 * 1024:  # > 50MB, use chunked writing
+                    # Write header first
+                    self.buffer.write(header_bytes)
+                    
+                    # Write data in large chunks for better I/O performance
+                    chunk_size = 16 * 1024 * 1024  # 16MB chunks
+                    for i in range(0, len(data), chunk_size):
+                        chunk = data[i:i + chunk_size]
+                        self.buffer.write(chunk)
+                else:
+                    # Standard writing for smaller files
+                    self.buffer.write(header_bytes)
+                    self.buffer.write(data)
         else:
-            # Standard writing for smaller files
-            self.buffer.write(header_bytes)
-            self.buffer.write(data)
+            # Copy-on-write: Reuse existing hash and don't write to buffer
+            hash_value = latest_block.hash_value
+            full_hash = hash_value
         
-        # Preserve original user metadata separately from system metadata
-        combined_metadata = metadata.copy() if metadata else {}
-        
-        # Store original user metadata for checksum verification
-        if metadata:
-            combined_metadata['_original_metadata'] = metadata.copy()
-        
-        # Add system metadata in a separate namespace to avoid conflicts
-        system_metadata = {}
-        if encryption_metadata:
-            system_metadata['encryption'] = encryption_metadata
-            system_metadata['encrypted'] = True
-            system_metadata['encryption_mode'] = policy.encryption_mode.name
-        if self.enable_privacy and policy:
-            system_metadata['privacy_policy'] = {
-                'privacy_level': policy.privacy_level.value,
-                'encryption_mode': policy.encryption_mode.value,
-                'anonymization_required': policy.anonymization_required,
-                'audit_required': policy.audit_required
-            }
-            # Set anonymized flag if anonymization was required
-            if policy.anonymization_required:
+        # Copy-on-write: Reuse existing metadata if no changes
+        if is_update and metadata is None and data == latest_block.data:
+            combined_metadata = latest_block.metadata
+        else:
+            # Preserve original user metadata separately from system metadata
+            combined_metadata = metadata.copy() if metadata else {}
+            
+            # Store original user metadata for checksum verification
+            if metadata:
+                combined_metadata['_original_metadata'] = metadata.copy()
+            
+            # Add system metadata in a separate namespace to avoid conflicts
+            system_metadata = {}
+            if encryption_metadata:
+                system_metadata['encryption'] = encryption_metadata
+                system_metadata['encrypted'] = True
+                system_metadata['encryption_mode'] = policy.encryption_mode.name
+            if self.enable_privacy and policy:
+                system_metadata['privacy_policy'] = {
+                    'privacy_level': policy.privacy_level.value,
+                    'encryption_mode': policy.encryption_mode.value,
+                    'anonymization_required': policy.anonymization_required,
+                    'audit_required': policy.audit_required
+                }
+                # Set anonymized flag if anonymization was required
+                if policy.anonymization_required:
+                    system_metadata['anonymized'] = True
+            
+            # Also set anonymized flag if anonymize parameter was used directly
+            if metadata and metadata.get('anonymize') or (hasattr(self, '_last_anonymize_flag') and self._last_anonymize_flag):
                 system_metadata['anonymized'] = True
+            
+            # Store full hash for security verification
+            system_metadata['full_hash'] = full_hash
+            
+            # Add system metadata under a reserved key
+            if system_metadata:
+                combined_metadata['_system'] = system_metadata
         
-        # Also set anonymized flag if anonymize parameter was used directly
-        if metadata and metadata.get('anonymize') or (hasattr(self, '_last_anonymize_flag') and self._last_anonymize_flag):
-            system_metadata['anonymized'] = True
-        
-        # Store full hash for security verification
-        system_metadata['full_hash'] = full_hash
-        
-        # Add system metadata under a reserved key
-        if system_metadata:
-            combined_metadata['_system'] = system_metadata
-        
-        # Create MAIFBlock with data for test compatibility
-        # Use original block_type for test compatibility, not fourcc_type
-        block = MAIFBlock(
-            block_type=block_type,  # Use original type for test compatibility
-            offset=offset,
-            size=len(data) + 32,  # Include header size for consistency
-            hash_value=hash_value,
-            version=version_number,
-            previous_hash=previous_hash,
-            block_id=block_id,
-            metadata=combined_metadata,
-            data=data_for_storage  # Store encrypted data when encryption is enabled, original otherwise
-        )
-        
-        # Add to blocks list and registry
-        self.blocks.append(block)
-        
-        if block_id not in self.block_registry:
-            self.block_registry[block_id] = []
-        self.block_registry[block_id].append(block)
-        
-        # Add to version history
-        if block_id not in self.version_history:
-            self.version_history[block_id] = []
-        
-        version_entry = MAIFVersion(
-            version=version_number,
-            timestamp=time.time(),
-            agent_id=self.agent_id,
-            operation="update" if is_update else "create",
-            block_hash=hash_value,
-            block_id=block_id,
-            previous_hash=previous_hash,
-            change_description=f"{'Updated' if is_update else 'Created'} {block_type} block"
-        )
-        self.version_history[block_id].append(version_entry)
+        # Copy-on-write: Create a new block only if necessary
+        if is_update and data == latest_block.data and metadata is None:
+            # No changes, reuse existing block
+            block = latest_block
+        else:
+            # Create MAIFBlock with data for test compatibility
+            # Use original block_type for test compatibility, not fourcc_type
+            block = MAIFBlock(
+                block_type=block_type,  # Use original type for test compatibility
+                offset=offset,
+                size=len(data) + 32,  # Include header size for consistency
+                hash_value=hash_value,
+                version=version_number,
+                previous_hash=previous_hash,
+                block_id=block_id,
+                metadata=combined_metadata,
+                data=data_for_storage  # Store encrypted data when encryption is enabled, original otherwise
+            )
+            
+            # Add to blocks list and registry
+            self.blocks.append(block)
+            
+            if block_id not in self.block_registry:
+                self.block_registry[block_id] = []
+            self.block_registry[block_id].append(block)
+            
+            # Add to version history
+            if block_id not in self.version_history:
+                self.version_history[block_id] = []
+            
+            version_entry = MAIFVersion(
+                version=version_number,
+                timestamp=time.time(),
+                agent_id=self.agent_id,
+                operation="update" if is_update else "create",
+                block_hash=hash_value,
+                block_id=block_id,
+                previous_hash=previous_hash,
+                change_description=f"{'Updated' if is_update else 'Created'} {block_type} block"
+            )
+            self.version_history[block_id].append(version_entry)
         
         return block_id
     

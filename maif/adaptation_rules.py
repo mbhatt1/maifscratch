@@ -605,7 +605,7 @@ class AdaptationRulesEngine:
     
     def update_rule(self, rule: AdaptationRule) -> bool:
         """
-        Update an existing rule.
+        Update an existing rule using copy-on-write semantics.
         
         Args:
             rule: Updated rule
@@ -615,9 +615,75 @@ class AdaptationRulesEngine:
         """
         with self._lock:
             if rule.rule_id in self.rules:
+                # Copy-on-write: Check if the rule has actually changed
+                existing_rule = self.rules[rule.rule_id]
+                
+                # Compare rule attributes to see if anything has changed
+                if (existing_rule.name == rule.name and
+                    existing_rule.description == rule.description and
+                    existing_rule.priority == rule.priority and
+                    existing_rule.trigger == rule.trigger and
+                    existing_rule.status == rule.status and
+                    self._compare_conditions(existing_rule.condition, rule.condition) and
+                    self._compare_actions(existing_rule.actions, rule.actions) and
+                    existing_rule.metadata == rule.metadata):
+                    # Rule hasn't changed, no need to update
+                    return True
+                
+                # Rule has changed, update it
                 self.rules[rule.rule_id] = rule
                 return True
             return False
+    
+    def _compare_conditions(self, condition1: Any, condition2: Any) -> bool:
+        """Compare two conditions for equality."""
+        # If they're the same object, they're equal
+        if condition1 is condition2:
+            return True
+            
+        # If they're different types, they're not equal
+        if type(condition1) != type(condition2):
+            return False
+            
+        # If they have to_dict methods, compare their dictionaries
+        if hasattr(condition1, "to_dict") and hasattr(condition2, "to_dict"):
+            return condition1.to_dict() == condition2.to_dict()
+            
+        # Otherwise, compare them directly
+        return condition1 == condition2
+    
+    def _compare_actions(self, actions1: List[Action], actions2: List[Action]) -> bool:
+        """Compare two lists of actions for equality."""
+        # If they're different lengths, they're not equal
+        if len(actions1) != len(actions2):
+            return False
+            
+        # Compare each action
+        for i in range(len(actions1)):
+            action1 = actions1[i]
+            action2 = actions2[i]
+            
+            # Compare action types
+            if action1.action_type != action2.action_type:
+                return False
+                
+            # Compare parameters
+            if len(action1.parameters) != len(action2.parameters):
+                return False
+                
+            # Create dictionaries of parameters for easier comparison
+            params1 = {param.name: (param.value, param.metadata) for param in action1.parameters}
+            params2 = {param.name: (param.value, param.metadata) for param in action2.parameters}
+            
+            if params1 != params2:
+                return False
+                
+            # Compare metadata
+            if action1.metadata != action2.metadata:
+                return False
+                
+        # All actions are equal
+        return True
     
     def register_action_handler(self, action_type: ActionType, 
                                handler: Callable[[Action, Dict[str, Any]], bool]):
