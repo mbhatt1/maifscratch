@@ -164,6 +164,7 @@ maif analyze hello.maif
 - 🔍 **Searchable**: Fast semantic search across content
 - 🗜️ **Compressed**: Advanced compression with semantic preservation
 - 🔐 **Privacy-Ready**: Encryption and anonymization support
+- ☁️ **Cloud-Ready**: Simple AWS service integration with decorators
 
 ## Why MAIF?
 
@@ -184,11 +185,13 @@ Ready to dive deeper? Check out our comprehensive documentation:
 - **[Simple API Guide](docs/SIMPLE_API_GUIDE.md)** - Easy-to-use examples
 - **[Novel Algorithms](docs/NOVEL_ALGORITHMS_IMPLEMENTATION.md)** - Advanced AI features
 - **[Security Features](docs/MAIF_Security_Verifications_Table.md)** - Trust and privacy
+- **[AWS Integration](docs/AWS_INTEGRATION.md)** - Cloud service integration
 
 ### 🎯 Examples
 - **[Simple API Demo](examples/simple_api_demo.py)** - Basic usage patterns
 - **[Privacy Demo](examples/privacy_demo.py)** - Secure data handling
 - **[Advanced Features](examples/advanced_features_demo.py)** - Full capabilities
+- **[AWS Integration Demo](examples/aws_agent_demo.py)** - AWS service integration
 
 ### 🔬 Research
 - **[Academic Paper](README.tex)** - Complete research foundation
