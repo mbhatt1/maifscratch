@@ -111,9 +111,37 @@ class SelfOptimizingMAIF:
             self.decoder = None
         
         # Hot buffer for frequently accessed blocks
+        from .hot_buffer import HotBufferConfig, FlushPolicy
+        
+        # Create a config object for the hot buffer
+        hot_buffer_config = HotBufferConfig(
+            max_buffer_size=100 * 1024 * 1024,  # 100MB
+            flush_interval=10.0,
+            flush_policy=FlushPolicy.HYBRID
+        )
+        
+        # Define a flush callback function
+        def flush_callback(operations):
+            for op in operations:
+                if op.operation_type == "write":
+                    if op.block_type == "text":
+                        try:
+                            text = op.data.decode('utf-8')
+                            self.encoder.add_text_block(text, op.metadata)
+                        except Exception as e:
+                            logger.error(f"Error flushing text block: {e}")
+                    else:
+                        try:
+                            self.encoder.add_binary_block(
+                                op.data, op.block_type, op.metadata
+                            )
+                        except Exception as e:
+                            logger.error(f"Error flushing binary block: {e}")
+        
+        # Initialize the hot buffer with config and callback
         self.hot_buffer = HotBufferLayer(
-            buffer_size=100 * 1024 * 1024,  # 100MB
-            flush_interval=10.0
+            config=hot_buffer_config,
+            flush_callback=flush_callback
         )
         
         # Start optimization loop

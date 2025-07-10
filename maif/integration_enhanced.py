@@ -192,22 +192,33 @@ class EnhancedMAIF:
         def handle_archive(action: Action, context: Dict[str, Any]) -> bool:
             """Handle archive action."""
             try:
+                # Debug logging
+                logger.info(f"Archive action parameters: {[f'{p.name}={p.value}' for p in action.parameters]}")
+                logger.info(f"Archive action context keys: {list(context.keys())}")
+                
                 # Create SelfGoverningMAIF and archive
                 # Use enhanced version if available
                 try:
                     from .lifecycle_management_enhanced import EnhancedSelfGoverningMAIF
+                    logger.info("Importing EnhancedSelfGoverningMAIF succeeded")
                     gov_maif = EnhancedSelfGoverningMAIF(str(self.maif_path))
-                    logger.info("Using EnhancedSelfGoverningMAIF for archive action")
-                except (ImportError, AttributeError):
+                    logger.info("Created EnhancedSelfGoverningMAIF instance")
+                except (ImportError, AttributeError) as e:
+                    logger.info(f"Failed to import EnhancedSelfGoverningMAIF: {e}")
                     from .lifecycle_management import SelfGoverningMAIF
                     gov_maif = SelfGoverningMAIF(str(self.maif_path))
                     logger.info("Using SelfGoverningMAIF for archive action")
                     
                 gov_maif._action_archive()
+                logger.info("Archive action completed successfully")
                 
                 return True
             except Exception as e:
                 logger.error(f"Error handling archive action: {e}")
+                logger.error(f"Error type: {type(e).__name__}")
+                logger.error(f"Error args: {e.args}")
+                import traceback
+                logger.error(f"Traceback: {traceback.format_exc()}")
                 return False
         
         # Register handlers
