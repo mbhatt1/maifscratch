@@ -193,7 +193,16 @@ class EnhancedMAIF:
             """Handle archive action."""
             try:
                 # Create SelfGoverningMAIF and archive
-                gov_maif = SelfGoverningMAIF(str(self.maif_path))
+                # Use enhanced version if available
+                try:
+                    from .lifecycle_management_enhanced import EnhancedSelfGoverningMAIF
+                    gov_maif = EnhancedSelfGoverningMAIF(str(self.maif_path))
+                    logger.info("Using EnhancedSelfGoverningMAIF for archive action")
+                except (ImportError, AttributeError):
+                    from .lifecycle_management import SelfGoverningMAIF
+                    gov_maif = SelfGoverningMAIF(str(self.maif_path))
+                    logger.info("Using SelfGoverningMAIF for archive action")
+                    
                 gov_maif._action_archive()
                 
                 return True

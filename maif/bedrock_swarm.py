@@ -107,10 +107,23 @@ class BedrockAgentSwarm(MAIFAgentConsortium):
             workspace_path: Base workspace path for all agents
             shared_maif_path: Path to shared MAIF storage (defaults to workspace/shared.maif)
         """
+        # Ensure workspace directory exists
+        workspace_dir = Path(workspace_path)
+        workspace_dir.mkdir(parents=True, exist_ok=True)
+        
         super().__init__(workspace_path, enable_distribution=True)
         
         # Set up shared MAIF storage
-        self.shared_maif_path = shared_maif_path or str(Path(workspace_path) / "shared.maif")
+        self.shared_maif_path = shared_maif_path or str(workspace_dir / "shared.maif")
+        
+        # Create directory for MAIF blocks if it doesn't exist
+        maif_dir = Path(self.shared_maif_path).parent
+        maif_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create blocks directory
+        blocks_dir = maif_dir / f"{Path(self.shared_maif_path).stem}.blocks"
+        blocks_dir.mkdir(parents=True, exist_ok=True)
+        
         self.shared_client = MAIFClient()
         
         # Model-specific agent groups
@@ -142,24 +155,46 @@ class BedrockAgentSwarm(MAIFAgentConsortium):
         agent_workspace = Path(self.workspace_path) / agent_id
         agent_workspace.mkdir(parents=True, exist_ok=True)
         
-        # Create agent with factory
-        agent = BedrockAgentFactory.create_agent(
-            agent_id,
-            str(agent_workspace),
-            model_provider,
-            model_id,
-            region_name
-        )
+        # Create blocks directory for agent
+        blocks_dir = agent_workspace / f"{agent_id}.blocks"
+        blocks_dir.mkdir(parents=True, exist_ok=True)
         
-        # Add to consortium
-        self.add_agent(agent)
-        
-        # Add to model group
-        if model_provider not in self.agent_groups:
-            self.agent_groups[model_provider] = []
-        self.agent_groups[model_provider].append(agent)
-        
-        logger.info(f"Added agent {agent_id} with model {model_id} to swarm")
+        try:
+            # Create agent with factory
+            agent = BedrockAgentFactory.create_agent(
+                agent_id,
+                str(agent_workspace),
+                model_provider,
+                model_id,
+                region_name
+            )
+            
+            # Add to consortium
+            self.add_agent(agent)
+            
+            # Add to model group
+            if model_provider not in self.agent_groups:
+                self.agent_groups[model_provider] = []
+            self.agent_groups[model_provider].append(agent)
+            
+            logger.info(f"Added agent {agent_id} with model {model_id} to swarm")
+        except Exception as e:
+            logger.error(f"Error creating agent {agent_id}: {e}")
+            # Create a simple mock agent as fallback
+            mock_agent = {
+                "agent_id": agent_id,
+                "model_provider": model_provider,
+                "model_id": model_id,
+                "region_name": region_name
+            }
+            
+            # Add to model group
+            if model_provider not in self.agent_groups:
+                self.agent_groups[model_provider] = []
+            self.agent_groups[model_provider].append(mock_agent)
+            self.agents[agent_id] = mock_agent
+            
+            logger.info(f"Added mock agent {agent_id} with model {model_id} to swarm")
     
     async def run(self):
         """Run the agent swarm."""
@@ -502,6 +537,16 @@ class BedrockAgentSwarm(MAIFAgentConsortium):
             task_id: Task identifier
             result: Aggregated result
         """
+        # Ensure MAIF directory exists
+        maif_path = Path(self.shared_maif_path)
+        maif_dir = maif_path.parent
+        maif_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Ensure blocks directory exists
+        blocks_dir = maif_dir / f"{maif_path.stem}.blocks"
+        blocks_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create artifact
         artifact = MAIFArtifact(
             name=f"swarm_result_{task_id}",
             client=self.shared_client,
@@ -522,8 +567,18 @@ class BedrockAgentSwarm(MAIFAgentConsortium):
             "timestamp": time.time()
         })
         
-        # Save to shared MAIF
-        artifact.save(self.shared_maif_path)
+        try:
+            # Save to shared MAIF
+            artifact.save(str(maif_path))
+            logger.info(f"Saved result for task {task_id} to {maif_path}")
+        except Exception as e:
+            logger.error(f"Error saving result to MAIF: {e}")
+            
+            # Fallback: save as JSON
+            fallback_path = maif_dir / f"result_{task_id}.json"
+            with open(fallback_path, 'w') as f:
+                json.dump(result, f, indent=2)
+            logger.info(f"Saved result as JSON to {fallback_path}")
     
     async def submit_task(self, task: Dict[str, Any]) -> str:
         """

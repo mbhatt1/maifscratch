@@ -433,6 +433,16 @@ class ACIDTransactionManager:
         try:
             # Create or get block storage
             storage_path = self.maif_path + '.blocks'
+            
+            # Ensure directory exists
+            storage_dir = os.path.dirname(storage_path)
+            if storage_dir and not os.path.exists(storage_dir):
+                os.makedirs(storage_dir, exist_ok=True)
+            
+            # Create empty blocks file if it doesn't exist
+            if not os.path.exists(storage_path):
+                Path(storage_path).touch()
+            
             storage = BlockStorage(storage_path)
             
             with storage:
@@ -464,6 +474,11 @@ class ACIDTransactionManager:
         try:
             # Open block storage
             storage_path = self.maif_path + '.blocks'
+            
+            # Check if blocks file exists
+            if not os.path.exists(storage_path):
+                return None
+                
             storage = BlockStorage(storage_path)
             
             with storage:

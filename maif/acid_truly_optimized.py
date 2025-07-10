@@ -427,11 +427,28 @@ class TrulyOptimizedAcidMAIF:
             enable_security: Whether to enable security features
         """
         from .core import MAIFEncoder
+        import os
+        from pathlib import Path
         
         self.maif_path = maif_path or f"maif_{int(time.time())}.maif"
         self.acid_level = acid_level
         self.agent_id = agent_id or f"agent-{int(time.time())}"
         self.enable_security = enable_security
+        
+        # Ensure directory exists
+        maif_dir = os.path.dirname(self.maif_path)
+        if maif_dir and not os.path.exists(maif_dir):
+            os.makedirs(maif_dir, exist_ok=True)
+            
+        # Create blocks directory if needed
+        blocks_path = f"{self.maif_path}.blocks"
+        blocks_dir = os.path.dirname(blocks_path)
+        if blocks_dir and not os.path.exists(blocks_dir):
+            os.makedirs(blocks_dir, exist_ok=True)
+            
+        # Create empty blocks file if it doesn't exist
+        if not os.path.exists(blocks_path):
+            Path(blocks_path).touch()
         
         # Create base encoder
         self._encoder = MAIFEncoder(agent_id=self.agent_id)
