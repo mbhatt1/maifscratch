@@ -109,7 +109,7 @@ class SimpleMVCC:
     """Simple MVCC implementation focused on performance."""
     
     def __init__(self):
-        # Simple versioning: block_id -> [(version_id, data, metadata, timestamp)]
+        # Multi-version storage: Maps block_id to list of (version_id, data, metadata, timestamp) tuples
         self.versions: Dict[str, List[Tuple[int, bytes, Dict[str, Any], float]]] = defaultdict(list)
         self.next_version = 1
         self.snapshots: Dict[str, float] = {}  # transaction_id -> timestamp
@@ -405,3 +405,145 @@ def benchmark_truly_optimized():
 
 if __name__ == "__main__":
     benchmark_truly_optimized()
+
+
+class TrulyOptimizedAcidMAIF:
+    """
+    Truly optimized ACID-compliant MAIF implementation.
+    
+    This class provides a high-performance MAIF implementation with
+    ACID transaction support, optimized for maximum throughput.
+    """
+    
+    def __init__(self, maif_path: str = None, acid_level: TrulyOptimizedACIDLevel = TrulyOptimizedACIDLevel.FULL_ACID,
+                agent_id: str = None, enable_security: bool = False):
+        """
+        Initialize a truly optimized ACID-compliant MAIF.
+        
+        Args:
+            maif_path: Path to the MAIF file
+            acid_level: ACID compliance level
+            agent_id: ID of the agent using this MAIF
+            enable_security: Whether to enable security features
+        """
+        from .core import MAIFEncoder
+        
+        self.maif_path = maif_path or f"maif_{int(time.time())}.maif"
+        self.acid_level = acid_level
+        self.agent_id = agent_id or f"agent-{int(time.time())}"
+        self.enable_security = enable_security
+        
+        # Create base encoder
+        self._encoder = MAIFEncoder(agent_id=self.agent_id)
+        
+        # Create transaction manager
+        self._transaction_manager = create_truly_optimized_manager(self.maif_path, acid_level)
+        
+        # Current transaction
+        self._current_transaction = None
+        
+        # Security manager if enabled
+        if enable_security:
+            from .security import SecurityManager
+            self._security_manager = SecurityManager(agent_id=self.agent_id)
+        else:
+            self._security_manager = None
+    
+    def begin_transaction(self) -> str:
+        """Begin a new transaction."""
+        if self._current_transaction:
+            self.commit_transaction()
+            
+        self._current_transaction = self._transaction_manager.begin_transaction()
+        return self._current_transaction
+    
+    def commit_transaction(self) -> bool:
+        """Commit the current transaction."""
+        if not self._current_transaction:
+            return False
+            
+        result = self._transaction_manager.commit_transaction(self._current_transaction)
+        self._current_transaction = None
+        return result
+    
+    def rollback_transaction(self) -> bool:
+        """Rollback the current transaction."""
+        if not self._current_transaction:
+            return False
+            
+        result = self._transaction_manager.rollback_transaction(self._current_transaction)
+        self._current_transaction = None
+        return result
+    
+    def add_text_block(self, text: str, metadata: Dict = None) -> str:
+        """Add a text block with transaction support."""
+        # Ensure we have a transaction
+        if not self._current_transaction:
+            self.begin_transaction()
+            
+        # Add block to base encoder
+        block_id = self._encoder.add_text_block(text, metadata)
+        
+        # Add to transaction
+        data = text.encode('utf-8')
+        
+        # Apply security if enabled
+        if self._security_manager:
+            data = self._security_manager.encrypt_data(data)
+            metadata = metadata or {}
+            metadata["security"] = "encrypted"
+        
+        self._transaction_manager.write_block(
+            self._current_transaction,
+            block_id,
+            data,
+            metadata or {}
+        )
+        
+        return block_id
+    
+    def add_binary_block(self, data: bytes, block_type: str, metadata: Dict = None) -> str:
+        """Add a binary block with transaction support."""
+        # Ensure we have a transaction
+        if not self._current_transaction:
+            self.begin_transaction()
+            
+        # Add block to base encoder
+        block_id = self._encoder.add_binary_block(data, block_type, metadata)
+        
+        # Apply security if enabled
+        if self._security_manager:
+            data = self._security_manager.encrypt_data(data)
+            metadata = metadata or {}
+            metadata["security"] = "encrypted"
+        
+        # Add to transaction
+        self._transaction_manager.write_block(
+            self._current_transaction,
+            block_id,
+            data,
+            metadata or {}
+        )
+        
+        return block_id
+    
+    def save(self, maif_path: str = None, manifest_path: str = None) -> bool:
+        """Save MAIF file with transaction support."""
+        # Commit any pending transaction
+        if self._current_transaction:
+            self.commit_transaction()
+            
+        # Save using base encoder
+        return self._encoder.save(
+            maif_path or self.maif_path,
+            manifest_path or f"{self.maif_path}.json"
+        )
+    
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get transaction performance statistics."""
+        return self._transaction_manager.get_performance_stats()
+    
+    def __del__(self):
+        """Cleanup resources."""
+        if hasattr(self, '_transaction_manager'):
+            self._transaction_manager.close()

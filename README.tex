@@ -28,13 +28,33 @@
 }
 
 % Title and author information - IEEE format
-\title{Project SCYTHE: AI Trust with Artifact-Centric Agentic Paradigm using the Multimodal Artifact File Format (MAIF)}
+\title{MAIF: Enforcing AI Trust and Provenance with Artifact-Centric Agentic Paradigm using the Multimodal Artifact File Format}
 
 \author{
-\IEEEauthorblockN{Cool Peeps Gang}
-\IEEEauthorblockA{
-Affiliation\\
-Email: coolpeeps@owasp.org \& coolpeeps@industry.org}
+\IEEEauthorblockN{Vineeth Sai Narajala\textsuperscript{3+}\thanks{\textsuperscript{3}This work is not related to the author's position at Meta.}}
+\IEEEauthorblockA{\textit{Security Researcher} \\
+\textit{OWASP/Meta} \\
+vineeth.sai@owasp.org \\ \orcidicon{0009-0007-4553-9930}}
+\and
+
+
+\IEEEauthorblockN{Idan Habler\textsuperscript{3}\thanks{\textsuperscript{3}This work is not related to the author's position at Intuit}}
+\IEEEauthorblockA{\textit{Adversarial AI Security reSearch} \\
+\textit{Intuit} \\
+idan\_habler@intuit.com \\ \orcidicon{0000-0003-3423-5927}}
+
+\and
+
+\IEEEauthorblockN{Ronald F. Del Rosario\textsuperscript{2+}\thanks{\textsuperscript{2}This work is not related to the author's position at SAP}}
+\IEEEauthorblockA{\textit{SAP ISBN Product Security} \\
+\textit{SAP} \\
+ron.del.rosario@sap.com \\ \orcidicon{0009-0009-5906-6948}}
+\and
+
+\IEEEauthorblockN{Manish Bhatt\textsuperscript{1}\textsuperscript{+}\thanks{\textsuperscript{1+}This work is not related to the author's position at Amazon.}}
+\IEEEauthorblockA{\textit{Researcher}}
+\IEEEauthorblockA{\textit{OWASP/Project Kuiper Security} \\
+manish.bhatt13212@gmail.com \\ \orcidicon{0000-0003-2207-5604}}
 }
 
 \begin{document}
@@ -42,7 +62,7 @@ Email: coolpeeps@owasp.org \& coolpeeps@industry.org}
 \maketitle
 
 \begin{abstract}
-The AI trustworthiness crisis threatens to derail the entire artificial intelligence revolution, with regulatory barriers, security vulnerabilities, and accountability gaps preventing deployment in critical domains worth billions in economic value. Current AI systems operate on fundamentally opaque data structures that cannot provide the audit trails, provenance tracking, or explainability required by emerging regulations like the EU AI Act. We propose an artifact-centric AI agent paradigm where agent behavior is driven by persistent, verifiable data artifacts rather than ephemeral tasks, fundamentally solving the trustworthiness problem at the data architecture level. Central to this approach is the Multimodal Artifact File Format (MAIF), an AI-native container that embeds semantic representations, cryptographic provenance, and granular access controls within a hierarchical block structure. MAIF transforms data from passive storage into active trust enforcement, making every AI operation inherently auditable and accountable. Our production-ready implementation demonstrates exceptional performance with ultra-high-speed streaming (2,446.6 MB/s), optimized video processing (400+ MB/s), and enterprise-grade security achieving a 95/100 security score. Novel algorithms including Adaptive Cross-Modal Attention Mechanism (ACAM), Hierarchical Semantic Compression (HSC), and Cryptographic Semantic Binding (CSB) achieve 2.5-5× compression ratios while maintaining semantic fidelity. Advanced security features include stream-level access control, real-time tamper detection, anti-replay protection, and behavioral anomaly analysis with minimal performance overhead. Cross-modal AI capabilities provide deep semantic understanding across all modalities with sub-50ms semantic search on commodity hardware. Enterprise-grade ACID transaction support provides full database-level guarantees with only 1.3× performance overhead through systematic optimization research that revealed simplicity outperforms complexity in high-performance systems. This approach directly addresses the regulatory, security, and accountability challenges that currently prevent AI deployment in sensitive domains, offering the first viable path toward trustworthy AI systems at scale. SCYTHE Strategy fixes this by changing the underlying paradigm of agentic development - from goal based to artifact based.
+The AI trustworthiness crisis threatens to derail the entire artificial intelligence revolution, with regulatory barriers, security vulnerabilities, and accountability gaps preventing deployment in critical domains worth billions in economic value. Current AI systems operate on fundamentally opaque data structures that cannot provide the audit trails, provenance tracking, or explainability required by emerging regulations like the EU AI Act. We propose an artifact-centric AI agent paradigm where agent behavior is driven by persistent, verifiable data artifacts rather than ephemeral tasks, fundamentally solving the trustworthiness problem at the data architecture level. Central to this approach is the Multimodal Artifact File Format (MAIF), an AI-native container that embeds semantic representations, cryptographic provenance, and granular access controls within a hierarchical block structure. MAIF transforms data from passive storage into active trust enforcement, making every AI operation inherently auditable and accountable. Our production-ready implementation demonstrates exceptional performance with ultra-high-speed streaming (2,720.7 MB/s), optimized video processing (1,342+ MB/s), and enterprise-grade security achieving the triffecta. Novel algorithms including Adaptive Cross-Modal Attention Mechanism (ACAM), Hierarchical Semantic Compression (HSC), and Cryptographic Semantic Binding (CSB) achieve 225× compression ratios while maintaining semantic fidelity. Advanced security features include stream-level access control, real-time tamper detection, anti-replay protection, and behavioral anomaly analysis with minimal performance overhead. Cross-modal AI capabilities provide deep semantic understanding across all modalities with sub-3ms semantic search on commodity hardware. Enterprise-grade ACID transaction support provides full database-level guarantees with only 1.3× performance overhead through systematic optimization research that revealed simplicity outperforms complexity in high-performance systems. This approach directly addresses the regulatory, security, and accountability challenges that currently prevent AI deployment in sensitive domains, offering the first viable path toward trustworthy AI systems at scale. Our Strategy fixes this by changing the underlying paradigm of agentic development - from goal based to artifact based.
 Artifact centric AI is coming, and MAIF will help resolve the current AI trust challenges \cite{googlemaspaper}.
 \end{abstract}
 
@@ -73,7 +93,7 @@ Contemporary AI systems are evolving from reactive, task-specific tools to auton
 \end{tabular}
 \end{table*}
 
-The trust deficit in AI systems has reached existential proportions, threatening to derail the entire AI revolution. Upon thinking long about this, we believe the root cause is a fundamental design flaw: \textbf{data and AI models exist without intrinsic provenance, auditability, or accountability mechanisms}. This cannot be solved with external monitoring or post-hoc explanations. \textbf{MAIF represents the only viable path forward}—embedding trustworthiness directly into AI data structures.
+The trust deficit in AI systems has reached existential proportions, threatening to derail the entire AI revolution. Upon thinking long about this, we believe the root cause is a fundamental design flaw: \textbf{data and AI models exist without intrinsic provenance, auditability, or accountability mechanisms}. This cannot be solved with external monitoring or post-hoc explanations. \textbf{MAIF represents a viable path forward}—embedding trustworthiness directly into AI data structures.
 
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.3}
@@ -97,6 +117,24 @@ Federated Learning & Privacy-preserving collaboration & Lacks provenance trackin
 \subsection{The Promise of Artifact-Centric AI}
 
 The AI ecosystem faces a trust crisis: opaque data structures leave systems unable to satisfy auditing, provenance, and explainability demands now codified in regulations such as the EU AI Act. As a result, security risks, regulatory friction, and accountability gaps are stalling multi-billion-dollar deployments in critical sectors.
+
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{Artifact-Centric AI Solution Components}
+\label{tab:artifact-centric-solution}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{5.5cm}p{5.5cm}}
+\toprule
+\textbf{Component} & \textbf{Description} & \textbf{Key Benefits} \\
+\midrule
+\textbf{Core Model} & Artifact-centric agent model grounding decisions in persistent, verifiable data artifacts & Eliminates trust issues at architectural layer \\
+\textbf{MAIF Container} & AI-native container with semantic vectors, cryptographic provenance, fine-grained access controls & Active enforcement mechanism, intrinsically auditable \\
+\textbf{Design Inspiration} & Artifact-centric business process models where data evolution drives processes & Shifts focus from "what should be done" to "what can be done" \\
+\textbf{Artifact Definition} & Business-relevant entity with defined information model and lifecycle & Higher flexibility and adaptability in complex environments \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 Our solution is an artifact-centric agent model that grounds every decision in persistent, verifiable data artifacts instead of transient task states, eliminating trust issues at the architectural layer. At its core is the Multimodal Artifact File Format (MAIF)—an AI-native container that embeds semantic vectors, cryptographic provenance, and fine-grained access controls inside a hierarchical block layout. MAIF converts data from passive storage into an active enforcement mechanism, rendering each AI operation intrinsically auditable and accountable.
 
@@ -129,25 +167,44 @@ This represents a paradigm shift from \textbf{external accountability} to \textb
 
 This paper makes the following key contributions to trustworthy AI systems, addressing critical gaps that have prevented widespread AI deployment in sensitive domains:
 
-\begin{enumerate}[leftmargin=*]
-\item \textbf{Artifact-Centric Agent Architecture}: A novel paradigm where AI agent behavior is driven by persistent, verifiable data artifacts rather than ephemeral computational tasks, enabling inherent auditability and context preservation. This architecture solves the fundamental problem of AI systems that cannot explain their decision-making processes or provide audit trails for regulatory compliance.
-
-\item \textbf{Multimodal Artifact File Format (MAIF)}: An AI-native container specification that integrates multimodal data, semantic embeddings, cryptographic provenance, and granular access controls within a hierarchical block structure based on proven multimedia container formats. MAIF provides the missing infrastructure for trustworthy AI data management, enabling compliance with emerging regulations like the EU AI Act while maintaining practical performance.
-
-\item \textbf{Reference Implementation}: A comprehensive reference implementation demonstrating the practical feasibility of MAIF concepts, including ultra-high-performance streaming (2,446.6 MB/s throughput), optimized video processing (400+ MB/s), advanced compression (achieving 2.5-5× reduction for text), enterprise-grade security (95/100 security score), and comprehensive validation frameworks. This bridges the critical gap between theoretical trustworthiness concepts and deployable solutions.
-
-\item \textbf{Novel Algorithmic Contributions}: Three new algorithms—Adaptive Cross-Modal Attention Mechanism (ACAM), Hierarchical Semantic Compression (HSC), and Cryptographic Semantic Binding (CSB)—that enhance cross-modal reasoning, storage efficiency, and semantic authenticity verification while maintaining computational tractability for real-world deployment.
-
-\item \textbf{Formal Security Model}: A comprehensive threat model and formal security properties for artifact-centric AI systems, including proofs for tamper detection and provenance integrity with computational security guarantees. This provides the mathematical foundation needed for security certification and regulatory approval.
-
-\item \textbf{Feasibility Analysis}: A realistic implementation roadmap distinguishing immediately achievable capabilities (50-60\% of proposed features) from research-stage components, grounded in analysis of existing systems like Memvid.
-\end{enumerate}
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{Key Contributions of This Paper}
+\label{tab:key-contributions}
+\centering
+\footnotesize
+\begin{tabular}{p{3.5cm}p{6cm}p{4.5cm}}
+\toprule
+\textbf{Contribution} & \textbf{Description} & \textbf{Impact} \\
+\midrule
+\textbf{Artifact-Centric Agent Architecture} & Novel paradigm where AI agent behavior is driven by persistent, verifiable data artifacts rather than ephemeral computational tasks & Enables inherent auditability and context preservation, solves audit trail problem \\
+\textbf{Multimodal Artifact File Format (MAIF)} & AI-native container specification integrating multimodal data, semantic embeddings, cryptographic provenance, and granular access controls & Provides missing infrastructure for trustworthy AI data management, EU AI Act compliance \\
+\textbf{Reference Implementation} & Comprehensive implementation with ultra-high-performance streaming (2,720.7 MB/s), video processing (1,342+ MB/s), compression (225×), security (100/100) & Bridges gap between theoretical concepts and deployable solutions \\
+\textbf{Novel Algorithmic Contributions} & Three algorithms: ACAM, HSC, and CSB for cross-modal reasoning, storage efficiency, and semantic authenticity verification & Enhances AI processing while maintaining computational tractability \\
+\textbf{Formal Security Model} & Comprehensive threat model and formal security properties with proofs for tamper detection and provenance integrity & Provides mathematical foundation for security certification and regulatory approval \\
+\textbf{Feasibility Analysis} & Realistic implementation roadmap distinguishing immediately achievable (50-60\%) from research-stage components & Grounded in analysis of existing systems like Memvid \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 
 Section II analyzes limitations of current AI agent paradigms. Section III presents the artifact-centric design. Section IV details the MAIF specification. Section V provides security analysis and formal verification. Section VI discusses implementation challenges and validation approaches. Section VII concludes.
 
 \section{Limitations of Existing AI Agent Paradigms}
 \label{sec:limitations}
+
+
+
+The fundamental tension between autonomy and control creates significant deployment barriers in critical environments, with current security paradigms insufficient to address the amplified, cross-modal attack surfaces of modern AI agents.
+
+\section{The Artifact-Centric AI Agent: A Novel Design Paradigm}
+\label{sec:artifact-centric}
+
+This section introduces the core tenets of the proposed artifact-centric AI agent, detailing its fundamental principles and architectural components, emphasizing how the Multimodal Artifact File Format (MAIF) becomes the central, evolving entity driving agent behavior.
+
+\subsection{Core Principles: Data-Driven Evolution and Goal-Oriented Autonomy}
+
+Drawing inspiration from artifact-centric business process management, where business data (artifacts) are the primary drivers of processes, our proposed AI agent paradigm places the ``artifact''---specifically, an instance of the Multimodal Artifact File Format (MAIF)---at the very core of its operation\cite{ref10}. This approach fundamentally reorients the AI agent's operational logic. Instead of merely processing transient inputs and producing outputs, the agent's behavior, state, and goals are intrinsically linked to the creation, evolution, and manipulation of these MAIF instances. This shifts the primary focus from ``what tasks should be done'' to ``what state the artifact can achieve,'' aligning agent actions with the desired evolution of the data itself\cite{ref12}.
 
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.3}
@@ -170,17 +227,6 @@ Section II analyzes limitations of current AI agent paradigms. Section III prese
 \bottomrule
 \end{tabular}
 \end{table*}
-
-The fundamental tension between autonomy and control creates significant deployment barriers in critical environments, with current security paradigms insufficient to address the amplified, cross-modal attack surfaces of modern AI agents.
-
-\section{The Artifact-Centric AI Agent: A Novel Design Paradigm}
-\label{sec:artifact-centric}
-
-This section introduces the core tenets of the proposed artifact-centric AI agent, detailing its fundamental principles and architectural components, emphasizing how the Multimodal Artifact File Format (MAIF) becomes the central, evolving entity driving agent behavior.
-
-\subsection{Core Principles: Data-Driven Evolution and Goal-Oriented Autonomy}
-
-Drawing inspiration from artifact-centric business process management, where business data (artifacts) are the primary drivers of processes, our proposed AI agent paradigm places the ``artifact''---specifically, an instance of the Multimodal Artifact File Format (MAIF)---at the very core of its operation\cite{ref10}. This approach fundamentally reorients the AI agent's operational logic. Instead of merely processing transient inputs and producing outputs, the agent's behavior, state, and goals are intrinsically linked to the creation, evolution, and manipulation of these MAIF instances. This shifts the primary focus from ``what tasks should be done'' to ``what state the artifact can achieve,'' aligning agent actions with the desired evolution of the data itself\cite{ref12}.
 
 \subsubsection{Self-Optimizing File Capabilities}
 
@@ -207,6 +253,8 @@ MAIF evolves from static files to smart, self-optimizing data containers that im
 The MAIF serves as the primary, persistent, and verifiable representation of the agent's operational state and context. Unlike traditional AI systems that are stateless and cannot leverage past data to inform future actions, or current agentic systems whose internal memory can be opaque and vulnerable to manipulation\cite{ref1}, every significant interaction, decision, or data modification performed by the agent is recorded as an evolution of the MAIF. This inherently builds an auditable history directly into the data itself, ensuring that the agent's ``memory'' is not an abstract, internal state but a tangible, inspectable, and cryptographically secured artifact. This design fundamentally changes how context is maintained and how actions are recorded, enabling inherent auditability and reducing reliance on opaque internal memories. The MAIF essentially functions as a distributed, self-contained ledger for the agent's operational state, ensuring that every step of its reasoning and action is tied to a tangible, auditable artifact.
 
 Furthermore, the agent's autonomous actions are directly driven by the desired states or goals of the MAIF. The agent perceives the current state of the MAIF, reasons about the necessary transformations to achieve a target state, and executes actions that modify the MAIF accordingly. This tight coupling ensures that agent behavior is always grounded in a concrete, verifiable data artifact. This design provides a robust framework for goal-oriented autonomy, where the artifact's lifecycle guides the agent's proactive behavior.
+
+
 
 \begin{figure*}[!t]
 \centering
@@ -301,6 +349,9 @@ In this artifact-centric architecture, the MAIF is not merely a data file but se
 The AI agent's architecture comprises four interconnected modules that all interact with MAIF instances, enabling seamless context management and verifiable operations.
 
 In multi-agent systems, agents interact primarily by exchanging MAIF instances. Since MAIFs are designed to be self-describing, semantically rich, and inherently secure, they provide a universal, verifiable context for collaboration. This significantly reduces interoperability challenges that typically arise from disparate data structures, system architectures, and AI model variations\cite{ref29}. Agents can directly interpret and act upon shared MAIFs, fostering seamless integration and coordination. The MAIF, by being a standardized, self-describing, and semantically rich multimodal format, can serve as a universal data exchange medium for AI agents. This inherently resolves many interoperability issues by providing a common ``language'' and ``understanding'' of data, regardless of the agent's internal architecture or the modality of the original information. This moves beyond mere data format conversion to semantic alignment, enabling more robust and trustworthy multi-agent collaboration.
+
+
+
 \begin{figure*}[!t]
 \centering
 \begin{tikzpicture}[scale=0.9, every node/.style={scale=0.5}]
@@ -421,6 +472,7 @@ Similar to artifact-centric business processes, MAIF instances are designed to p
 This paper proposes the integration of ``adaptation rules'' directly within the MAIF framework, drawing inspiration from their application in artifact-centric business process adaptation\cite{ref12}. These rules define when and how a MAIF instance can transition from an old model (e.g., a previous schema or state) to a new one. Such rules can specify attribute changes (adding, deleting, or modifying attributes), artifact existence changes (adding, deleting, merging, or splitting artifacts), and even modifications to embedded business rules\cite{ref12}. This mechanism allows MAIFs to dynamically evolve their structure and content based on predefined conditions or agent-driven decisions, ensuring flexibility and adaptability in highly dynamic and unpredictable environments.
 
 However, managing these dynamic lifecycles presents inherent complexities, particularly in ensuring data and state consistency across evolving MAIF instances\cite{ref12}. The relationships between artifacts in old and new models can be intricate from both information model and lifecycle perspectives, making it challenging to decide when and how to adapt an instance automatically while guaranteeing correctness and avoiding issues like deadlocks\cite{ref12}. The MAIF format, by embedding its own lifecycle rules, versioning, and adaptation mechanisms directly within its structure, can enable a form of ``self-governing data fabric'' for AI agents. This means that the data artifact itself dictates its own evolution and integrity, reducing reliance on external, centralized control points that are prone to single points of failure or manipulation. This moves towards a more resilient and inherently trustworthy system where the data dictates its own integrity and evolution, rather than relying solely on external agent logic or separate process models. This decentralizes governance to the data level, enhancing resilience and trustworthiness.
+% 
 
 \section{Multimodal Artifact File Format (MAIF): Design and Capabilities}
 \label{sec:maif-design}
@@ -441,19 +493,26 @@ MAIF employs a hierarchical block structure designed for efficient parsing, robu
 
 MAIF follows a structured container format similar to ISO Base Media File Format (BMFF), consisting of a file header, variable number of typed blocks, and a file footer. Each block is self-describing with its own header, data payload, and integrity footer. This design enables efficient streaming, random access, and partial file processing while maintaining strong integrity guarantees.
 
-The format supports the following key architectural principles:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Key Architectural Principles}
+\label{tab:architectural-principles}
+\centering
+\footnotesize
+\begin{tabular}{p{3.5cm}p{6cm}p{4.5cm}}
+\toprule
+\textbf{Principle} & \textbf{Implementation} & \textbf{Benefits} \\
+\midrule
+\textbf{Hierarchical Block Structure} & Self-contained blocks with standardized headers including size, type identifier (FourCC), version, and UUID & Efficient parsing, forward compatibility, precise identification \\
+\textbf{Cryptographic Integrity} & SHA-256 hash verification per block, file-level root hash, embedded digital signatures and provenance chains & Overall integrity guarantee, tamper detection \\
+\textbf{Streaming Compatibility} & Linear file layout with size-prefixed blocks, memory-mapped access patterns & Efficient streaming, progressive loading, optimized performance for large files \\
+\textbf{Extensible Type System} & FourCC block type identifiers, custom block type support & Extensibility while maintaining backward compatibility \\
+\textbf{Multi-Level Compression} & Block-level compression with algorithm selection (zlib, LZMA, Brotli, LZ4, Zstandard) & Storage efficiency optimization while preserving semantic relationships \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Hierarchical Block Structure}: Self-contained blocks with standardized headers enable efficient parsing and forward compatibility. Each block includes size, type identifier (FourCC), version, and UUID for precise identification.
-
-\item \textbf{Cryptographic Integrity}: Every block includes SHA-256 hash verification, with file-level root hash providing overall integrity. Digital signatures and provenance chains are embedded directly within security metadata blocks.
-
-\item \textbf{Streaming Compatibility}: Linear file layout with size-prefixed blocks enables efficient streaming and progressive loading. Memory-mapped access patterns optimize performance for large files.
-
-\item \textbf{Extensible Type System}: FourCC block type identifiers enable extensibility while maintaining backward compatibility. Custom block types can be added without breaking existing parsers.
-
-\item \textbf{Multi-Level Compression}: Block-level compression with algorithm selection (zlib, LZMA, Brotli, LZ4, Zstandard) optimizes storage efficiency while preserving semantic relationships.
-\end{itemize}
+The format supports key architectural principles as detailed in Table~\ref{tab:architectural-principles}.
 
 \subsubsection{Block Type Specifications}
 
@@ -483,80 +542,93 @@ MAIF defines six core block types essential for AI-native functionality, each wi
 
 \subsubsection{Parsing and Validation Framework}
 
-MAIF implements a robust parsing framework with comprehensive error handling and recovery mechanisms:
-
-\begin{itemize}[leftmargin=*]
-\item \textbf{State Machine Parser}: Formal state machine with defined transitions for file header, block headers/data/footers, and file footer parsing. Enables robust error recovery and partial file processing.
-
-\item \textbf{Integrity Verification}: Multi-level hash verification with block-level SHA-256 hashes and file-level root hash. Optional Reed-Solomon error correction for critical blocks in unreliable storage environments.
-
-\item \textbf{Progressive Loading}: Streaming parser design enables processing of arbitrarily large files with bounded memory usage. Block index construction allows efficient random access patterns.
-
-\item \textbf{Error Classification}: Comprehensive error taxonomy covering format violations, corruption detection, signature failures, and access control violations. Graduated response enables graceful degradation.
-\end{itemize}
-
-\subsubsection{Performance and Scalability}
-
-The MAIF format is designed for high-performance AI workloads with specific optimization targets:
-
 \begin{table*}[!t]
 \renewcommand{\arraystretch}{1.3}
-\caption{MAIF Performance Characteristics and Achieved Benchmarks}
-\label{tab:performance-characteristics}
+\caption{MAIF Parsing and Validation Framework Components}
+\label{tab:parsing-validation}
 \centering
 \footnotesize
-\begin{tabular}{p{3.5cm}p{4cm}p{3cm}p{3.5cm}}
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
 \toprule
-\textbf{Performance Metric} & \textbf{Specification} & \textbf{Achieved Value} & \textbf{Key Features} \\
+\textbf{Component} & \textbf{Description} & \textbf{Capabilities} \\
 \midrule
-\textbf{Ultra-High Streaming} & Zero-copy memory mapping & 2,446.6 MB/s & Hardware-optimized I/O \\
-& Secure streaming & 2,200 MB/s & Full security enabled \\
-& Video processing & 400+ MB/s & Ultra-fast encoder \\
-\midrule
-\textbf{Security Performance} & Tamper detection & 2,420 MB/s & Real-time verification \\
-& Cryptographic overhead & -5.1\% & Optimized encryption \\
-& Block-level access & 1,800 MB/s & Granular permissions \\
-\midrule
-\textbf{Time Complexity} & Sequential access & O(n) & Linear scaling \\
-& Block lookup & O(log b) & Logarithmic search \\
-& Parallel workers & 32× scaling & Multi-core optimization \\
-\midrule
-\textbf{Compression Ratios} & Text content & 2.5-5× & Algorithm-specific optimization \\
-& Binary data & 1.2-2× & Semantic preservation \\
-& Embedding vectors & 3-4× & Fidelity maintenance \\
-\midrule
-\textbf{Memory Efficiency} & Chunk size & 64MB & Optimized throughput \\
-& Buffer size & 256MB & Maximum performance \\
-& Scaling behavior & Active blocks & RAM-independent processing \\
+\textbf{State Machine Parser} & Formal state machine with defined transitions for file header, block headers/data/footers, and file footer parsing & Robust error recovery, partial file processing \\
+\textbf{Integrity Verification} & Multi-level hash verification with block-level SHA-256 hashes and file-level root hash & Optional Reed-Solomon error correction for critical blocks in unreliable storage \\
+\textbf{Progressive Loading} & Streaming parser design for arbitrarily large files with bounded memory usage & Block index construction for efficient random access patterns \\
+\textbf{Error Classification} & Comprehensive error taxonomy covering format violations, corruption detection, signature failures, access control violations & Graduated response enabling graceful degradation \\
 \bottomrule
 \end{tabular}
 \end{table*}
 
-Key MAIF blocks include:
+MAIF implements a robust parsing framework with comprehensive error handling and recovery mechanisms as shown in Table~\ref{tab:parsing-validation}.
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Header Block}: This mandatory block, typically located at the beginning of the file, contains essential metadata such as the MAIF type identifier, version number, and a root cryptographic hash that serves as a foundational integrity check for the entire file.
+\subsubsection{Performance and Scalability}
 
-\item \textbf{Modality Blocks}: These are dedicated sections for storing raw multimodal data. This includes:
-\begin{itemize}
-\item Text Blocks: For unstructured text, source code, or structured text formats like JSON or XML.
-\item Image Blocks: For still images in various formats.
-\item Audio Blocks: For audio streams.
-\item Video Blocks: For video streams.
-\item Sensor Data Blocks: For time-series data or raw sensor readings.
-\item AI Model Blocks: Critically, MAIF can embed serialized AI models (e.g., ONNX, Protocol Buffers) or specific model parameters that can be directly loaded and executed by the AI agent\cite{ref41}.
-\end{itemize}
+The MAIF format was designed for high-performance AI workloads with defined optimization objectives. Comprehensive performance metrics and achieved benchmarks are listed in Table~\ref{tab:performance-characteristics} within Appendix~\ref{app:performance-benchmarks}.
 
-\item \textbf{Semantic Layer Blocks}: These blocks are central to MAIF's AI-native design, containing rich, processed representations of the raw data:
-\begin{itemize}
-\item Multimodal Embeddings: Dense vector representations of the raw data from various modalities, mapped into a shared semantic space. These embeddings capture intrinsic relationships and contextual information across modalities\cite{ref26}.
-\item Knowledge Graph Fragments: Structured representations of entities and their relationships extracted from the multimodal data. These are stored using compact formats like HDT (Header-Dictionary-Triples) or compact JSON-LD, enabling efficient knowledge representation and retrieval\cite{ref42}.
-\end{itemize}
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{MAIF Performance Characteristics and Achieved Benchmarks}
+% \label{tab:performance-characteristics}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{3.5cm}p{4cm}p{3cm}p{3.5cm}}
+% \toprule
+% \textbf{Performance Metric} & \textbf{Specification} & \textbf{Achieved Value} & \textbf{Key Features} \\
+% \midrule
+% \textbf{Ultra-High Streaming} & Zero-copy memory mapping & 2,446.6 MB/s & Hardware-optimized I/O \\
+% & Secure streaming & 2,200 MB/s & Full security enabled \\
+% & Video processing & 400+ MB/s & Ultra-fast encoder \\
+% \midrule
+% \textbf{Security Performance} & Tamper detection & 2,420 MB/s & Real-time verification \\
+% & Cryptographic overhead & -5.1\% & Optimized encryption \\
+% & Block-level access & 1,800 MB/s & Granular permissions \\
+% \midrule
+% \textbf{Time Complexity} & Sequential access & O(n) & Linear scaling \\
+% & Block lookup & O(log b) & Logarithmic search \\
+% & Parallel workers & 32× scaling & Multi-core optimization \\
+% \midrule
+% \textbf{Compression Ratios} & Text content & 2.5-5× & Algorithm-specific optimization \\
+% & Binary data & 1.2-2× & Semantic preservation \\
+% & Embedding vectors & 3-4× & Fidelity maintenance \\
+% \midrule
+% \textbf{Memory Efficiency} & Chunk size & 64MB & Optimized throughput \\
+% & Buffer size & 256MB & Maximum performance \\
+% & Scaling behavior & Active blocks & RAM-independent processing \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
-\item \textbf{Security Metadata Blocks}: These dedicated sections house the cryptographic proofs, access control information, and provenance data that are fundamental to MAIF's trustworthiness (detailed in Section V).
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Block Types and Their Functions}
+\label{tab:maif-blocks-detailed}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
+\toprule
+\textbf{Block Type} & \textbf{Description} & \textbf{Contents/Purpose} \\
+\midrule
+\textbf{Header Block} & Mandatory block at file beginning & MAIF type identifier, version number, root cryptographic hash for integrity check \\
+\midrule
+\multirow{6}{3cm}{\textbf{Modality Blocks}} & Text Blocks & Unstructured text, source code, JSON/XML \\
+& Image Blocks & Still images in various formats \\
+& Audio Blocks & Audio streams \\
+& Video Blocks & Video streams \\
+& Sensor Data Blocks & Time-series data, raw sensor readings \\
+& AI Model Blocks & Serialized AI models (ONNX, Protocol Buffers), model parameters\cite{ref41} \\
+\midrule
+\multirow{2}{3cm}{\textbf{Semantic Layer Blocks}} & Multimodal Embeddings & Dense vector representations in shared semantic space, capturing cross-modal relationships\cite{ref26} \\
+& Knowledge Graph Fragments & Structured entity relationships using HDT or JSON-LD formats\cite{ref42} \\
+\midrule
+\textbf{Security Metadata Blocks} & Cryptographic and access control & Cryptographic proofs, access control information, provenance data \\
+\midrule
+\textbf{Lifecycle Metadata Blocks} & Evolution tracking & Version history, adaptation rules, audit logs for dynamic lifecycle management\cite{ref12} \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\item \textbf{Lifecycle Metadata Blocks}: These blocks contain metadata related to the artifact's evolution, including version history, adaptation rules, and audit logs, supporting dynamic lifecycle management\cite{ref12}.
-\end{itemize}
+Key MAIF blocks are detailed in Table~\ref{tab:maif-blocks-detailed}, showing the comprehensive structure that enables MAIF's AI-native capabilities.
 
 MAIF is inherently self-describing, meaning that each block contains sufficient metadata to allow any compliant parser or AI agent to interpret its content, type, and relationships without requiring external schema definitions\cite{ref62}. This is achieved through explicit field annotations (e.g., type, count, name, identifier) and message annotations (e.g., subject name, reply subject name)\cite{ref62}. This characteristic is vital for robust interoperability and significantly reduces reliance on external databases or APIs for contextual understanding, which is a common challenge in multi-agent systems\cite{ref23}. By encapsulating all relevant raw modalities, their semantic embeddings, knowledge graph fragments, and even processing instructions within a single, self-describing file, MAIF transforms into a ``portable AI context unit.'' This allows AI agents to operate with a complete, verifiable, and localized understanding of their operational environment, significantly reducing the need for external database queries or real-time API calls for context. This design enhances agent autonomy, reliability, and privacy, especially in decentralized or intermittently connected environments, as the entire operational context travels with the artifact.
 
@@ -628,25 +700,25 @@ MAIF transforms semantic search from a compute-intensive operation to efficient 
 
 
 \subsubsection{Novel Algorithmic Contributions}
+MAIF presents three key algorithmic breakthroughs that significantly enhance multimodal AI processing: Adaptive Cross-Modal Attention Mechanism (ACAM), Hierarchical Semantic Compression (HSC), and Cryptographic Semantic Binding (CSB). Their comprehensive specifications and performance metrics are presented in Table~\ref{tab:novel-algorithms} in Appendix~\ref{app:performance-benchmarks}.
+% MAIF introduces three breakthrough algorithmic innovations that fundamentally advance multimodal AI processing:
 
-MAIF introduces three breakthrough algorithmic innovations that fundamentally advance multimodal AI processing:
-
-\begin{table*}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{MAIF Novel Algorithms: Specifications and Performance}
-\label{tab:novel-algorithms}
-\centering
-\footnotesize
-\begin{tabular}{p{3.5cm}p{5cm}p{3cm}p{3.5cm}}
-\toprule
-\textbf{Algorithm} & \textbf{Core Innovation} & \textbf{Performance} & \textbf{Key Features} \\
-\midrule
-\textbf{Adaptive Cross-Modal Attention (ACAM)} & Dynamic attention weighting with trust-aware semantic coherence & Improved retrieval accuracy & Trust-integrated attention coefficients, cryptographic verification status \\
-\textbf{Hierarchical Semantic Compression (HSC)} & Three-tier semantic-preserving compression & 40-60\% compression, 90-95\% fidelity & DBSCAN clustering, vector quantization, entropy coding \\
-\textbf{Cryptographic Semantic Binding (CSB)} & Hash-based embedding-to-source verification & Real-time verification & Commitment schemes, authenticity assurance, pragmatic security \\
-\bottomrule
-\end{tabular}
-\end{table*}
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{MAIF Novel Algorithms: Specifications and Performance}
+% \label{tab:novel-algorithms}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{3.5cm}p{5cm}p{3cm}p{3.5cm}}
+% \toprule
+% \textbf{Algorithm} & \textbf{Core Innovation} & \textbf{Performance} & \textbf{Key Features} \\
+% \midrule
+% \textbf{Adaptive Cross-Modal Attention (ACAM)} & Dynamic attention weighting with trust-aware semantic coherence & Improved retrieval accuracy & Trust-integrated attention coefficients, cryptographic verification status \\
+% \textbf{Hierarchical Semantic Compression (HSC)} & Three-tier semantic-preserving compression & 40-60\% compression, 90-95\% fidelity & DBSCAN clustering, vector quantization, entropy coding \\
+% \textbf{Cryptographic Semantic Binding (CSB)} & Hash-based embedding-to-source verification & Real-time verification & Commitment schemes, authenticity assurance, pragmatic security \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
 \textbf{Mathematical Foundations:}
 \begin{itemize}[leftmargin=*]
@@ -655,6 +727,9 @@ MAIF introduces three breakthrough algorithmic innovations that fundamentally ad
 \end{itemize}
 
 These innovations transform MAIF from a data container into a self-contained reasoning engine, enabling localized, privacy-preserving inference with verifiable thought processes linked directly to embedded knowledge graphs.
+
+% 
+
 \begin{figure*}[!t]
 \centering
 \begin{tikzpicture}[scale=0.9, every node/.style={scale=1.0}]
@@ -734,22 +809,46 @@ These innovations transform MAIF from a data container into a self-contained rea
 
 \subsubsection{Memory Management and Data Access Patterns}
 
-MAIF implements a sophisticated memory management system optimized for AI workloads:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Memory Management Optimizations}
+\label{tab:memory-management}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
+\toprule
+\textbf{Optimization} & \textbf{Implementation} & \textbf{Performance Impact} \\
+\midrule
+\textbf{Lazy Loading} & Semantic embedding blocks memory-mapped and loaded on-demand & Reduces file opening time from O(n) to O(1) regardless of file size \\
+\textbf{Cache-Friendly Layout} & Embedding vectors in contiguous memory blocks with 64-byte alignment & 2-3x speedup in similarity calculations through optimal CPU cache utilization \\
+\textbf{Hierarchical Indexing} & Multi-level indexing structure with L1 index fitting in CPU cache (32KB) & O(log n) semantic search complexity for files up to 100GB \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Lazy Loading}: Semantic embedding blocks are memory-mapped and loaded on-demand, reducing initial file opening time from O(n) to O(1) regardless of file size.
-\item \textbf{Cache-Friendly Layout}: Embedding vectors are stored in contiguous memory blocks with 64-byte alignment for optimal CPU cache utilization, achieving 2-3x speedup in similarity calculations.
-\item \textbf{Hierarchical Indexing}: Multi-level indexing structure enables O(log n) semantic search complexity, with L1 index fitting in CPU cache (32KB) for files up to 100GB.
-\end{itemize}
+MAIF implements a sophisticated memory management system optimized for AI workloads as detailed in Table~\ref{tab:memory-management}.
 
 \subsubsection{Computational Complexity Analysis}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Embedding Generation}: O(d × m) where d is embedding dimension and m is modality count, performed once during MAIF creation.
-\item \textbf{Semantic Search}: O(log n + k) where n is total embeddings and k is result count, compared to O(n) for linear search.
-\item \textbf{Cross-Modal Retrieval}: O(1) lookup time using pre-computed cross-modal alignment matrices stored in MAIF.
-\item \textbf{Cryptographic Operations}: O(b) where b is block count, with parallel processing reducing wall-clock time to O(b/p) for p processors.
-\end{itemize}
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Computational Complexity Analysis}
+\label{tab:computational-complexity}
+\centering
+\footnotesize
+\begin{tabular}{p{3.5cm}p{5cm}p{5.5cm}}
+\toprule
+\textbf{Operation} & \textbf{Complexity} & \textbf{Details} \\
+\midrule
+\textbf{Embedding Generation} & O(d × m) & d = embedding dimension, m = modality count; performed once during MAIF creation \\
+\textbf{Semantic Search} & O(log n + k) & n = total embeddings, k = result count; compared to O(n) for linear search \\
+\textbf{Cross-Modal Retrieval} & O(1) & Lookup time using pre-computed cross-modal alignment matrices stored in MAIF \\
+\textbf{Cryptographic Operations} & O(b) or O(b/p) & b = block count, p = processors; parallel processing reduces wall-clock time \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Table~\ref{tab:computational-complexity} presents the computational complexity analysis for key MAIF operations.
 
 \subsection{Advanced File Format Infrastructure}
 
@@ -778,35 +877,63 @@ MAIF implements a sophisticated memory management system optimized for AI worklo
 \end{tabular}
 \end{table*}
 
-The compression framework achieves 2.5-5× compression for text, 1.2-2× for binary data, and 3-4× for embeddings while maintaining 95\%+ semantic fidelity.
+The compression framework achieves 225× compression for structured text, 2-3× for binary data, and 4-5× for embeddings while maintaining 95\%+ semantic fidelity.
 
 \subsubsection{High-Performance Streaming Architecture}
 
-To address the scalability challenges of large MAIF files and enable real-time processing, we have implemented a comprehensive streaming framework:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF High-Performance Streaming Architecture Components}
+\label{tab:streaming-architecture}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{5.5cm}p{5.5cm}}
+\toprule
+\textbf{Component} & \textbf{Implementation} & \textbf{Performance Impact} \\
+\midrule
+\textbf{Memory-Mapped Access} & Efficient random access to MAIF blocks using memory mapping & Reduces file opening time from O(n) to O(1) regardless of file size \\
+\textbf{Parallel Block Processing} & Multi-threaded streaming with configurable worker pools & 2-4× performance improvements for large files with independent block processing \\
+\textbf{Asynchronous I/O} & Non-blocking file operations using async/await patterns & Concurrent processing of multiple MAIF instances without thread blocking \\
+\textbf{Intelligent Caching} & LRU-based block caching with semantic-aware eviction policies & Sub-millisecond retrieval for frequently accessed embeddings \\
+\textbf{Progressive Loading} & Lazy loading of semantic layers and large blocks & 60-80\% reduction in initial memory footprint while maintaining responsive access \\
+\midrule
+\multicolumn{3}{l}{\textbf{Benchmark Results:}} \\
+\multicolumn{3}{l}{• Sequential access: 500+ MB/s throughput} \\
+\multicolumn{3}{l}{• Parallel processing: 1.2+ GB/s on commodity hardware} \\
+\multicolumn{3}{l}{• Memory usage scales linearly with active block count, not total file size} \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Memory-Mapped Access}: Efficient random access to MAIF blocks using memory mapping, reducing file opening time from O(n) to O(1) regardless of file size.
-\item \textbf{Parallel Block Processing}: Multi-threaded streaming with configurable worker pools, achieving 2-4× performance improvements for large files with independent block processing.
-\item \textbf{Asynchronous I/O}: Non-blocking file operations using async/await patterns, enabling concurrent processing of multiple MAIF instances without thread blocking.
-\item \textbf{Intelligent Caching}: LRU-based block caching with semantic-aware eviction policies, maintaining frequently accessed embeddings in memory for sub-millisecond retrieval.
-\item \textbf{Progressive Loading}: Lazy loading of semantic layers and large blocks, reducing initial memory footprint by 60-80\% while maintaining responsive access patterns.
-\end{itemize}
-
-Benchmark results demonstrate streaming throughput of 500+ MB/s for sequential access and 1.2+ GB/s for parallel processing on commodity hardware, with memory usage scaling linearly with active block count rather than total file size.
+To address the scalability challenges of large MAIF files and enable real-time processing, we have implemented a comprehensive streaming framework as detailed in Table~\ref{tab:streaming-architecture}.
 
 \subsubsection{Comprehensive Validation and Repair Framework}
 
-MAIF 2.0 includes an extensive validation system that ensures file integrity, security compliance, and performance optimization:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Validation and Repair Framework Features}
+\label{tab:validation-repair}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
+\toprule
+\textbf{Feature} & \textbf{Description} & \textbf{Capabilities} \\
+\midrule
+\textbf{Multi-Level Validation} & Hierarchical validation system & File format integrity, cryptographic verification, semantic consistency, performance characteristics \\
+\textbf{Automated Repair} & Self-healing capabilities for common corruption patterns & Checksum correction, missing block recovery, dependency resolution \\
+\textbf{Schema Evolution} & Compatibility validation across versions & Backward and forward compatibility ensuring MAIF instances remain accessible \\
+\textbf{Performance Profiling} & Built-in performance analysis & Identifies bottlenecks in compression, encryption, and semantic processing \\
+\textbf{Security Auditing} & Comprehensive security validation & Signature verification, access control compliance, tamper detection \\
+\midrule
+\multicolumn{3}{l}{\textbf{Performance Metrics:}} \\
+\multicolumn{3}{l}{• Basic integrity checks: 2,400+ MB/s} \\
+\multicolumn{3}{l}{• Comprehensive forensic analysis: 1,800+ MB/s (with full security enabled)} \\
+\multicolumn{3}{l}{• Automated repair success rate: >95\% for common corruption scenarios} \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Multi-Level Validation}: Hierarchical validation covering file format integrity, cryptographic verification, semantic consistency, and performance characteristics.
-\item \textbf{Automated Repair}: Self-healing capabilities for common corruption patterns, including checksum correction, missing block recovery, and dependency resolution.
-\item \textbf{Schema Evolution}: Backward and forward compatibility validation ensuring MAIF instances remain accessible across version upgrades.
-\item \textbf{Performance Profiling}: Built-in performance analysis identifying bottlenecks in compression, encryption, and semantic processing operations.
-\item \textbf{Security Auditing}: Comprehensive security validation including signature verification, access control compliance, and tamper detection.
-\end{itemize}
-
-The validation framework processes files at 2,400+ MB/s for basic integrity checks and 1,800+ MB/s for comprehensive forensic analysis with full security enabled, with automated repair success rates exceeding 95\% for common corruption scenarios.
+MAIF 2.0 includes an extensive validation system that ensures file integrity, security compliance, and performance optimization as shown in Table~\ref{tab:validation-repair}.
 
 \subsubsection{Universal Format Integration}
 
@@ -872,17 +999,25 @@ These advanced file format capabilities transform MAIF from a research prototype
 
 The design of MAIF places a strong emphasis on efficiency and scalability, particularly for the demanding computational requirements of AI processing. Multimodal fine-tuning and semantic search, for instance, are known to be computationally intensive, often requiring substantial GPU resources and incurring significant latency and indexing times\cite{ref79}.
 
-MAIF's architecture addresses these challenges through several key design principles:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Efficiency and Scalability Design Principles}
+\label{tab:efficiency-scalability}
+\centering
+\footnotesize
+\begin{tabular}{p{3.5cm}p{5.5cm}p{5cm}}
+\toprule
+\textbf{Design Principle} & \textbf{Implementation Details} & \textbf{Benefits} \\
+\midrule
+\textbf{Optimized Data Layouts} & Columnar storage inspired by Apache Parquet, block encoding, shared dictionaries & Faster data retrieval, efficient AI model training/inference, predictable memory usage, minimized preprocessing\cite{ref75} \\
+\textbf{Granular Encryption for Performance} & Modular encryption of individual blocks/layers, selective encryption, AES GCM authenticated encryption & Reduced computational overhead, faster processing while maintaining confidentiality and integrity\cite{ref64} \\
+\textbf{On-Device Processing and Low Latency} & Embedded raw data, pre-computed embeddings, knowledge graph fragments within MAIF & Eliminates server reliance, reduces network communication, enhances privacy through local computation\cite{ref76} \\
+\textbf{Mitigating Decentralized AI Scalability} & Self-contained nature, modular architecture, minimal external dependencies & Reduces computational load on distributed networks, improves system efficiency and resilience\cite{ref85} \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Optimized Data Layouts}: Inspired by efficient columnar storage formats like Apache Parquet, MAIF can organize data by columns (or features) rather than rows. This columnar approach is highly efficient for analytical queries and AI model training/inference, as it allows for faster data retrieval and processing of specific features\cite{ref75}. The format will leverage optimized data layouts, such as block encoding and shared dictionaries, to ensure predictable memory usage during decoding and improve storage efficiency by storing common encoding alphabets only once\cite{ref75}. This minimizes the need for extensive real-time preprocessing during AI inference.
-
-\item \textbf{Granular Encryption for Performance}: MAIF incorporates a modular encryption mechanism that allows for granular encryption of specific data components. This means individual modality blocks, semantic layers, or even sub-sections within blocks can be encrypted independently\cite{ref64}. This selective encryption significantly reduces computational overhead compared to encrypting the entire file, enabling faster processing while maintaining data confidentiality. AES GCM, an authenticated encryption mode, is a suitable candidate for this, offering both data confidentiality and integrity verification\cite{ref64}.
-
-\item \textbf{On-Device Processing and Low Latency}: By embedding necessary raw data, pre-computed embeddings, and knowledge graph fragments directly within the MAIF, the design inherently promotes on-device AI processing\cite{ref76}. This approach significantly reduces latency by eliminating reliance on external servers and extensive network communication for data retrieval and context. Furthermore, it enhances data privacy by keeping sensitive computations local, aligning with privacy-first principles\cite{ref76}.
-
-\item \textbf{Mitigating Decentralized AI Scalability Challenges}: While decentralized AI systems face inherent scalability challenges due to the significant processing resources required for distributed AI technologies\cite{ref85}, MAIF's self-contained nature and modularity can mitigate some of these issues. By minimizing external dependencies and network calls for data retrieval and context, MAIF can reduce the computational load on distributed networks. This makes decentralized AI more viable for large-scale deployments by distributing the data processing burden to the artifacts themselves, thereby improving overall system efficiency and resilience.
-\end{itemize}
+MAIF's architecture addresses these challenges through several key design principles detailed in Table~\ref{tab:efficiency-scalability}.
 
 MAIF is designed to function as an ``optimized AI data pipeline'' within a single file. By embedding efficient data structures, pre-computed semantic embeddings, and granular access/encryption controls directly within the artifact, it minimizes the need for extensive real-time preprocessing, external data queries, and heavy network traffic during AI inference. This directly addresses the performance and scalability challenges of complex AI workloads, especially for on-device or decentralized deployments, by making the data inherently ``AI-ready'' and reducing computational overhead.
 
@@ -899,29 +1034,31 @@ MAIF's security model is built upon the following formally defined properties:
 
 \subsubsection{Enhanced Security Architecture Implementation}
 
-Our production implementation achieves comprehensive security through multiple layers of protection, demonstrating practical feasibility of enterprise-grade trustworthy AI systems:
+Our production implementation achieves robust security via numerous protective layers, illustrating the practical feasibility of enterprise-grade trustworthy AI systems. The augmented security features and their performance implications are outlined in Table~\ref{tab:enhanced-security} in Appendix~\ref{app:performance-benchmarks}.
 
-\begin{table*}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{MAIF Enhanced Security Features and Performance Impact}
-\label{tab:enhanced-security}
-\centering
-\footnotesize
-\begin{tabular}{p{3.5cm}p{5cm}p{3cm}p{2.5cm}}
-\toprule
-\textbf{Security Feature} & \textbf{Implementation} & \textbf{Performance} & \textbf{Protection Level} \\
-\midrule
-\textbf{Stream-Level Access Control} & Granular per-block permissions, time-based expiration, rate limiting & 2,200 MB/s & STRONG \\
-\textbf{Real-Time Tamper Detection} & SHA-256 verification during streaming & 2,420 MB/s & STRONG \\
-\textbf{Anti-Replay Protection} & Cryptographic nonces, timestamp validation & <3\% overhead & STRONG \\
-\textbf{Timing Attack Mitigation} & Constant-time responses (1-10ms) & Normalized timing & STRONG \\
-\textbf{Multi-Factor Authentication} & Automatic triggers for sensitive operations & On-demand & STRONG \\
-\textbf{Behavioral Anomaly Detection} & ML-based pattern analysis & Real-time & STRONG \\
-\textbf{Block-Level Permissions} & Content-aware access decisions & 1,800 MB/s & STRONG \\
-\textbf{Cryptographic Acceleration} & Hardware AES-NI optimization & -5.1\% overhead & STRONG \\
-\bottomrule
-\end{tabular}
-\end{table*}
+% Our production implementation achieves comprehensive security through multiple layers of protection, demonstrating practical feasibility of enterprise-grade trustworthy AI systems:
+
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{MAIF Enhanced Security Features and Performance Impact}
+% \label{tab:enhanced-security}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{3.5cm}p{5cm}p{3cm}p{2.5cm}}
+% \toprule
+% \textbf{Security Feature} & \textbf{Implementation} & \textbf{Performance} & \textbf{Protection Level} \\
+% \midrule
+% \textbf{Stream-Level Access Control} & Granular per-block permissions, time-based expiration, rate limiting & 2,200 MB/s & STRONG \\
+% \textbf{Real-Time Tamper Detection} & SHA-256 verification during streaming & 2,420 MB/s & STRONG \\
+% \textbf{Anti-Replay Protection} & Cryptographic nonces, timestamp validation & Less than 3\% overhead & STRONG \\
+% \textbf{Timing Attack Mitigation} & Constant-time responses (1-10ms) & Normalized timing & STRONG \\
+% \textbf{Multi-Factor Authentication} & Automatic triggers for sensitive operations & On-demand & STRONG \\
+% \textbf{Behavioral Anomaly Detection} & ML-based pattern analysis & Real-time & STRONG \\
+% \textbf{Block-Level Permissions} & Content-aware access decisions & 1,800 MB/s & STRONG \\
+% \textbf{Cryptographic Acceleration} & Hardware AES-NI optimization & -5.1\% overhead & STRONG \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
 \textbf{Stream-Level Access Control}: Our implementation provides granular access control at the streaming level, enabling per-block permissions, time-based access expiration, and real-time rate limiting. This approach achieves 2,200 MB/s throughput while enforcing comprehensive security policies, demonstrating that high-performance and strong security are not mutually exclusive.
 
@@ -933,20 +1070,28 @@ Our production implementation achieves comprehensive security through multiple l
 
 \subsubsection{Comprehensive Security Assessment}
 
-Our security evaluation covers 10 major attack categories with the following results:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Security Assessment Results}
+\label{tab:security-assessment}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
+\toprule
+\textbf{Protection Level} & \textbf{Attack Vectors Covered} & \textbf{Defense Mechanisms} \\
+\midrule
+\textbf{Strong Protection (70\%)} & Unauthorized access, data exfiltration, privilege escalation, content-based attacks, data tampering, cryptographic attacks & Multiple defense layers providing comprehensive protection \\
+\textbf{Enhanced Protection (30\%)} & Timing attacks, replay attacks, social engineering & Advanced countermeasures: constant-time responses, nonce validation, multi-factor authentication \\
+\midrule
+\multicolumn{3}{l}{\textbf{Overall Security Score: 95/100 (Grade A)}} \\
+\multicolumn{3}{l}{Production-ready security suitable for enterprise deployment in sensitive environments} \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Strong Protection (70\% of attack vectors)}: Unauthorized access, data exfiltration, privilege escalation, content-based attacks, data tampering, and cryptographic attacks are comprehensively protected through multiple defense layers.
-
-\item \textbf{Enhanced Protection (30\% of attack vectors)}: Timing attacks, replay attacks, and social engineering are mitigated through advanced countermeasures including constant-time responses, nonce validation, and multi-factor authentication.
-
-\item \textbf{Overall Security Score}: 95/100 (Grade A), representing production-ready security suitable for enterprise deployment in sensitive environments.
-\end{itemize}
-
-The security architecture demonstrates that trustworthy AI systems can achieve both exceptional performance and comprehensive security through careful design and implementation of defense-in-depth strategies.
+Our security evaluation covers 10 major attack categories with results shown in Table~\ref{tab:security-assessment}. The security architecture demonstrates that trustworthy AI systems can achieve both exceptional performance and comprehensive security through careful design and implementation of defense-in-depth strategies.
 MAIF's security model ensures integrity such that for all MAIF instances $M$ and blocks $B_i \in M$: $H(B_i) = H_{stored}(B_i) \Rightarrow$ $B_i$ is unmodified, where $H$ is a cryptographic hash function. Authenticity guarantees that for all agent actions $A$ on MAIF $M$: there exists a digital signature $S$ such that $Verify(S, A, PK_{agent}) = true$, where $PK_{agent}$ is the agent's public key. Non-repudiation ensures that for all signed actions $A$ with signature $S$: no method exists to deny authorship without compromising the private key $SK_{agent}$. Confidentiality maintains that for all encrypted blocks $B_{enc}$: $P(plaintext | B_{enc}) \leq \epsilon$ for negligible $\epsilon$ without the decryption key.
 
-\subsubsection{Threat Model}
 \section{MAIF Integration with Existing Agent Frameworks}
 \label{sec:integration}
 
@@ -1017,60 +1162,62 @@ To become the multimodal container format of choice, MAIF must address several k
 
 \subsection{Proposed MAIF 3.0 Architecture}
 
-\begin{figure*}[!t]
-\centering
-\begin{tikzpicture}[scale=0.8, every node/.style={scale=0.8}]
+% 
 
-% Framework Layer
-\draw[thick, blue] (0,8) rectangle (16,9.5);
-\node[align=center] at (8,8.75) {\textbf{Agent Framework Layer}};
-\node[align=center] at (2,8.25) {LangGraph};
-\node[align=center] at (5,8.25) {LlamaIndex};
-\node[align=center] at (8,8.25) {MemGPT};
-\node[align=center] at (11,8.25) {CrewAI};
-\node[align=center] at (14,8.25) {AutoGen};
+% \begin{figure*}[!t]
+% \centering
+% \begin{tikzpicture}[scale=0.8, every node/.style={scale=0.8}]
 
-% MAIF Adapter Layer
-\draw[thick, green] (0,6.5) rectangle (16,8);
-\node[align=center] at (8,7.25) {\textbf{MAIF Integration Layer}};
-\node[align=center] at (3,6.75) {VectorStore Adapter};
-\node[align=center] at (8,6.75) {Memory Paging Backend};
-\node[align=center] at (13,6.75) {Tool Integration};
+% % Framework Layer
+% \draw[thick, blue] (0,8) rectangle (16,9.5);
+% \node[align=center] at (8,8.75) {\textbf{Agent Framework Layer}};
+% \node[align=center] at (2,8.25) {LangGraph};
+% \node[align=center] at (5,8.25) {LlamaIndex};
+% \node[align=center] at (8,8.25) {MemGPT};
+% \node[align=center] at (11,8.25) {CrewAI};
+% \node[align=center] at (14,8.25) {AutoGen};
 
-% Hot Buffer Layer
-\draw[thick, orange] (0,5) rectangle (16,6.5);
-\node[align=center] at (8,5.75) {\textbf{Hot Buffer \& Write Optimization}};
-\node[align=center] at (4,5.25) {In-Memory Buffer};
-\node[align=center] at (8,5.25) {Write-Ahead Log};
-\node[align=center] at (12,5.25) {Batch Commit};
+% % MAIF Adapter Layer
+% \draw[thick, green] (0,6.5) rectangle (16,8);
+% \node[align=center] at (8,7.25) {\textbf{MAIF Integration Layer}};
+% \node[align=center] at (3,6.75) {VectorStore Adapter};
+% \node[align=center] at (8,6.75) {Memory Paging Backend};
+% \node[align=center] at (13,6.75) {Tool Integration};
 
-% MAIF Core Layer
-\draw[thick, red] (0,3) rectangle (16,5);
-\node[align=center] at (8,4.25) {\textbf{MAIF Core (Enhanced)}};
-\node[align=center] at (3,3.75) {Distributed Sharding};
-\node[align=center] at (8,3.75) {CRDT Merge};
-\node[align=center] at (13,3.75) {Lock Coordination};
-\node[align=center] at (3,3.25) {Stream Processing};
-\node[align=center] at (8,3.25) {Security \& Governance};
-\node[align=center] at (13,3.25) {Performance Optimization};
+% % Hot Buffer Layer
+% \draw[thick, orange] (0,5) rectangle (16,6.5);
+% \node[align=center] at (8,5.75) {\textbf{Hot Buffer \& Write Optimization}};
+% \node[align=center] at (4,5.25) {In-Memory Buffer};
+% \node[align=center] at (8,5.25) {Write-Ahead Log};
+% \node[align=center] at (12,5.25) {Batch Commit};
 
-% Storage Layer
-\draw[thick, gray] (0,1.5) rectangle (16,3);
-\node[align=center] at (8,2.25) {\textbf{Storage \& Distribution}};
-\node[align=center] at (4,1.75) {Local Files};
-\node[align=center] at (8,1.75) {Object Storage};
-\node[align=center] at (12,1.75) {IPFS/P2P};
+% % MAIF Core Layer
+% \draw[thick, red] (0,3) rectangle (16,5);
+% \node[align=center] at (8,4.25) {\textbf{MAIF Core (Enhanced)}};
+% \node[align=center] at (3,3.75) {Distributed Sharding};
+% \node[align=center] at (8,3.75) {CRDT Merge};
+% \node[align=center] at (13,3.75) {Lock Coordination};
+% \node[align=center] at (3,3.25) {Stream Processing};
+% \node[align=center] at (8,3.25) {Security \& Governance};
+% \node[align=center] at (13,3.25) {Performance Optimization};
 
-% Arrows
-\draw[->, thick] (8,8) -- (8,6.5);
-\draw[->, thick] (8,6.5) -- (8,5);
-\draw[->, thick] (8,5) -- (8,3);
-\draw[->, thick] (8,3) -- (8,1.5);
+% % Storage Layer
+% \draw[thick, gray] (0,1.5) rectangle (16,3);
+% \node[align=center] at (8,2.25) {\textbf{Storage \& Distribution}};
+% \node[align=center] at (4,1.75) {Local Files};
+% \node[align=center] at (8,1.75) {Object Storage};
+% \node[align=center] at (12,1.75) {IPFS/P2P};
 
-\end{tikzpicture}
-\caption{MAIF 3.0 Integration Architecture enabling seamless framework integration while maintaining governance and performance benefits.}
-\label{fig:maif-integration}
-\end{figure*}
+% % Arrows
+% \draw[->, thick] (8,8) -- (8,6.5);
+% \draw[->, thick] (8,6.5) -- (8,5);
+% \draw[->, thick] (8,5) -- (8,3);
+% \draw[->, thick] (8,3) -- (8,1.5);
+
+% \end{tikzpicture}
+% \caption{Potential MAIF 3.0 Integration Architecture enabling seamless framework integration while maintaining governance and performance benefits.}
+% \label{fig:maif-integration}
+% \end{figure*}
 
 \subsection{Framework-Specific Integration Strategies}
 
@@ -1086,9 +1233,9 @@ To become the multimodal container format of choice, MAIF must address several k
 
 \textbf{Performance Targets}:
 \begin{itemize}[leftmargin=*]
-\item Vector similarity search: <50ms for 1M vectors
-\item Document ingestion: 400+ MB/s with automatic embedding generation
-\item Memory operations: 2,400+ MB/s streaming with full governance
+\item Vector similarity search: <3ms for 1M vectors
+\item Document ingestion: 1,342+ MB/s with automatic embedding generation
+\item Memory operations: 2,720+ MB/s streaming with full governance
 \end{itemize}
 
 \subsubsection{MemGPT Integration}
@@ -1179,26 +1326,27 @@ A critical question for enterprise adoption is whether MAIF provides ACID (Atomi
 \item \textbf{Backup Integration}: Automatic backup and replication support
 \item \textbf{Recovery Mechanisms}: Automatic repair of corrupted blocks
 \end{itemize}
+A detailed comparison of MAIF's ACID compliance with conventional database systems such as PostgreSQL and MongoDB is provided in Table~\ref{tab:acid-compliance} in Appendix~\ref{app:performance-benchmarks}.
 
-\begin{table*}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{MAIF ACID Compliance Comparison with Database Systems}
-\label{tab:acid-compliance}
-\centering
-\footnotesize
-\begin{tabular}{p{2.5cm}p{3cm}p{3cm}p{3cm}p{3cm}}
-\toprule
-\textbf{ACID Property} & \textbf{MAIF Current} & \textbf{MAIF Enhanced} & \textbf{PostgreSQL} & \textbf{MongoDB} \\
-\midrule
-\textbf{Atomicity} & Block-level only & Full transactions with WAL & Full ACID transactions & Document-level, limited multi-doc \\
-\textbf{Consistency} & Strong (crypto + schema) & Strong (enhanced validation) & Strong (constraints + triggers) & Eventual (configurable) \\
-\textbf{Isolation} & Single-writer/multi-reader & MVCC + snapshot isolation & Full MVCC with multiple levels & Read/write concerns \\
-\textbf{Durability} & Strong (fsync + redundancy) & Strong (enhanced recovery) & Strong (WAL + fsync) & Strong (journal + replication) \\
-\midrule
-\textbf{Overall Grade} & \textcolor{orange}{\textbf{B+}} & \textcolor{green}{\textbf{A}} & \textcolor{green}{\textbf{A+}} & \textcolor{orange}{\textbf{B}} \\
-\bottomrule
-\end{tabular}
-\end{table*}
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{MAIF ACID Compliance Comparison with Database Systems}
+% \label{tab:acid-compliance}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{2.5cm}p{3cm}p{3cm}p{3cm}p{3cm}}
+% \toprule
+% \textbf{ACID Property} & \textbf{MAIF Current} & \textbf{MAIF Enhanced} & \textbf{PostgreSQL} & \textbf{MongoDB} \\
+% \midrule
+% \textbf{Atomicity} & Block-level only & Full transactions with WAL & Full ACID transactions & Document-level, limited multi-doc \\
+% \textbf{Consistency} & Strong (crypto + schema) & Strong (enhanced validation) & Strong (constraints + triggers) & Eventual (configurable) \\
+% \textbf{Isolation} & Single-writer/multi-reader & MVCC + snapshot isolation & Full MVCC with multiple levels & Read/write concerns \\
+% \textbf{Durability} & Strong (fsync + redundancy) & Strong (enhanced recovery) & Strong (WAL + fsync) & Strong (journal + replication) \\
+% \midrule
+% \textbf{Overall Grade} & \textcolor{orange}{\textbf{B+}} & \textcolor{green}{\textbf{A}} & \textcolor{green}{\textbf{A+}} & \textcolor{orange}{\textbf{B}} \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
 \subsubsection{MAIF ACID Enhancement Roadmap}
 
@@ -1229,24 +1377,25 @@ To achieve full ACID compliance comparable to enterprise databases, MAIF require
 \end{itemize}
 
 \subsubsection{ACID vs. Performance Trade-offs}
+The influence of various ACID implementation levels on MAIF's throughput and latency is outlined in Table~\ref{tab:acid-performance} in Appendix~\ref{app:performance-benchmarks}.
 
-\begin{table*}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{ACID Implementation Performance Impact on MAIF}
-\label{tab:acid-performance}
-\centering
-\footnotesize
-\begin{tabular}{p{3cm}p{3cm}p{3cm}p{3cm}p{3cm}}
-\toprule
-\textbf{ACID Level} & \textbf{Write Throughput} & \textbf{Read Throughput} & \textbf{Latency Impact} & \textbf{Use Cases} \\
-\midrule
-\textbf{No ACID} & 2,446.6 MB/s & 2,446.6 MB/s & Baseline & High-performance analytics \\
-\textbf{Basic ACID} & 1,800 MB/s & 2,200 MB/s & +15\% write latency & General applications \\
-\textbf{Full ACID} & 1,200 MB/s & 2,000 MB/s & +25\% write latency & Enterprise transactions \\
-\textbf{Distributed ACID} & 800 MB/s & 1,800 MB/s & +40\% write latency & Multi-node consistency \\
-\bottomrule
-\end{tabular}
-\end{table*}
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{ACID Implementation Performance Impact on MAIF}
+% \label{tab:acid-performance}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{3cm}p{3cm}p{3cm}p{3cm}p{3cm}}
+% \toprule
+% \textbf{ACID Level} & \textbf{Write Throughput} & \textbf{Read Throughput} & \textbf{Latency Impact} & \textbf{Use Cases} \\
+% \midrule
+% \textbf{No ACID} & 2,446.6 MB/s & 2,446.6 MB/s & Baseline & High-performance analytics \\
+% \textbf{Basic ACID} & 1,800 MB/s & 2,200 MB/s & +15\% write latency & General applications \\
+% \textbf{Full ACID} & 1,200 MB/s & 2,000 MB/s & +25\% write latency & Enterprise transactions \\
+% \textbf{Distributed ACID} & 800 MB/s & 1,800 MB/s & +40\% write latency & Multi-node consistency \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
 \subsubsection{Two-Tier ACID Implementation}
 
@@ -1283,7 +1432,7 @@ MAIF provides a simplified two-tier ACID approach optimized for different use ca
 \item \textbf{Enterprise Ready}: Production-grade ACID guarantees for trustworthy AI systems
 \end{itemize}
 
-\textbf{Performance Validation}: Initial benchmarks confirmed Level 0 achieves 2,400+ MB/s with no ACID overhead, while Level 2 maintained 1,200+ MB/s with complete transaction support - a 2× overhead. However, further optimization research revealed significant performance improvements were possible through architectural simplification.
+\textbf{Performance Validation}: Initial benchmarks confirmed Level 0 achieves 2,720+ MB/s with no ACID overhead, while Level 2 maintained 2,090+ MB/s with complete transaction support - a 1.3× overhead. Further optimization research revealed significant performance improvements were possible through architectural simplification.
 
 \subsubsection{Advanced ACID Optimization Research}
 
@@ -1322,7 +1471,7 @@ During implementation, we discovered that complex optimization strategies often 
 \item \textbf{Profile First}: Measure actual bottlenecks before implementing optimizations
 \end{itemize}
 
-\textbf{Final Performance Achievement}: The truly optimized implementation achieves 1,800+ MB/s for Level 2 (Full ACID), representing a 1.3× overhead compared to the original 2× overhead - a 35\% improvement in ACID performance while maintaining full enterprise-grade transaction guarantees.
+\textbf{Final Performance Achievement}: The truly optimized implementation achieves 2,090+ MB/s for Level 2 (Full ACID), representing a 1.3× overhead compared to baseline performance - achieving full enterprise-grade transaction guarantees while maintaining exceptional throughput.
 
 \textbf{Competitive Advantage}: Unlike traditional databases, MAIF's ACID implementation is optimized for AI data patterns (large blocks, append-heavy workloads, semantic relationships) while providing the governance and security features required for trustworthy AI systems.
 
@@ -1341,29 +1490,27 @@ Our optimization research followed a rigorous methodology:
 \item \textbf{Failure Analysis}: Analyzed why complex optimizations failed to improve performance
 \item \textbf{Simplification Strategy}: Focused on eliminating overhead rather than adding complexity
 \end{enumerate}
+% \subsubsection{Optimization Attempts and Results}
+Table~\ref{tab:acid-optimization-results} in Appendix~\ref{app:performance-benchmarks} illustrates that incorrect use of advanced optimization techniques may harm performance, whereas selective simplification provides significant improvements.
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{MAIF ACID Optimization Attempts and Performance Results}
+% \label{tab:acid-optimization-results}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{3cm}p{4cm}p{2.5cm}p{2.5cm}p{3cm}}
+% \toprule
+% \textbf{Implementation} & \textbf{Key Features} & \textbf{Level 0 (MB/s)} & \textbf{Level 2 (MB/s)} & \textbf{Result Analysis} \\
+% \midrule
+% \textbf{Basic ACID} & Standard WAL, Simple MVCC & 2,400+ & 1,200+ & Baseline (2× overhead) \\
+% \midrule
+% \textbf{Over-Engineered} & Memory-mapped I/O, Delta compression, Background threading & 2,600+ & 47+ & 96\% degradation due to complexity \\
+% \midrule
+% \textbf{Truly Optimized} & Simplified WAL, In-memory buffering, Direct operations & 2,400+ & 1,800+ & 50\% improvement (1.3× overhead) \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
-\subsubsection{Optimization Attempts and Results}
-
-\begin{table*}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{MAIF ACID Optimization Attempts and Performance Results}
-\label{tab:acid-optimization-results}
-\centering
-\footnotesize
-\begin{tabular}{p{3cm}p{4cm}p{2.5cm}p{2.5cm}p{3cm}}
-\toprule
-\textbf{Implementation} & \textbf{Key Features} & \textbf{Level 0 (MB/s)} & \textbf{Level 2 (MB/s)} & \textbf{Result Analysis} \\
-\midrule
-\textbf{Basic ACID} & Standard WAL, Simple MVCC & 2,400+ & 1,200+ & Baseline (2× overhead) \\
-\midrule
-\textbf{Over-Engineered} & Memory-mapped I/O, Delta compression, Background threading & 2,600+ & 47+ & 96\% degradation due to complexity \\
-\midrule
-\textbf{Truly Optimized} & Simplified WAL, In-memory buffering, Direct operations & 2,400+ & 1,800+ & 50\% improvement (1.3× overhead) \\
-\bottomrule
-\end{tabular}
-\end{table*}
-
-Table~\ref{tab:acid-optimization-results} demonstrates that sophisticated optimization techniques can actually harm performance when applied incorrectly, while targeted simplification achieves significant improvements.
 
 \subsubsection{Critical Performance Insights}
 
@@ -1412,7 +1559,7 @@ These principles enabled MAIF to achieve enterprise-grade ACID compliance with o
 
 During the optimization research, critical security vulnerabilities were discovered in the initial ACID implementations that could enable memory injection attacks and data corruption. This section documents these vulnerabilities and the security-hardened solution.
 
-\subsubsection{Identified Security Vulnerabilities}
+\subsubsection{Identified Security Vulnerabilities and Mitigations}
 
 \textbf{Memory Injection Attacks}:
 The initial implementations used unsafe deserialization of transaction data, allowing attackers to inject malicious payloads through crafted transaction IDs, block IDs, or metadata. This could lead to arbitrary code execution or memory corruption.
@@ -1429,34 +1576,34 @@ The basic implementations lacked cryptographic integrity checks, allowing attack
 \textbf{Privilege Escalation}:
 Missing access controls could allow unauthorized users to access or modify transactions belonging to other users or processes.
 
-\subsubsection{Security-Hardened ACID Implementation}
+% \subsubsection{Security-Hardened ACID Implementation}
+To mitigate these vulnerabilities, we developed a security-enhanced ACID implementation featuring comprehensive protection mechanism that involves using methods like input validation, size limits, cryptographic integrity checks, and access control to defend against a wide range of vulnerabilities from memory injection to data corruption.
+Our implementation details is outlined in Table~\ref{tab:acid-security-features} in Appendix~\ref{app:performance-benchmarks}.
 
-To address these vulnerabilities, we developed a security-hardened ACID implementation with comprehensive protection mechanisms:
-
-\begin{table*}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{MAIF Security-Hardened ACID Protection Mechanisms}
-\label{tab:acid-security-features}
-\centering
-\footnotesize
-\begin{tabular}{p{3cm}p{5cm}p{6cm}}
-\toprule
-\textbf{Vulnerability Class} & \textbf{Protection Mechanism} & \textbf{Implementation Details} \\
-\midrule
-\textbf{Memory Injection} & Input validation and sanitization & Regex-based validation, length limits, character whitelisting \\
-\midrule
-\textbf{Buffer Overflow} & Size limits and bounds checking & 100MB block limit, 10KB metadata limit, length-prefixed serialization \\
-\midrule
-\textbf{Path Traversal} & Block ID validation & Alphanumeric characters only, no path separators, 256 character limit \\
-\midrule
-\textbf{Integrity Attacks} & HMAC-based integrity protection & SHA-256 HMAC for all WAL entries, cryptographic verification \\
-\midrule
-\textbf{Privilege Escalation} & User context tracking & Per-transaction user context, access control enforcement \\
-\midrule
-\textbf{Data Corruption} & Cryptographic checksums & SHA-256 hashes for all data blocks, integrity verification on read \\
-\bottomrule
-\end{tabular}
-\end{table*}
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{MAIF Security-Hardened ACID Protection Mechanisms}
+% \label{tab:acid-security-features}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{3cm}p{5cm}p{6cm}}
+% \toprule
+% \textbf{Vulnerability Class} & \textbf{Protection Mechanism} & \textbf{Implementation Details} \\
+% \midrule
+% \textbf{Memory Injection} & Input validation and sanitization & Regex-based validation, length limits, character whitelisting \\
+% \midrule
+% \textbf{Buffer Overflow} & Size limits and bounds checking & 100MB block limit, 10KB metadata limit, length-prefixed serialization \\
+% \midrule
+% \textbf{Path Traversal} & Block ID validation & Alphanumeric characters only, no path separators, 256 character limit \\
+% \midrule
+% \textbf{Integrity Attacks} & HMAC-based integrity protection & SHA-256 HMAC for all WAL entries, cryptographic verification \\
+% \midrule
+% \textbf{Privilege Escalation} & User context tracking & Per-transaction user context, access control enforcement \\
+% \midrule
+% \textbf{Data Corruption} & Cryptographic checksums & SHA-256 hashes for all data blocks, integrity verification on read \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
 \textbf{Key Security Features}:
 
@@ -1577,9 +1724,25 @@ Based on framework analysis, MAIF requires the following enhancements to become 
 
 The integration strategy positions MAIF not as a replacement for existing frameworks, but as the governed storage substrate that enhances their capabilities while providing the trust, security, and performance characteristics required for enterprise AI deployment.
 
-MAIF is designed to resist the following threat categories:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Threat Resistance Categories}
+\label{tab:threat-categories}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
+\toprule
+\textbf{Threat Category} & \textbf{Attack Types} & \textbf{Defense Strategy} \\
+\midrule
+\textbf{Passive Adversaries} & Eavesdropping on MAIF contents, metadata analysis, traffic pattern analysis & Encryption, obfuscation, secure channels \\
+\textbf{Active Adversaries} & Data modification, block insertion/deletion, replay attacks, man-in-the-middle attacks & Cryptographic integrity, signatures, nonce validation \\
+\textbf{Insider Threats} & Malicious agents with legitimate access, privilege escalation attempts, data exfiltration & Access control, audit trails, behavioral monitoring \\
+\textbf{Advanced Persistent Threats} & Long-term compromise attempts, steganographic data hiding, covert channel exploitation & Multi-layer defense, continuous monitoring, anomaly detection \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-MAIF is designed to resist passive adversaries who engage in eavesdropping on MAIF contents, metadata analysis, and traffic pattern analysis. It defends against active adversaries who attempt data modification, block insertion/deletion, replay attacks, and man-in-the-middle attacks. The system addresses insider threats from malicious agents with legitimate access, privilege escalation attempts, and data exfiltration. Finally, it counters advanced persistent threats involving long-term compromise attempts, steganographic data hiding, and covert channel exploitation.
+MAIF is designed to resist the threat categories detailed in Table~\ref{tab:threat-categories}.
 
 \subsubsection{Security Proofs and Guarantees}
 
@@ -1766,15 +1929,26 @@ MAIF incorporates cutting-edge privacy-preserving technologies that enable secur
 
 \subsubsection{Granular Access Control and Policy Enforcement}
 
-MAIF's access control system extends beyond traditional file permissions to provide fine-grained, context-aware access management:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Granular Access Control Mechanisms}
+\label{tab:access-control}
+\centering
+\footnotesize
+\begin{tabular}{p{3.5cm}p{6cm}p{4.5cm}}
+\toprule
+\textbf{Access Control Type} & \textbf{Description} & \textbf{Key Features} \\
+\midrule
+\textbf{Role-Based Access Control (RBAC)} & Hierarchical permission systems & Inheritance and delegation capabilities \\
+\textbf{Attribute-Based Access Control (ABAC)} & Context-sensitive permissions & Based on user attributes, environmental conditions, and data characteristics \\
+\textbf{Temporal Access Controls} & Time-limited permissions & Automatic expiration and renewal mechanisms \\
+\textbf{Geographic Restrictions} & Location-based access controls & Supports data sovereignty and regulatory compliance requirements \\
+\textbf{Purpose Limitation} & Access controls tied to specific use cases & Ensures data is only used for authorized purposes \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Role-Based Access Control (RBAC):} Hierarchical permission systems with inheritance and delegation capabilities
-\item \textbf{Attribute-Based Access Control (ABAC):} Context-sensitive permissions based on user attributes, environmental conditions, and data characteristics
-\item \textbf{Temporal Access Controls:} Time-limited permissions with automatic expiration and renewal mechanisms
-\item \textbf{Geographic Restrictions:} Location-based access controls supporting data sovereignty and regulatory compliance requirements
-\item \textbf{Purpose Limitation:} Access controls tied to specific use cases, ensuring data is only used for authorized purposes
-\end{itemize}
+MAIF's access control system extends beyond traditional file permissions to provide fine-grained, context-aware access management as detailed in Table~\ref{tab:access-control}.
 
 The privacy framework automatically enforces retention policies, geographic restrictions, and purpose limitations as defined in privacy policies, ensuring continuous compliance with regulations like GDPR, CCPA, and HIPAA without manual intervention.
 
@@ -1813,44 +1987,116 @@ The ForensicAnalyzer class performs systematic investigation across multiple dim
 
 \subsubsection{Automated Threat Detection and Analysis}
 
-MAIF implements sophisticated algorithms for detecting various attack vectors:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Automated Threat Detection Mechanisms}
+\label{tab:threat-detection}
+\centering
+\footnotesize
+\begin{tabular}{p{3.5cm}p{5.5cm}p{5cm}}
+\toprule
+\textbf{Detection Type} & \textbf{Attack Patterns Detected} & \textbf{Analysis Method} \\
+\midrule
+\textbf{Temporal Anomaly Detection} & • Operations <100ms between complex actions\newline • Timestamp reversals (clock manipulation)\newline • Future timestamps (system compromise)\newline • Unusual activity patterns (automated attacks) & Statistical analysis of timing patterns \\
+\textbf{Agent Behavior Analysis} & • Excessive activity (>100 operations per agent)\newline • Deviation from normal patterns\newline • Coordinated multi-agent attacks\newline • Privilege escalation attempts\newline • Unauthorized access patterns & Machine learning algorithms for pattern recognition \\
+\textbf{Data Integrity Analysis} & • Hash inconsistencies (corruption/tampering)\newline • Semantic drift in embeddings (adversarial manipulation)\newline • Cross-modal inconsistencies (sophisticated attacks)\newline • Hidden data/communications & Multi-layered verification and steganographic analysis \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\textbf{Temporal Anomaly Detection:} Statistical analysis identifies suspicious timing patterns including:
-\begin{itemize}[leftmargin=*]
-\item Operations occurring faster than humanly possible (<100ms between complex actions)
-\item Timestamp reversals indicating potential clock manipulation
-\item Future timestamps suggesting system compromise
-\item Unusual activity patterns indicating automated attacks
-\end{itemize}
-
-\textbf{Agent Behavior Analysis:} Machine learning algorithms analyze agent activity patterns to detect excessive activity levels exceeding 100 operations per agent, deviation from normal behavioral patterns, coordinated multi-agent attacks, privilege escalation attempts, and unauthorized access patterns.
-
-\textbf{Data Integrity Analysis:} Multi-layered verification detects various forms of data manipulation including hash inconsistencies indicating data corruption or tampering, semantic drift in embeddings suggesting adversarial manipulation, cross-modal inconsistencies indicating sophisticated attacks, and steganographic analysis for hidden data or communications.
+MAIF implements sophisticated algorithms for detecting various attack vectors as detailed in Table~\ref{tab:threat-detection}.
 
 \subsubsection{Forensic Timeline Reconstruction}
 
-The immutable provenance chain within each MAIF instance creates a complete forensic timeline of all agent interactions:
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Forensic Timeline Reconstruction Capabilities}
+\label{tab:forensic-timeline}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
+\toprule
+\textbf{Forensic Component} & \textbf{Implementation} & \textbf{Forensic Benefit} \\
+\midrule
+\textbf{Action Timestamps} & Every agent action cryptographically timestamped and linked & Tamper-proof chronological ordering of events \\
+\textbf{Agent Attribution} & Decentralized Identifiers (DIDs) for precise identification & Cryptographic non-repudiation preventing false attribution \\
+\textbf{Data Lineage Tracking} & Complete chain of custody for all data transformations & Enables tracing information flow and identifying compromise points \\
+\textbf{Decision Audit Trail} & Embedded knowledge graphs preserve reasoning paths & Allows forensic reconstruction of AI decision-making processes \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
-\begin{itemize}[leftmargin=*]
-\item \textbf{Action Timestamps}: Every agent action is cryptographically timestamped and linked to cryptographic timestamps, providing tamper-proof chronological ordering of events.
-\item \textbf{Agent Attribution}: Decentralized Identifiers (DIDs) enable precise identification of which AI agent performed each action, with cryptographic non-repudiation preventing false attribution.
-\item \textbf{Data Lineage Tracking}: Complete chain of custody for all data transformations, enabling investigators to trace how information flowed through the system and identify points of compromise.
-\item \textbf{Decision Audit Trail}: Embedded knowledge graphs preserve the reasoning paths used by AI agents, allowing forensic reconstruction of decision-making processes.
-\end{itemize}
+The immutable provenance chain within each MAIF instance creates a complete forensic timeline of all agent interactions as shown in Table~\ref{tab:forensic-timeline}.
 
 \subsubsection{Automated Recommendation System}
 
-The forensic system generates specific, actionable recommendations based on evidence analysis. \textbf{Critical Issues} include missing provenance chains, temporal anomalies, and invalid hash formats that require immediate attention. \textbf{High Priority} recommendations address timestamp inconsistencies and hash computation integrity issues that could compromise system reliability. \textbf{Medium Priority} items focus on data duplication attacks and rate limiting recommendations to enhance security posture. \textbf{Low Priority} suggestions encompass block size optimization opportunities and performance improvements that can enhance overall system efficiency.
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Forensic Recommendation Priority Levels}
+\label{tab:forensic-recommendations}
+\centering
+\footnotesize
+\begin{tabular}{p{2.5cm}p{6.5cm}p{5cm}}
+\toprule
+\textbf{Priority Level} & \textbf{Issue Types} & \textbf{Recommended Actions} \\
+\midrule
+\textbf{Critical} & Missing provenance chains, temporal anomalies, invalid hash formats & Immediate attention required \\
+\textbf{High Priority} & Timestamp inconsistencies, hash computation integrity issues & Address to prevent system reliability compromise \\
+\textbf{Medium Priority} & Data duplication attacks, rate limiting gaps & Enhance security posture \\
+\textbf{Low Priority} & Block size optimization opportunities, performance improvements & Enhance overall system efficiency \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The forensic system generates specific, actionable recommendations based on evidence analysis as categorized in Table~\ref{tab:forensic-recommendations}.
 
 \subsubsection{Compliance and Legal Admissibility}
 
-MAIF's forensic capabilities support regulatory compliance and legal proceedings through multiple mechanisms. The \textbf{Chain of Custody} is maintained through cryptographic provenance chains that meet legal standards for evidence integrity, with cryptographic verification providing independent validation. \textbf{Audit Trail Completeness} ensures comprehensive logging of all agent actions to support regulatory requirements including EU AI Act, GDPR Article 22, and SOX compliance. \textbf{Expert Witness Support} is facilitated by the self-describing format that enables forensic experts to independently verify findings without proprietary tools or vendor cooperation. \textbf{Long-term Preservation} is guaranteed through cryptographic commitments that ensure evidence remains verifiable even as underlying technologies evolve.
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Compliance and Legal Admissibility Features}
+\label{tab:compliance-legal}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
+\toprule
+\textbf{Feature} & \textbf{Implementation} & \textbf{Legal/Compliance Benefit} \\
+\midrule
+\textbf{Chain of Custody} & Cryptographic provenance chains meeting legal standards & Evidence integrity with independent cryptographic verification \\
+\textbf{Audit Trail Completeness} & Comprehensive logging of all agent actions & Supports EU AI Act, GDPR Article 22, and SOX compliance \\
+\textbf{Expert Witness Support} & Self-describing format for independent verification & No proprietary tools or vendor cooperation required \\
+\textbf{Long-term Preservation} & Cryptographic commitments ensuring future verifiability & Evidence remains valid as technologies evolve \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+MAIF's forensic capabilities support regulatory compliance and legal proceedings through multiple mechanisms detailed in Table~\ref{tab:compliance-legal}.
+
+
+
+MAIF integrates with standard incident response workflows through comprehensive monitoring and analysis capabilities as shown in Table~\ref{tab:incident-response}.
+
+The digital forensics capabilities embedded within MAIF transform AI incident investigation from a reactive, external process to a proactive, built-in capability. This enables organizations to meet increasing regulatory requirements for AI transparency and accountability while providing law enforcement and regulatory bodies with the tools needed to investigate AI-related incidents effectively.
 
 \subsubsection{Incident Response Integration}
 
-MAIF integrates with standard incident response workflows through comprehensive monitoring and analysis capabilities. \textbf{Automated Anomaly Detection} provides continuous integrity monitoring that triggers alerts when tampering is detected, enabling rapid incident response. \textbf{Forensic Data Export} utilizes standardized interfaces to extract forensic artifacts in formats compatible with existing investigation tools including STIX/TAXII and DFIR frameworks. \textbf{Impact Assessment} leverages provenance tracking to enable rapid determination of which systems and data may have been affected by a compromise. \textbf{Recovery Verification} employs cryptographic verification to confirm successful restoration of compromised artifacts to known-good states.
-
-The digital forensics capabilities embedded within MAIF transform AI incident investigation from a reactive, external process to a proactive, built-in capability. This enables organizations to meet increasing regulatory requirements for AI transparency and accountability while providing law enforcement and regulatory bodies with the tools needed to investigate AI-related incidents effectively.
+\begin{table*}[!t]
+\renewcommand{\arraystretch}{1.3}
+\caption{MAIF Incident Response Integration Capabilities}
+\label{tab:incident-response}
+\centering
+\footnotesize
+\begin{tabular}{p{3cm}p{6cm}p{5cm}}
+\toprule
+\textbf{Capability} & \textbf{Implementation} & \textbf{Incident Response Benefit} \\
+\midrule
+\textbf{Automated Anomaly Detection} & Continuous integrity monitoring with tamper detection alerts & Enables rapid incident response \\
+\textbf{Forensic Data Export} & Standardized interfaces for forensic artifact extraction & Compatible with STIX/TAXII and DFIR frameworks \\
+\textbf{Impact Assessment} & Provenance tracking for affected system identification & Rapid determination of compromise scope \\
+\textbf{Recovery Verification} & Cryptographic verification of restoration & Confirms successful return to known-good states \\
+\bottomrule
+\end{tabular}
+\end{table*}
 
 \subsection{Resolving Key Trustworthiness Problems}
 
@@ -2006,70 +2252,70 @@ Empirical testing demonstrates consistent performance across various hardware co
 MAIF provides comprehensive command-line tools and APIs designed for operational deployment and enterprise integration.
 
 
-\begin{table*}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{Integrated MAIF Implementation and Validation Roadmap}
-\label{tab:implementation-roadmap}
-\centering
-\footnotesize
-\begin{tabular}{p{2.5cm}p{4cm}p{2cm}p{3cm}p{4.5cm}}
-\toprule
-\textbf{Phase/Timeline} & \textbf{Capability} & \textbf{TRL} & \textbf{Validation Method} & \textbf{Key Dependencies \& Activities} \\
-\midrule
-\multirow{5}{2.5cm}{\textbf{Phase 1} \\ (2025-2026) \\ Production Ready}
-& Secure Container Architecture & 7-8 & Proof of Concept & ISO BMFF, AES-GCM, ECDSA libraries \\
-& Immutable Provenance & 6-7 & Formal Verification & DID infrastructure, Tamarin/ProVerif tools \\
-& Semantic Search (30-50ms) & 7-8 & Performance Testing & FAISS, sentence-transformers, benchmarking \\
-& Block-level Access Control & 7-8 & Security Assessment & PKI, cryptographic libraries, penetration testing \\
-& Basic Multimodal Storage & 8-9 & Integration Testing & Standard codecs, compression algorithms \\
-\midrule
-\multirow{4}{2.5cm}{\textbf{Phase 2} \\ (2026-2028) \\ R\&D Required}
-& Self-Evolving Artifacts & 3-4 & Simulation Testing & Adaptive indexing research, emergent behavior analysis \\
-& Hierarchical Compression & 4-5 & Algorithm Validation & Corpus-dependent optimization, compression benchmarks \\
-& Cross-Modal Attention & 5-6 & AI Agent Evaluation & Advanced transformers, cross-modal testing \\
-& Cryptographic Semantic Binding & 4-5 & Formal Verification & Commitment schemes, zero-knowledge proof optimization \\
-\midrule
-\multirow{4}{2.5cm}{\textbf{Phase 3} \\ (2028+) \\ Research Stage}
-& Production Homomorphic Encryption & 2-3 & Theoretical Analysis & FHE efficiency breakthroughs, performance modeling \\
-& ZK Semantic Proofs & 2-3 & Mathematical Validation & Succinct proof systems, complexity analysis \\
-& Universal Compression & 2-3 & Algorithm Research & Theoretical advances, information theory \\
-& Sub-ms Mobile Search & 3-4 & Hardware Testing & Specialized hardware, edge computing optimization \\
-\bottomrule
-\end{tabular}
-\end{table*}
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{Integrated MAIF Implementation and Validation Roadmap}
+% \label{tab:implementation-roadmap}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{2.5cm}p{4cm}p{2cm}p{3cm}p{4.5cm}}
+% \toprule
+% \textbf{Phase/Timeline} & \textbf{Capability} & \textbf{TRL} & \textbf{Validation Method} & \textbf{Key Dependencies \& Activities} \\
+% \midrule
+% \multirow{5}{2.5cm}{\textbf{Phase 1} \\ (2025-2026) \\ Production Ready}
+% & Secure Container Architecture & 7-8 & Proof of Concept & ISO BMFF, AES-GCM, ECDSA libraries \\
+% & Immutable Provenance & 6-7 & Formal Verification & DID infrastructure, Tamarin/ProVerif tools \\
+% & Semantic Search (30-50ms) & 7-8 & Performance Testing & FAISS, sentence-transformers, benchmarking \\
+% & Block-level Access Control & 7-8 & Security Assessment & PKI, cryptographic libraries, penetration testing \\
+% & Basic Multimodal Storage & 8-9 & Integration Testing & Standard codecs, compression algorithms \\
+% \midrule
+% \multirow{4}{2.5cm}{\textbf{Phase 2} \\ (2026-2028) \\ R\&D Required}
+% & Self-Evolving Artifacts & 3-4 & Simulation Testing & Adaptive indexing research, emergent behavior analysis \\
+% & Hierarchical Compression & 4-5 & Algorithm Validation & Corpus-dependent optimization, compression benchmarks \\
+% & Cross-Modal Attention & 5-6 & AI Agent Evaluation & Advanced transformers, cross-modal testing \\
+% & Cryptographic Semantic Binding & 4-5 & Formal Verification & Commitment schemes, zero-knowledge proof optimization \\
+% \midrule
+% \multirow{4}{2.5cm}{\textbf{Phase 3} \\ (2028+) \\ Research Stage}
+% & Production Homomorphic Encryption & 2-3 & Theoretical Analysis & FHE efficiency breakthroughs, performance modeling \\
+% & ZK Semantic Proofs & 2-3 & Mathematical Validation & Succinct proof systems, complexity analysis \\
+% & Universal Compression & 2-3 & Algorithm Research & Theoretical advances, information theory \\
+% & Sub-ms Mobile Search & 3-4 & Hardware Testing & Specialized hardware, edge computing optimization \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
-\begin{table*}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{MAIF Performance Dashboard - Comprehensive Validation Results}
-\label{tab:performance-dashboard}
-\centering
-\footnotesize
-\begin{tabular}{p{3cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2cm}}
-\toprule
-\textbf{Performance Domain} & \textbf{Theoretical Claim} & \textbf{Achieved Result} & \textbf{Best Case} & \textbf{Key Characteristics} & \textbf{Status} \\
-\midrule
-\multicolumn{6}{l}{\textbf{Core Performance Metrics}} \\
-\midrule
-\textbf{Compression} & 2.5-5× ratio & 64.21× average & 480× (Brotli) & Structured: 97\% reduction, Random: 25\% & \textbf{Exceeded} \\
-\textbf{Semantic Search} & Sub-50ms & 30.54ms average & 29.63ms minimum & 1,000-doc corpus, 39\% faster than target & \textbf{Exceeded} \\
-\textbf{Streaming} & 500+ MB/s & 657.99 MB/s & - & 31\% above target, 10.49MB in 15.2ms & \textbf{Exceeded} \\
-\textbf{Cryptographic} & <400\% overhead & -7.6\% (improvement) & - & Performance gain from optimized structures & \textbf{Exceeded} \\
-\midrule
-\multicolumn{6}{l}{\textbf{Security \& Integrity}} \\
-\midrule
-\textbf{Tamper Detection} & 100\% in <1ms & 100\% in 0.10ms & 0.26ms maximum & 100 test cases, all detected & \textbf{Exceeded} \\
-\textbf{Integrity Verification} & High throughput & 2.57 GB/s & - & 10KB-10MB files, 100\% verification & \textbf{Exceeded} \\
-\textbf{Provenance Chains} & Complete validation & 179ms for 100-link & - & 100\% chain validity, immutable & \textbf{Met} \\
-\textbf{Privacy Features} & Functional & 95ms processing & - & Encryption \& anonymization, 100\% success & \textbf{Met} \\
-\midrule
-\multicolumn{6}{l}{\textbf{Scalability \& Production}} \\
-\midrule
-\textbf{Repair Success} & 95\%+ automated & 100\% success & - & All common scenarios, comprehensive validation & \textbf{Exceeded} \\
-\textbf{Scalability} & Linear scaling & 10,000 blocks & 378,890 bytes & Linear characteristics, full integrity & \textbf{Met} \\
-\textbf{Implementation} & Core features & All features & - & Production ready, 11/11 benchmarks passed & \textbf{Complete} \\
-\bottomrule
-\end{tabular}
-\end{table*}
+% \begin{table*}[!t]
+% \renewcommand{\arraystretch}{1.3}
+% \caption{MAIF Performance Dashboard - Comprehensive Validation Results}
+% \label{tab:performance-dashboard}
+% \centering
+% \footnotesize
+% \begin{tabular}{p{3cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2.5cm}p{2cm}}
+% \toprule
+% \textbf{Performance Domain} & \textbf{Theoretical Claim} & \textbf{Achieved Result} & \textbf{Best Case} & \textbf{Key Characteristics} & \textbf{Status} \\
+% \midrule
+% \multicolumn{6}{l}{\textbf{Core Performance Metrics}} \\
+% \midrule
+% \textbf{Compression} & 2.5-5× ratio & 64.21× average & 480× (Brotli) & Structured: 97\% reduction, Random: 25\% & \textbf{Exceeded} \\
+% \textbf{Semantic Search} & Sub-50ms & 30.54ms average & 29.63ms minimum & 1,000-doc corpus, 39\% faster than target & \textbf{Exceeded} \\
+% \textbf{Streaming} & 500+ MB/s & 657.99 MB/s & - & 31\% above target, 10.49MB in 15.2ms & \textbf{Exceeded} \\
+% \textbf{Cryptographic} & <400\% overhead & -7.6\% (improvement) & - & Performance gain from optimized structures & \textbf{Exceeded} \\
+% \midrule
+% \multicolumn{6}{l}{\textbf{Security \& Integrity}} \\
+% \midrule
+% \textbf{Tamper Detection} & 100\% in <1ms & 100\% in 0.10ms & 0.26ms maximum & 100 test cases, all detected & \textbf{Exceeded} \\
+% \textbf{Integrity Verification} & High throughput & 2.57 GB/s & - & 10KB-10MB files, 100\% verification & \textbf{Exceeded} \\
+% \textbf{Provenance Chains} & Complete validation & 179ms for 100-link & - & 100\% chain validity, immutable & \textbf{Met} \\
+% \textbf{Privacy Features} & Functional & 95ms processing & - & Encryption \& anonymization, 100\% success & \textbf{Met} \\
+% \midrule
+% \multicolumn{6}{l}{\textbf{Scalability \& Production}} \\
+% \midrule
+% \textbf{Repair Success} & 95\%+ automated & 100\% success & - & All common scenarios, comprehensive validation & \textbf{Exceeded} \\
+% \textbf{Scalability} & Linear scaling & 10,000 blocks & 378,890 bytes & Linear characteristics, full integrity & \textbf{Met} \\
+% \textbf{Implementation} & Core features & All features & - & Production ready, 11/11 benchmarks passed & \textbf{Complete} \\
+% \bottomrule
+% \end{tabular}
+% \end{table*}
 
 \section{Discussion and Future Directions}
 \label{sec:discussion}
@@ -2084,6 +2330,7 @@ Granular access controls, homomorphic encryption, and tamper-evident mechanisms 
 
 
 \subsection{Implementation Roadmap and Validation Framework}
+The integrated MAIF implementation and validation roadmap, detailing various phases, Technology Readiness Levels (TRLs), validation methods, and key dependencies, is presented in Table~\ref{tab:implementation-roadmap} in Appendix~\ref{app:roadmap}.
 
 \textbf{Research Opportunities:} Key areas include embedded semantic optimization (compact embeddings, efficient KG serialization), advanced privacy methods (homomorphic encryption, encrypted computation), dynamic MAIF evolution (adaptation algorithms, lifecycle management), interoperability standards (open standards, ecosystem tools), and ethical AI governance (artifact-level governance, embedded ethics). Success requires interdisciplinary collaboration bridging theoretical computer science, AI engineering, and cybersecurity.
 
@@ -2107,10 +2354,13 @@ Granular access controls, homomorphic encryption, and tamper-evident mechanisms 
 
 \section{Benchmark Results and Performance Validation}
 \label{sec:benchmark-results}
+Comprehensive benchmarks across 11 performance domains validate all theoretical claims, demonstrating production-ready capabilities with performance exceeding expectations in multiple areas. The detailed MAIF Performance Dashboard with all validation results is presented in Table~\ref{tab:performance-dashboard} in Appendix~\ref{app:performance-benchmarks}.
 
-Comprehensive benchmarks across 11 performance domains validate all theoretical claims, demonstrating production-ready capabilities with performance exceeding expectations in multiple areas.
+\textbf{Validation Summary:} All 6 theoretical performance claims exceeded or met with 100\% success rate across 11 comprehensive benchmark domains. Results demonstrate production-ready maturity with exceptional performance for structured content compression (480$\times$ ratio), sub-target semantic search latency (39\% faster), and remarkable cryptographic performance improvements. Linear scalability characteristics support enterprise deployment with full data integrity maintained across varying block counts from 100 to 10,000.
 
-\textbf{Validation Summary:} All 6 theoretical performance claims exceeded or met with 100\% success rate across 11 comprehensive benchmark domains. Results demonstrate production-ready maturity with exceptional performance for structured content compression (480× ratio), sub-target semantic search latency (39\% faster), and remarkable cryptographic performance improvements. Linear scalability characteristics support enterprise deployment with full data integrity maintained across varying block counts from 100 to 10,000.
+% Comprehensive benchmarks across 11 performance domains validate all theoretical claims, demonstrating production-ready capabilities with performance exceeding expectations in multiple areas.
+
+% \textbf{Validation Summary:} All 6 theoretical performance claims exceeded or met with 100\% success rate across 11 comprehensive benchmark domains. Results demonstrate production-ready maturity with exceptional performance for structured content compression (480× ratio), sub-target semantic search latency (39\% faster), and remarkable cryptographic performance improvements. Linear scalability characteristics support enterprise deployment with full data integrity maintained across varying block counts from 100 to 10,000.
 
 \section{Conclusion}
 
@@ -2119,8 +2369,13 @@ The rapid advancement of AI agents necessitates a fundamental rethinking of thei
 MAIF, as an AI-native container format, builds upon proven concepts demonstrated by existing implementations like Memvid, which successfully stores millions of text chunks in video files with sub-second semantic search. MAIF extends these foundations by integrating multimodal data, semantic embeddings, and knowledge graph fragments, transforming it into a portable AI context unit. The security and governance features—including cryptographically-secured provenance, digital signatures, and granular access controls—represent a pragmatic evolution of existing technologies rather than revolutionary breakthroughs.
 
 
-These results establish Project SCYTHE strategy with MAIF as a viable, high-performance solution for trustworthy AI systems, meeting the stringent requirements for regulatory compliance, security, and operational efficiency demanded by critical AI applications. The AI trustworthiness crisis that threatens to derail the entire artificial intelligence revolution now has a definitive solution—one that transforms data from passive storage into active trust enforcement, making every AI operation inherently auditable and unlocking billions in economic value previously trapped behind regulatory barriers. SCYTHE with MAIF doesn't just enable trustworthy AI; it makes trustworthiness inevitable.
+These results establish MAIF as a viable, high-performance solution for trustworthy AI systems, meeting the stringent requirements for regulatory compliance, security, and operational efficiency demanded by critical AI applications. The AI trustworthiness crisis that threatens to derail the entire artificial intelligence revolution now has a definitive solution—one that transforms data from passive storage into active trust enforcement, making every AI operation inherently auditable and unlocking billions in economic value previously trapped behind regulatory barriers. MAIF doesn't just enable trustworthy AI; it makes trustworthiness inevitable.
+
+\section{Acknowledgements}
+The authors thank Jim Schwoebel for his feedback.
 
 \bibliography{scythe_references}
-
+% Start of Appendices
+\appendices
+\input{appendix.tex} %
 \end{document}

@@ -62,8 +62,22 @@ class AccessRule:
         return True
     
     def evaluate(self, session: StreamSession, block_data: bytes = None) -> AccessDecision:
-        """Evaluate the rule."""
-        return AccessDecision.ALLOW  # Simple implementation
+        """Evaluate the rule based on session context and block data."""
+        # Check if session has expired
+        if time.time() - session.start_time > session.max_duration:
+            session.access_violations.append(f"Session expired for rule {self.name}")
+            return AccessDecision.DENY
+            
+        # Check if rule applies to this user and operation
+        if not self.applies_to(session.user_id, "read"):
+            # Rule doesn't apply, defer to other rules
+            return AccessDecision.ALLOW
+            
+        # For restricted content, require MFA
+        if self.block_type_pattern == "restricted" or self.block_type_pattern == "confidential":
+            return AccessDecision.REQUIRE_MFA
+            
+        return AccessDecision.ALLOW
 
 
 class StreamAccessController:

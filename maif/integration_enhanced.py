@@ -1,511 +1,971 @@
 """
-Enhanced integration functionality for MAIF files.
+MAIF Enhanced Integration Module
+================================
+
+This module integrates the core MAIF functionality with the newly implemented features:
+- Event Sourcing
+- Columnar Storage
+- Dynamic Version Management
+- Adaptation Rules Engine
+
+It provides a cohesive interface for using all these features together in a
+production-ready environment.
 """
 
-import json
-import xml.etree.ElementTree as ET
-import csv
 import os
-import zipfile
-import tarfile
-from typing import Dict, List, Optional, Any, Union
-from dataclasses import dataclass, field
+import json
+import time
+import logging
+import threading
+from typing import Dict, List, Optional, Any, Tuple, Set, Union
 from pathlib import Path
 
-from .core import MAIFEncoder, MAIFDecoder
+# Import core MAIF components
+from .core import MAIFEncoder, MAIFDecoder, MAIFBlock
+from .security import MAIFSigner, ProvenanceEntry
+from .validation import MAIFValidator
+
+# Import newly implemented features
+from .event_sourcing import EventLog, MaterializedView, EventSourcedMAIF, EventType, Event
+from .columnar_storage import ColumnarFile, ColumnType, EncodingType, CompressionType
+from .version_management import SchemaRegistry, VersionManager, Schema, SchemaField, DataTransformer
+from .adaptation_rules import (
+    AdaptationRulesEngine, AdaptationRule, RulePriority, RuleStatus,
+    ActionType, TriggerType, ComparisonOperator, LogicalOperator,
+    MetricCondition, ScheduleCondition, EventCondition, CompositeCondition,
+    Action, ActionParameter
+)
+
+# Import lifecycle management
+from .lifecycle_management import MAIFLifecycleState, MAIFMetrics, SelfGoverningMAIF
+
+logger = logging.getLogger(__name__)
 
 
-@dataclass
-class ConversionResult:
-    """Result of a MAIF conversion operation."""
-    success: bool = False
-    output_path: str = ""
-    warnings: List[str] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+class EnhancedMAIF:
+    """
+    Enhanced MAIF implementation that integrates all advanced features.
     
-    def __post_init__(self):
-        if self.warnings is None:
-            self.warnings = []
-        if self.metadata is None:
-            self.metadata = {}
+    This class provides a unified interface for working with MAIF files
+    with full support for event sourcing, columnar storage, dynamic version
+    management, and adaptation rules.
+    """
+    
+    def __init__(self, maif_path: str, agent_id: Optional[str] = None,
+                 enable_event_sourcing: bool = True,
+                 enable_columnar_storage: bool = True,
+                 enable_version_management: bool = True,
+                 enable_adaptation_rules: bool = True):
+        """
+        Initialize an enhanced MAIF instance.
+        
+        Args:
+            maif_path: Path to the MAIF file
+            agent_id: ID of the agent using this MAIF
+            enable_event_sourcing: Whether to enable event sourcing
+            enable_columnar_storage: Whether to enable columnar storage
+            enable_version_management: Whether to enable version management
+            enable_adaptation_rules: Whether to enable adaptation rules
+        """
+        self.maif_path = Path(maif_path)
+        self.agent_id = agent_id or f"agent-{int(time.time())}"
+        
+        # Core MAIF components
+        self.encoder = MAIFEncoder(agent_id=self.agent_id)
+        self.manifest_path = self.maif_path.with_suffix('.json')
+        
+        # Initialize components based on enabled features
+        self._init_event_sourcing() if enable_event_sourcing else None
+        self._init_columnar_storage() if enable_columnar_storage else None
+        self._init_version_management() if enable_version_management else None
+        self._init_adaptation_rules() if enable_adaptation_rules else None
+        
+        # Lifecycle management
+        self.metrics = MAIFMetrics()
+        self.state = MAIFLifecycleState.CREATED
+        
+        # Threading
+        self._lock = threading.RLock()
+        
+        logger.info(f"Enhanced MAIF initialized at {maif_path}")
+    
+    def _init_event_sourcing(self):
+        """Initialize event sourcing components."""
+        event_log_path = self.maif_path.with_suffix('.events')
+        self.event_log = EventLog(str(event_log_path))
+        self.event_sourced_maif = EventSourcedMAIF(
+            maif_id=self.maif_path.stem,
+            event_log=self.event_log,
+            agent_id=self.agent_id
+        )
+        logger.info("Event sourcing initialized")
+    
+    def _init_columnar_storage(self):
+        """Initialize columnar storage components."""
+        columnar_path = self.maif_path.with_suffix('.columnar')
+        self.columnar_file = ColumnarFile(str(columnar_path))
+        logger.info("Columnar storage initialized")
+    
+    def _init_version_management(self):
+        """Initialize version management components."""
+        registry_path = self.maif_path.with_suffix('.schema')
+        
+        # Create default schema if not exists
+        if not registry_path.exists():
+            self._create_default_schema(registry_path)
+        
+        self.schema_registry = SchemaRegistry.load(str(registry_path))
+        self.version_manager = VersionManager(self.schema_registry)
+        self.data_transformer = DataTransformer(self.schema_registry)
+        logger.info("Version management initialized")
+    
+    def _init_adaptation_rules(self):
+        """Initialize adaptation rules engine."""
+        self.rules_engine = AdaptationRulesEngine()
+        
+        # Register default action handlers
+        self._register_default_handlers()
+        
+        # Register default rules
+        self._register_default_rules()
+        
+        logger.info("Adaptation rules engine initialized")
+    
+    def _create_default_schema(self, registry_path: Path):
+        """Create default schema registry."""
+        registry = SchemaRegistry()
+        
+        # Define initial schema
+        initial_schema = Schema(
+            version="1.0.0",
+            fields=[
+                SchemaField(name="id", field_type="string", required=True),
+                SchemaField(name="type", field_type="string", required=True),
+                SchemaField(name="content", field_type="string", required=True),
+                SchemaField(name="metadata", field_type="json", required=False)
+            ],
+            metadata={"created_at": time.time()}
+        )
+        
+        registry.register_schema(initial_schema)
+        registry.save(str(registry_path))
+    
+    def _register_default_handlers(self):
+        """Register default action handlers for adaptation rules."""
+        
+        def handle_split(action: Action, context: Dict[str, Any]) -> bool:
+            """Handle split action."""
+            try:
+                # Get parameters
+                output_dir = action.get_parameter("output_dir") or str(self.maif_path.parent / "split")
+                strategy = action.get_parameter("strategy") or "size"
+                
+                # Create SelfGoverningMAIF and split
+                gov_maif = SelfGoverningMAIF(str(self.maif_path))
+                gov_maif._action_split()
+                
+                return True
+            except Exception as e:
+                logger.error(f"Error handling split action: {e}")
+                return False
+        
+        def handle_optimize(action: Action, context: Dict[str, Any]) -> bool:
+            """Handle optimize action."""
+            try:
+                # Create SelfGoverningMAIF and optimize
+                gov_maif = SelfGoverningMAIF(str(self.maif_path))
+                gov_maif._action_optimize_hot()
+                
+                return True
+            except Exception as e:
+                logger.error(f"Error handling optimize action: {e}")
+                return False
+        
+        def handle_archive(action: Action, context: Dict[str, Any]) -> bool:
+            """Handle archive action."""
+            try:
+                # Create SelfGoverningMAIF and archive
+                gov_maif = SelfGoverningMAIF(str(self.maif_path))
+                gov_maif._action_archive()
+                
+                return True
+            except Exception as e:
+                logger.error(f"Error handling archive action: {e}")
+                return False
+        
+        # Register handlers
+        self.rules_engine.register_action_handler(ActionType.SPLIT, handle_split)
+        self.rules_engine.register_action_handler(ActionType.OPTIMIZE, handle_optimize)
+        self.rules_engine.register_action_handler(ActionType.ARCHIVE, handle_archive)
+    
+    def _register_default_rules(self):
+        """Register default adaptation rules."""
+        
+        # Rule 1: Split large files
+        split_condition = MetricCondition(
+            metric_name="size_bytes",
+            operator=ComparisonOperator.GREATER_THAN,
+            threshold=100 * 1024 * 1024  # 100 MB
+        )
+        
+        split_action = Action(
+            action_type=ActionType.SPLIT,
+            parameters=[
+                ActionParameter(name="strategy", value="size"),
+                ActionParameter(name="max_size_mb", value=50.0)
+            ]
+        )
+        
+        split_rule = AdaptationRule(
+            rule_id="split_large_files",
+            name="Split Large Files",
+            description="Split files larger than 100 MB",
+            priority=RulePriority.MEDIUM,
+            trigger=TriggerType.METRIC,
+            condition=split_condition,
+            actions=[split_action],
+            status=RuleStatus.ACTIVE
+        )
+        
+        # Rule 2: Optimize frequently accessed files
+        optimize_condition = MetricCondition(
+            metric_name="access_frequency",
+            operator=ComparisonOperator.GREATER_THAN,
+            threshold=10.0  # 10 accesses per minute
+        )
+        
+        optimize_action = Action(
+            action_type=ActionType.OPTIMIZE,
+            parameters=[]
+        )
+        
+        optimize_rule = AdaptationRule(
+            rule_id="optimize_hot_files",
+            name="Optimize Hot Files",
+            description="Optimize frequently accessed files",
+            priority=RulePriority.HIGH,
+            trigger=TriggerType.METRIC,
+            condition=optimize_condition,
+            actions=[optimize_action],
+            status=RuleStatus.ACTIVE
+        )
+        
+        # Rule 3: Archive old files
+        archive_condition = MetricCondition(
+            metric_name="last_accessed",
+            operator=ComparisonOperator.LESS_THAN,
+            threshold=time.time() - (30 * 24 * 60 * 60)  # 30 days ago
+        )
+        
+        archive_action = Action(
+            action_type=ActionType.ARCHIVE,
+            parameters=[]
+        )
+        
+        archive_rule = AdaptationRule(
+            rule_id="archive_old_files",
+            name="Archive Old Files",
+            description="Archive files not accessed in 30 days",
+            priority=RulePriority.LOW,
+            trigger=TriggerType.METRIC,
+            condition=archive_condition,
+            actions=[archive_action],
+            status=RuleStatus.ACTIVE
+        )
+        
+        # Register rules
+        self.rules_engine.register_rule(split_rule)
+        self.rules_engine.register_rule(optimize_rule)
+        self.rules_engine.register_rule(archive_rule)
+    
+    def add_text_block(self, text: str, metadata: Optional[Dict] = None) -> str:
+        """
+        Add a text block to the MAIF.
+        
+        Args:
+            text: Text content
+            metadata: Block metadata
+            
+        Returns:
+            Block ID
+        """
+        with self._lock:
+            # Add to core MAIF
+            block_id = self.encoder.add_text_block(text, metadata)
+            
+            # Record event if event sourcing enabled
+            if hasattr(self, 'event_sourced_maif'):
+                self.event_sourced_maif.add_block(
+                    block_id=block_id,
+                    block_type="text",
+                    data=text.encode('utf-8'),
+                    metadata=metadata
+                )
+            
+            # Add to columnar storage if enabled
+            if hasattr(self, 'columnar_file'):
+                # Convert text to columnar format
+                data = {
+                    "content": [text],
+                    "block_id": [block_id],
+                    "timestamp": [time.time()]
+                }
+                
+                # Add metadata as columns
+                if metadata:
+                    for key, value in metadata.items():
+                        if isinstance(value, (str, int, float, bool)):
+                            data[key] = [value]
+                
+                self.columnar_file.write_batch(data)
+            
+            return block_id
+    
+    def add_binary_block(self, data: bytes, block_type: str, 
+                        metadata: Optional[Dict] = None) -> str:
+        """
+        Add a binary block to the MAIF.
+        
+        Args:
+            data: Binary data
+            block_type: Block type
+            metadata: Block metadata
+            
+        Returns:
+            Block ID
+        """
+        with self._lock:
+            # Add to core MAIF
+            block_id = self.encoder.add_binary_block(data, block_type, metadata)
+            
+            # Record event if event sourcing enabled
+            if hasattr(self, 'event_sourced_maif'):
+                self.event_sourced_maif.add_block(
+                    block_id=block_id,
+                    block_type=block_type,
+                    data=data,
+                    metadata=metadata
+                )
+            
+            return block_id
+    
+    def update_metrics(self):
+        """Update MAIF metrics for adaptation rules."""
+        with self._lock:
+            if not self.maif_path.exists():
+                return
+            
+            # Update basic metrics
+            self.metrics.size_bytes = self.maif_path.stat().st_size
+            
+            # Load MAIF to get block count if needed
+            if self.metrics.block_count == 0:
+                try:
+                    decoder = MAIFDecoder(str(self.maif_path), str(self.manifest_path))
+                    self.metrics.block_count = len(decoder.blocks)
+                except Exception as e:
+                    logger.error(f"Error loading MAIF for metrics update: {e}")
+            
+            # Update last accessed time
+            self.metrics.last_accessed = time.time()
+    
+    def evaluate_rules(self) -> List[str]:
+        """
+        Evaluate adaptation rules and return actions to execute.
+        
+        Returns:
+            List of action IDs to execute
+        """
+        with self._lock:
+            if not hasattr(self, 'rules_engine'):
+                return []
+            
+            # Update metrics
+            self.update_metrics()
+            
+            # Create context for rule evaluation
+            context = {
+                "metrics": {
+                    "size_bytes": self.metrics.size_bytes,
+                    "block_count": self.metrics.block_count,
+                    "access_frequency": self.metrics.access_frequency,
+                    "last_accessed": self.metrics.last_accessed,
+                    "compression_ratio": self.metrics.compression_ratio,
+                    "fragmentation": self.metrics.fragmentation,
+                    "age_days": self.metrics.age_days,
+                    "semantic_coherence": self.metrics.semantic_coherence
+                },
+                "current_time": time.time(),
+                "maif_path": str(self.maif_path),
+                "agent_id": self.agent_id
+            }
+            
+            # Evaluate rules
+            triggered_rules = self.rules_engine.evaluate_rules(context)
+            
+            # Execute rules
+            results = []
+            for rule in triggered_rules:
+                result = self.rules_engine.execute_rule(rule, context)
+                if result.success:
+                    results.append(result.rule_id)
+            
+            return results
+    
+    def save(self):
+        """Save MAIF to disk."""
+        with self._lock:
+            # Save core MAIF
+            self.encoder.save(str(self.maif_path), str(self.manifest_path))
+            
+            # Save columnar file if enabled
+            if hasattr(self, 'columnar_file'):
+                self.columnar_file.close()
+            
+            logger.info(f"Enhanced MAIF saved to {self.maif_path}")
+    
+    def get_history(self) -> List[Event]:
+        """
+        Get event history if event sourcing is enabled.
+        
+        Returns:
+            List of events
+        """
+        if hasattr(self, 'event_sourced_maif'):
+            return self.event_sourced_maif.get_history()
+        return []
+    
+    def get_schema_version(self) -> str:
+        """
+        Get current schema version if version management is enabled.
+        
+        Returns:
+            Schema version
+        """
+        if hasattr(self, 'schema_registry'):
+            return self.schema_registry.get_latest_version()
+        return "unknown"
+    
+    def get_columnar_statistics(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get columnar storage statistics if enabled.
+        
+        Returns:
+            Statistics by column
+        """
+        if hasattr(self, 'columnar_file'):
+            return self.columnar_file.get_statistics()
+        return {}
+
+
+class EnhancedMAIFManager:
+    """
+    Manager for multiple Enhanced MAIF instances.
+    
+    Provides centralized management of multiple MAIF files with
+    integrated event sourcing, columnar storage, version management,
+    and adaptation rules.
+    """
+    
+    def __init__(self, workspace_dir: str):
+        """
+        Initialize the manager.
+        
+        Args:
+            workspace_dir: Directory for managed MAIFs
+        """
+        self.workspace_dir = Path(workspace_dir)
+        self.workspace_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.maifs: Dict[str, EnhancedMAIF] = {}
+        self._lock = threading.RLock()
+        
+        logger.info(f"Enhanced MAIF Manager initialized at {workspace_dir}")
+    
+    def create_maif(self, name: str, agent_id: Optional[str] = None,
+                   enable_event_sourcing: bool = True,
+                   enable_columnar_storage: bool = True,
+                   enable_version_management: bool = True,
+                   enable_adaptation_rules: bool = True) -> EnhancedMAIF:
+        """
+        Create a new Enhanced MAIF.
+        
+        Args:
+            name: MAIF name
+            agent_id: Agent ID
+            enable_event_sourcing: Whether to enable event sourcing
+            enable_columnar_storage: Whether to enable columnar storage
+            enable_version_management: Whether to enable version management
+            enable_adaptation_rules: Whether to enable adaptation rules
+            
+        Returns:
+            Enhanced MAIF instance
+        """
+        with self._lock:
+            maif_path = self.workspace_dir / f"{name}.maif"
+            
+            maif = EnhancedMAIF(
+                str(maif_path),
+                agent_id=agent_id,
+                enable_event_sourcing=enable_event_sourcing,
+                enable_columnar_storage=enable_columnar_storage,
+                enable_version_management=enable_version_management,
+                enable_adaptation_rules=enable_adaptation_rules
+            )
+            
+            self.maifs[name] = maif
+            return maif
+    
+    def get_maif(self, name: str) -> Optional[EnhancedMAIF]:
+        """
+        Get an Enhanced MAIF by name.
+        
+        Args:
+            name: MAIF name
+            
+        Returns:
+            Enhanced MAIF instance or None if not found
+        """
+        with self._lock:
+            return self.maifs.get(name)
+    
+    def load_maif(self, path: str, name: Optional[str] = None,
+                 agent_id: Optional[str] = None,
+                 enable_event_sourcing: bool = True,
+                 enable_columnar_storage: bool = True,
+                 enable_version_management: bool = True,
+                 enable_adaptation_rules: bool = True) -> EnhancedMAIF:
+        """
+        Load an existing MAIF file.
+        
+        Args:
+            path: Path to MAIF file
+            name: Name to use for the MAIF (defaults to filename)
+            agent_id: Agent ID
+            enable_event_sourcing: Whether to enable event sourcing
+            enable_columnar_storage: Whether to enable columnar storage
+            enable_version_management: Whether to enable version management
+            enable_adaptation_rules: Whether to enable adaptation rules
+            
+        Returns:
+            Enhanced MAIF instance
+        """
+        with self._lock:
+            path = Path(path)
+            name = name or path.stem
+            
+            # Copy to workspace if outside
+            if not path.is_relative_to(self.workspace_dir):
+                target_path = self.workspace_dir / path.name
+                import shutil
+                shutil.copy2(path, target_path)
+                path = target_path
+            
+            maif = EnhancedMAIF(
+                str(path),
+                agent_id=agent_id,
+                enable_event_sourcing=enable_event_sourcing,
+                enable_columnar_storage=enable_columnar_storage,
+                enable_version_management=enable_version_management,
+                enable_adaptation_rules=enable_adaptation_rules
+            )
+            
+            self.maifs[name] = maif
+            return maif
+    
+    def evaluate_all_rules(self) -> Dict[str, List[str]]:
+        """
+        Evaluate adaptation rules for all managed MAIFs.
+        
+        Returns:
+            Dictionary mapping MAIF names to lists of executed actions
+        """
+        with self._lock:
+            results = {}
+            
+            for name, maif in self.maifs.items():
+                actions = maif.evaluate_rules()
+                results[name] = actions
+            
+            return results
+    
+    def save_all(self):
+        """Save all managed MAIFs."""
+        with self._lock:
+            for maif in self.maifs.values():
+                maif.save()
+    
+    def get_status(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get status of all managed MAIFs.
+        
+        Returns:
+            Dictionary mapping MAIF names to status reports
+        """
+        with self._lock:
+            status = {}
+            
+            for name, maif in self.maifs.items():
+                status[name] = {
+                    "path": str(maif.maif_path),
+                    "agent_id": maif.agent_id,
+                    "state": maif.state.value,
+                    "metrics": {
+                        "size_bytes": maif.metrics.size_bytes,
+                        "block_count": maif.metrics.block_count,
+                        "access_frequency": maif.metrics.access_frequency,
+                        "last_accessed": maif.metrics.last_accessed
+                    },
+                    "features": {
+                        "event_sourcing": hasattr(maif, 'event_sourced_maif'),
+                        "columnar_storage": hasattr(maif, 'columnar_file'),
+                        "version_management": hasattr(maif, 'version_manager'),
+                        "adaptation_rules": hasattr(maif, 'rules_engine')
+                    }
+                }
+            
+            return status
+
+class ConversionResult:
+    """
+    Result of a conversion operation performed by EnhancedMAIFProcessor.
+    
+    Contains information about the conversion process, including success status,
+    input and output paths, and any additional metadata.
+    """
+    
+    def __init__(self, success: bool, input_path: str, output_path: str, 
+                 metadata: Optional[Dict[str, Any]] = None):
+        """
+        Initialize a conversion result.
+        
+        Args:
+            success: Whether the conversion was successful
+            input_path: Path to the input file
+            output_path: Path to the output file
+            metadata: Additional metadata about the conversion
+        """
+        self.success = success
+        self.input_path = input_path
+        self.output_path = output_path
+        self.metadata = metadata or {}
+        self.timestamp = time.time()
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary representation."""
+        return {
+            "success": self.success,
+            "input_path": self.input_path,
+            "output_path": self.output_path,
+            "metadata": self.metadata,
+            "timestamp": self.timestamp
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ConversionResult':
+        """Create from dictionary representation."""
+        result = cls(
+            success=data.get("success", False),
+            input_path=data.get("input_path", ""),
+            output_path=data.get("output_path", ""),
+            metadata=data.get("metadata", {})
+        )
+        result.timestamp = data.get("timestamp", time.time())
+        return result
 
 
 class EnhancedMAIFProcessor:
-    """Enhanced processor for MAIF file operations and conversions."""
+    """
+    Processor for converting between MAIF and other formats.
     
-    def __init__(self):
-        self.supported_formats = ['json', 'xml', 'csv', 'txt', 'yaml', 'zip', 'tar']
-        self.mime_type_mapping = {
-            'application/json': 'json',
-            'text/json': 'json',
-            'application/xml': 'xml',
-            'text/xml': 'xml',
-            'text/csv': 'csv',
-            'application/csv': 'csv',
-            'text/plain': 'txt',
-            'application/x-yaml': 'yaml',
-            'text/yaml': 'yaml',
-            'application/zip': 'zip',
-            'application/x-tar': 'tar'
-        }
+    Provides functionality for converting various file formats to MAIF
+    and extracting content from MAIF files to other formats. Integrates
+    with all enhanced features including event sourcing, columnar storage,
+    version management, and adaptation rules.
+    """
     
-    def _mime_to_format(self, mime_type: str) -> str:
-        """Convert MIME type to format string."""
-        return self.mime_type_mapping.get(mime_type, 'unknown')
+    def __init__(self, workspace_dir: str, agent_id: Optional[str] = None):
+        """
+        Initialize the processor.
+        
+        Args:
+            workspace_dir: Directory for processing files
+            agent_id: ID of the agent using this processor
+        """
+        self.workspace_dir = Path(workspace_dir)
+        self.workspace_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.agent_id = agent_id or f"processor-{int(time.time())}"
+        self.manager = EnhancedMAIFManager(workspace_dir)
+        
+        self._lock = threading.RLock()
+        self.conversion_history: List[ConversionResult] = []
+        
+        logger.info(f"Enhanced MAIF Processor initialized at {workspace_dir}")
     
-    def convert_to_maif(self, input_path: str, output_path: str, manifest_path: str, input_format: str) -> ConversionResult:
-        """Convert various formats to MAIF."""
-        if input_format == 'json':
-            return self.convert_json_to_maif(input_path, output_path, manifest_path)
-        elif input_format == 'xml':
-            return self.convert_xml_to_maif(input_path, output_path, manifest_path)
-        elif input_format == 'csv':
-            return self.convert_csv_to_maif(input_path, output_path, manifest_path)
-        elif input_format == 'txt':
-            return self.convert_text_to_maif(input_path, output_path, manifest_path)
-        else:
-            return ConversionResult(
-                success=False,
-                warnings=[f"Unsupported input format: {input_format}"]
-            )
-    
-    def convert_text_to_maif(self, text_path: str, output_path: str, manifest_path: str) -> ConversionResult:
-        """Convert text file to MAIF format."""
-        try:
-            with open(text_path, 'r') as f:
-                content = f.read()
+    def convert_to_maif(self, input_path: str, output_name: Optional[str] = None,
+                       enable_event_sourcing: bool = True,
+                       enable_columnar_storage: bool = True,
+                       enable_version_management: bool = True,
+                       enable_adaptation_rules: bool = True) -> ConversionResult:
+        """
+        Convert a file to MAIF format.
+        
+        Args:
+            input_path: Path to the input file
+            output_name: Name for the output MAIF (defaults to input filename)
+            enable_event_sourcing: Whether to enable event sourcing
+            enable_columnar_storage: Whether to enable columnar storage
+            enable_version_management: Whether to enable version management
+            enable_adaptation_rules: Whether to enable adaptation rules
             
-            encoder = MAIFEncoder(agent_id="text_converter")
-            encoder.add_text_block(content, metadata={"source": "text_file", "path": text_path})
-            encoder.build_maif(output_path, manifest_path)
+        Returns:
+            Conversion result
+        """
+        with self._lock:
+            input_path = Path(input_path)
             
-            return ConversionResult(
-                success=True,
-                output_path=output_path,
-                metadata={"format": "text", "blocks_converted": 1}
-            )
-            
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"Text conversion failed: {str(e)}"]
-            )
-    
-    def convert_csv_to_maif(self, csv_path: str, output_path: str, manifest_path: str) -> ConversionResult:
-        """Convert CSV file to MAIF format."""
-        try:
-            encoder = MAIFEncoder(agent_id="csv_converter")
-            
-            with open(csv_path, 'r') as f:
-                reader = csv.DictReader(f)
-                for i, row in enumerate(reader):
-                    encoder.add_text_block(json.dumps(row), metadata={"source": "csv", "row": i})
-            
-            encoder.build_maif(output_path, manifest_path)
-            
-            return ConversionResult(
-                success=True,
-                output_path=output_path,
-                metadata={"format": "csv", "blocks_converted": len(encoder.blocks)}
-            )
-            
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"CSV conversion failed: {str(e)}"]
-            )
-    
-    def convert_json_to_maif(self, json_path: str, output_path: str, manifest_path: str) -> ConversionResult:
-        """Convert JSON file to MAIF format."""
-        try:
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-            
-            encoder = MAIFEncoder(agent_id="json_converter")
-            
-            # Convert JSON data to MAIF blocks
-            if isinstance(data, dict):
-                for key, value in data.items():
-                    if isinstance(value, str):
-                        encoder.add_text_block(value, metadata={"source": "json", "key": key})
-                    else:
-                        encoder.add_text_block(json.dumps(value), metadata={"source": "json", "key": key, "type": "json_object"})
-            elif isinstance(data, list):
-                for i, item in enumerate(data):
-                    if isinstance(item, str):
-                        encoder.add_text_block(item, metadata={"source": "json", "index": i})
-                    else:
-                        encoder.add_text_block(json.dumps(item), metadata={"source": "json", "index": i, "type": "json_object"})
-            else:
-                encoder.add_text_block(json.dumps(data), metadata={"source": "json", "type": "json_root"})
-            
-            encoder.build_maif(output_path, manifest_path)
-            
-            return ConversionResult(
-                success=True,
-                output_path=output_path,
-                metadata={"format": "json", "blocks_converted": len(encoder.blocks)}
-            )
-            
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"JSON conversion failed: {str(e)}"]
-            )
-    
-    def convert_xml_to_maif(self, xml_path: str, output_path: str, manifest_path: str) -> ConversionResult:
-        """Convert XML file to MAIF format."""
-        try:
-            tree = ET.parse(xml_path)
-            root = tree.getroot()
-            
-            encoder = MAIFEncoder(agent_id="xml_converter")
-            
-            def process_element(element, path=""):
-                current_path = f"{path}/{element.tag}" if path else element.tag
-                
-                # Add element text if present
-                if element.text and element.text.strip():
-                    encoder.add_text_block(
-                        element.text.strip(),
-                        metadata={"source": "xml", "path": current_path, "tag": element.tag}
-                    )
-                
-                # Process attributes
-                for attr_name, attr_value in element.attrib.items():
-                    encoder.add_text_block(
-                        attr_value,
-                        metadata={"source": "xml", "path": current_path, "attribute": attr_name}
-                    )
-                
-                # Process child elements
-                for child in element:
-                    process_element(child, current_path)
-            
-            process_element(root)
-            encoder.build_maif(output_path, manifest_path)
-            
-            return ConversionResult(
-                success=True,
-                output_path=output_path,
-                metadata={"format": "xml", "blocks_converted": len(encoder.blocks)}
-            )
-            
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"XML conversion failed: {str(e)}"]
-            )
-    
-    def convert_csv_to_maif(self, csv_path: str, output_path: str, manifest_path: str) -> ConversionResult:
-        """Convert CSV file to MAIF format."""
-        try:
-            encoder = MAIFEncoder(agent_id="csv_converter")
-            
-            with open(csv_path, 'r', newline='') as csvfile:
-                reader = csv.DictReader(csvfile)
-                headers = reader.fieldnames
-                
-                # Add headers as metadata block
-                encoder.add_text_block(
-                    json.dumps(headers),
-                    metadata={"source": "csv", "type": "headers"}
-                )
-                
-                # Add each row
-                for row_num, row in enumerate(reader):
-                    for column, value in row.items():
-                        if value:  # Only add non-empty values
-                            encoder.add_text_block(
-                                value,
-                                metadata={"source": "csv", "row": row_num, "column": column}
-                            )
-            
-            encoder.build_maif(output_path, manifest_path)
-            
-            return ConversionResult(
-                success=True,
-                output_path=output_path,
-                metadata={"format": "csv", "blocks_converted": len(encoder.blocks)}
-            )
-            
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"CSV conversion failed: {str(e)}"]
-            )
-    
-    def convert_text_to_maif(self, text_path: str, output_path: str, manifest_path: str) -> ConversionResult:
-        """Convert text file to MAIF format."""
-        try:
-            with open(text_path, 'r') as f:
-                content = f.read()
-            
-            encoder = MAIFEncoder(agent_id="text_converter")
-            
-            # Split into paragraphs or lines
-            paragraphs = content.split('\n\n')
-            if len(paragraphs) == 1:
-                # No paragraph breaks, split by lines
-                lines = content.split('\n')
-                for i, line in enumerate(lines):
-                    if line.strip():
-                        encoder.add_text_block(
-                            line.strip(),
-                            metadata={"source": "text", "line": i}
-                        )
-            else:
-                # Use paragraphs
-                for i, paragraph in enumerate(paragraphs):
-                    if paragraph.strip():
-                        encoder.add_text_block(
-                            paragraph.strip(),
-                            metadata={"source": "text", "paragraph": i}
-                        )
-            
-            encoder.build_maif(output_path, manifest_path)
-            
-            return ConversionResult(
-                success=True,
-                output_path=output_path,
-                metadata={"format": "text", "blocks_converted": len(encoder.blocks)}
-            )
-            
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"Text conversion failed: {str(e)}"]
-            )
-    
-    def extract_and_convert_archive(self, archive_path: str, output_dir: str) -> ConversionResult:
-        """Extract archive and convert contents to MAIF."""
-        try:
-            extracted_files = []
-            
-            # Determine archive type and extract
-            if archive_path.endswith('.zip'):
-                with zipfile.ZipFile(archive_path, 'r') as zip_ref:
-                    zip_ref.extractall(output_dir)
-                    extracted_files = zip_ref.namelist()
-            elif archive_path.endswith(('.tar', '.tar.gz', '.tgz')):
-                with tarfile.open(archive_path, 'r:*') as tar_ref:
-                    tar_ref.extractall(output_dir)
-                    extracted_files = tar_ref.getnames()
-            else:
+            if not input_path.exists():
                 return ConversionResult(
                     success=False,
-                    warnings=["Unsupported archive format"]
+                    input_path=str(input_path),
+                    output_path="",
+                    metadata={"error": "Input file does not exist"}
                 )
             
-            # Convert extracted files
-            converted_files = []
-            warnings = []
+            # Determine output name
+            if output_name is None:
+                output_name = input_path.stem
             
-            for file_path in extracted_files:
-                full_path = os.path.join(output_dir, file_path)
-                if os.path.isfile(full_path):
-                    try:
-                        # Determine format and convert
-                        ext = os.path.splitext(file_path)[1].lower()
-                        base_name = os.path.splitext(os.path.basename(file_path))[0]
-                        
-                        maif_path = os.path.join(output_dir, f"{base_name}.maif")
-                        manifest_path = os.path.join(output_dir, f"{base_name}_manifest.json")
-                        
-                        if ext == '.json':
-                            result = self.convert_json_to_maif(full_path, maif_path, manifest_path)
-                        elif ext == '.xml':
-                            result = self.convert_xml_to_maif(full_path, maif_path, manifest_path)
-                        elif ext == '.csv':
-                            result = self.convert_csv_to_maif(full_path, maif_path, manifest_path)
-                        elif ext == '.txt':
-                            result = self.convert_text_to_maif(full_path, maif_path, manifest_path)
-                        else:
-                            continue  # Skip unsupported files
-                        
-                        if result.success:
-                            converted_files.append(maif_path)
-                        else:
-                            warnings.extend(result.warnings)
-                            
-                    except Exception as e:
-                        warnings.append(f"Failed to convert {file_path}: {str(e)}")
-            
-            return ConversionResult(
-                success=len(converted_files) > 0,
-                output_path=output_dir,
-                warnings=warnings,
-                metadata={"converted_files": converted_files, "total_extracted": len(extracted_files)}
+            # Create enhanced MAIF
+            maif = self.manager.create_maif(
+                name=output_name,
+                agent_id=self.agent_id,
+                enable_event_sourcing=enable_event_sourcing,
+                enable_columnar_storage=enable_columnar_storage,
+                enable_version_management=enable_version_management,
+                enable_adaptation_rules=enable_adaptation_rules
             )
             
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"Archive extraction failed: {str(e)}"]
-            )
-    
-    def batch_convert_directory(self, input_dir: str, output_dir: str) -> ConversionResult:
-        """Batch convert all supported files in a directory."""
-        try:
-            converted_files = []
-            warnings = []
-            
-            for root, dirs, files in os.walk(input_dir):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    ext = os.path.splitext(file)[1].lower()
-                    base_name = os.path.splitext(file)[0]
-                    
-                    # Create relative path structure in output
-                    rel_path = os.path.relpath(root, input_dir)
-                    if rel_path == '.':
-                        output_subdir = output_dir
-                    else:
-                        output_subdir = os.path.join(output_dir, rel_path)
-                        os.makedirs(output_subdir, exist_ok=True)
-                    
-                    maif_path = os.path.join(output_subdir, f"{base_name}.maif")
-                    manifest_path = os.path.join(output_subdir, f"{base_name}_manifest.json")
-                    
-                    try:
-                        if ext == '.json':
-                            result = self.convert_json_to_maif(file_path, maif_path, manifest_path)
-                        elif ext == '.xml':
-                            result = self.convert_xml_to_maif(file_path, maif_path, manifest_path)
-                        elif ext == '.csv':
-                            result = self.convert_csv_to_maif(file_path, maif_path, manifest_path)
-                        elif ext == '.txt':
-                            result = self.convert_text_to_maif(file_path, maif_path, manifest_path)
-                        else:
-                            continue  # Skip unsupported files
-                        
-                        if result.success:
-                            converted_files.append(maif_path)
-                        else:
-                            warnings.extend(result.warnings)
-                            
-                    except Exception as e:
-                        warnings.append(f"Failed to convert {file_path}: {str(e)}")
-            
-            return ConversionResult(
-                success=len(converted_files) > 0,
-                output_path=output_dir,
-                warnings=warnings,
-                metadata={"converted_files": converted_files, "total_converted": len(converted_files)}
-            )
-            
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"Batch conversion failed: {str(e)}"]
-            )
-
-
-class MAIFConverter:
-    """Legacy converter class for backward compatibility."""
-    
-    def __init__(self):
-        self.processor = EnhancedMAIFProcessor()
-        self.supported_formats = ['json', 'xml', 'csv', 'txt', 'yaml']  # Add missing attribute
-    
-    def convert_to_maif(self, input_path: str, output_path: str, manifest_path: str, format_type: str = None, input_format: str = None) -> ConversionResult:
-        """Convert file to MAIF format."""
-        # Use input_format if provided, otherwise use format_type
-        actual_format = input_format or format_type
-        
-        if actual_format is None:
-            # Auto-detect format from extension
-            ext = os.path.splitext(input_path)[1].lower()
-            format_map = {'.json': 'json', '.xml': 'xml', '.csv': 'csv', '.txt': 'txt'}
-            actual_format = format_map.get(ext, 'txt')
-        
-        if actual_format == 'json':
-            return self.processor.convert_json_to_maif(input_path, output_path, manifest_path)
-        elif actual_format == 'xml':
-            return self.processor.convert_xml_to_maif(input_path, output_path, manifest_path)
-        elif actual_format == 'csv':
-            return self.processor.convert_csv_to_maif(input_path, output_path, manifest_path)
-        elif actual_format == 'txt':
-            return self.processor.convert_text_to_maif(input_path, output_path, manifest_path)
-        else:
-            return ConversionResult(
-                success=False,
-                warnings=[f"Unsupported format: {actual_format}"]
-            )
-    
-    def export_from_maif(self, maif_path: str, output_path: str, manifest_path: str, output_format: str) -> ConversionResult:
-        """Export MAIF file to another format."""
-        try:
-            decoder = MAIFDecoder(maif_path, manifest_path)
-            
-            if output_format == 'json':
-                # Export to JSON
-                data = {
-                    "metadata": decoder.manifest,
-                    "text_blocks": decoder.get_text_blocks(),
-                    "blocks": [block.to_dict() for block in decoder.blocks]
-                }
-                
-                with open(output_path, 'w') as f:
-                    json.dump(data, f, indent=2)
-                
-                return ConversionResult(
-                    success=True,
-                    output_path=output_path,
-                    metadata={"format": "json", "blocks_exported": len(decoder.blocks)}
-                )
-            else:
-                return ConversionResult(
-                    success=False,
-                    warnings=[f"Unsupported export format: {output_format}"]
-                )
-                
-        except Exception as e:
-            return ConversionResult(
-                success=False,
-                warnings=[f"Export failed: {str(e)}"]
-            )
-
-
-class MAIFPluginManager:
-    """Plugin manager for MAIF extensions."""
-    
-    def __init__(self):
-        self.plugins = []  # Change to list for test compatibility
-        self._plugin_dict = {}  # Keep dict for internal use
-        self.hooks = {
-            'pre_conversion': [],
-            'post_conversion': [],
-            'pre_validation': [],
-            'post_validation': []
-        }
-    
-    def register_plugin(self, name: str, plugin_class):
-        """Register a plugin."""
-        self._plugin_dict[name] = plugin_class
-        self.plugins.append(name)  # Add to list for test compatibility
-    
-    def register_hook(self, hook_name: str, callback):
-        """Register a hook callback."""
-        if hook_name not in self.hooks:
-            self.hooks[hook_name] = []
-        self.hooks[hook_name].append(callback)
-    
-    def execute_hooks(self, hook_name: str, *args, **kwargs):
-        """Execute all callbacks for a hook."""
-        results = []
-        for callback in self.hooks.get(hook_name, []):
+            # Process based on file type
             try:
-                result = callback(*args, **kwargs)
-                results.append(result)
+                if input_path.suffix.lower() in ['.txt', '.md', '.csv', '.json', '.xml', '.html']:
+                    self._convert_text_file(input_path, maif)
+                elif input_path.suffix.lower() in ['.jpg', '.jpeg', '.png', '.gif', '.bmp']:
+                    self._convert_image_file(input_path, maif)
+                elif input_path.suffix.lower() in ['.mp3', '.wav', '.ogg', '.flac']:
+                    self._convert_audio_file(input_path, maif)
+                elif input_path.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']:
+                    self._convert_video_file(input_path, maif)
+                else:
+                    self._convert_binary_file(input_path, maif)
+                
+                # Save MAIF
+                maif.save()
+                
+                result = ConversionResult(
+                    success=True,
+                    input_path=str(input_path),
+                    output_path=str(maif.maif_path),
+                    metadata={
+                        "file_type": input_path.suffix.lower(),
+                        "size_bytes": input_path.stat().st_size,
+                        "maif_size_bytes": maif.metrics.size_bytes,
+                        "block_count": maif.metrics.block_count
+                    }
+                )
+                
+                self.conversion_history.append(result)
+                return result
+                
             except Exception as e:
-                results.append({"error": str(e)})
-        return results
+                logger.error(f"Error converting {input_path}: {e}")
+                return ConversionResult(
+                    success=False,
+                    input_path=str(input_path),
+                    output_path=str(maif.maif_path) if hasattr(maif, 'maif_path') else "",
+                    metadata={"error": str(e)}
+                )
     
-    def get_plugin(self, name: str):
-        """Get a registered plugin."""
-        return self._plugin_dict.get(name)
+    def extract_from_maif(self, maif_name: str, output_dir: Optional[str] = None,
+                         extract_type: str = "all") -> ConversionResult:
+        """
+        Extract content from a MAIF file.
+        
+        Args:
+            maif_name: Name of the MAIF to extract from
+            output_dir: Directory for extracted files
+            extract_type: Type of content to extract (all, text, images, audio, video)
+            
+        Returns:
+            Conversion result
+        """
+        with self._lock:
+            # Get MAIF
+            maif = self.manager.get_maif(maif_name)
+            if maif is None:
+                return ConversionResult(
+                    success=False,
+                    input_path=maif_name,
+                    output_path="",
+                    metadata={"error": f"MAIF {maif_name} not found"}
+                )
+            
+            # Determine output directory
+            if output_dir is None:
+                output_dir = self.workspace_dir / f"{maif_name}_extracted"
+            else:
+                output_dir = Path(output_dir)
+            
+            output_dir.mkdir(parents=True, exist_ok=True)
+            
+            try:
+                # Load MAIF
+                decoder = MAIFDecoder(str(maif.maif_path), str(maif.manifest_path))
+                
+                # Extract content
+                extracted_files = []
+                
+                for block in decoder.blocks:
+                    if extract_type != "all" and block.block_type != extract_type:
+                        continue
+                    
+                    output_path = self._extract_block(block, output_dir)
+                    if output_path:
+                        extracted_files.append(output_path)
+                
+                result = ConversionResult(
+                    success=True,
+                    input_path=str(maif.maif_path),
+                    output_path=str(output_dir),
+                    metadata={
+                        "extracted_files": extracted_files,
+                        "file_count": len(extracted_files)
+                    }
+                )
+                
+                self.conversion_history.append(result)
+                return result
+                
+            except Exception as e:
+                logger.error(f"Error extracting from {maif_name}: {e}")
+                return ConversionResult(
+                    success=False,
+                    input_path=str(maif.maif_path) if hasattr(maif, 'maif_path') else "",
+                    output_path=str(output_dir),
+                    metadata={"error": str(e)}
+                )
     
-    def list_plugins(self) -> List[str]:
-        """List all registered plugins."""
-        return list(self._plugin_dict.keys())
+    def _convert_text_file(self, input_path: Path, maif: EnhancedMAIF):
+        """Convert a text file to MAIF."""
+        with open(input_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        metadata = {
+            "filename": input_path.name,
+            "file_type": input_path.suffix.lower(),
+            "size_bytes": input_path.stat().st_size,
+            "created": input_path.stat().st_ctime,
+            "modified": input_path.stat().st_mtime
+        }
+        
+        maif.add_text_block(content, metadata)
+    
+    def _convert_image_file(self, input_path: Path, maif: EnhancedMAIF):
+        """Convert an image file to MAIF."""
+        with open(input_path, 'rb') as f:
+            content = f.read()
+        
+        metadata = {
+            "filename": input_path.name,
+            "file_type": input_path.suffix.lower(),
+            "size_bytes": input_path.stat().st_size,
+            "created": input_path.stat().st_ctime,
+            "modified": input_path.stat().st_mtime
+        }
+        
+        maif.add_binary_block(content, "image", metadata)
+    
+    def _convert_audio_file(self, input_path: Path, maif: EnhancedMAIF):
+        """Convert an audio file to MAIF."""
+        with open(input_path, 'rb') as f:
+            content = f.read()
+        
+        metadata = {
+            "filename": input_path.name,
+            "file_type": input_path.suffix.lower(),
+            "size_bytes": input_path.stat().st_size,
+            "created": input_path.stat().st_ctime,
+            "modified": input_path.stat().st_mtime
+        }
+        
+        maif.add_binary_block(content, "audio", metadata)
+    
+    def _convert_video_file(self, input_path: Path, maif: EnhancedMAIF):
+        """Convert a video file to MAIF."""
+        with open(input_path, 'rb') as f:
+            content = f.read()
+        
+        metadata = {
+            "filename": input_path.name,
+            "file_type": input_path.suffix.lower(),
+            "size_bytes": input_path.stat().st_size,
+            "created": input_path.stat().st_ctime,
+            "modified": input_path.stat().st_mtime
+        }
+        
+        maif.add_binary_block(content, "video", metadata)
+    
+    def _convert_binary_file(self, input_path: Path, maif: EnhancedMAIF):
+        """Convert a binary file to MAIF."""
+        with open(input_path, 'rb') as f:
+            content = f.read()
+        
+        metadata = {
+            "filename": input_path.name,
+            "file_type": input_path.suffix.lower(),
+            "size_bytes": input_path.stat().st_size,
+            "created": input_path.stat().st_ctime,
+            "modified": input_path.stat().st_mtime
+        }
+        
+        maif.add_binary_block(content, "binary", metadata)
+    
+    def _extract_block(self, block: MAIFBlock, output_dir: Path) -> Optional[str]:
+        """Extract a block to a file."""
+        try:
+            # Determine filename
+            if block.metadata and "filename" in block.metadata:
+                filename = block.metadata["filename"]
+            else:
+                if block.block_type == "text":
+                    filename = f"{block.block_id}.txt"
+                elif block.block_type == "image":
+                    filename = f"{block.block_id}.png"
+                elif block.block_type == "audio":
+                    filename = f"{block.block_id}.mp3"
+                elif block.block_type == "video":
+                    filename = f"{block.block_id}.mp4"
+                else:
+                    filename = f"{block.block_id}.bin"
+            
+            output_path = output_dir / filename
+            
+            # Write content
+            if block.block_type == "text":
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(block.content)
+            else:
+                with open(output_path, 'wb') as f:
+                    f.write(block.content)
+            
+            return str(output_path)
+            
+        except Exception as e:
+            logger.error(f"Error extracting block {block.block_id}: {e}")
+            return None
+    
+    def get_conversion_history(self) -> List[ConversionResult]:
+        """Get history of conversions."""
+        with self._lock:
+            return self.conversion_history.copy()

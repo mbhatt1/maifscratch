@@ -157,7 +157,81 @@ class BaseAgent:
     
     def contribute(self, query: str, context: Dict[str, Any] = None) -> AgentContribution:
         """Generate a contribution to the consortium's work."""
-        raise NotImplementedError("Subclasses must implement contribute method")
+        # Create prompt based on agent specialization and context
+        prompt = f"As a {self.agent_type} specializing in {self.specialization}, provide analysis for: {query}"
+        
+        # Add context information if available
+        if context:
+            prompt += "\n\nContext information:\n"
+            for key, value in context.items():
+                prompt += f"- {key}: {value}\n"
+        
+        # Generate content using OpenAI or fallback
+        response_content = self._call_openai(prompt)
+        
+        # Parse response and structure as needed
+        try:
+            # Try to parse as JSON if possible
+            content = json.loads(response_content)
+        except json.JSONDecodeError:
+            # If not valid JSON, use as raw text
+            content = {"text": response_content}
+        
+        # Calculate confidence based on iteration count (higher iterations = higher confidence)
+        base_confidence = 0.7
+        iteration_bonus = min(0.2, self.iteration_count * 0.05)  # Max 0.2 bonus for iterations
+        confidence = base_confidence + iteration_bonus
+        
+        # Create contribution object
+        contribution = AgentContribution(
+            agent_id=self.agent_id,
+            agent_type=self.agent_type,
+            contribution_type=self.specialization,
+            content=content,
+            confidence=confidence,
+            dependencies=[d for d in context.keys()] if context else [],
+            metadata={
+                "timestamp": time.time(),
+                "iteration": self.iteration_count,
+                "query": query
+            }
+        )
+        
+        # Store contribution in MAIF
+        self._store_contribution(contribution)
+        
+        # Add to agent's contribution history
+        self.contributions.append(contribution)
+        
+        return contribution
+        
+    def _store_contribution(self, contribution: AgentContribution):
+        """Store contribution in MAIF with appropriate metadata."""
+        # Convert contribution to JSON
+        contribution_json = json.dumps({
+            "agent_id": contribution.agent_id,
+            "agent_type": contribution.agent_type,
+            "contribution_type": contribution.contribution_type,
+            "content": contribution.content,
+            "confidence": contribution.confidence,
+            "dependencies": contribution.dependencies,
+            "metadata": contribution.metadata
+        })
+        
+        # Store in MAIF with appropriate block type and metadata
+        block_id = self.maif.encoder.add_binary_block(
+            contribution_json.encode('utf-8'),
+            "contribution",
+            metadata={
+                "agent_id": self.agent_id,
+                "timestamp": time.time(),
+                "iteration": self.iteration_count,
+                "confidence": contribution.confidence
+            }
+        )
+        
+        # Track content block ID for future updates
+        self.content_blocks[f"contribution_{self.iteration_count}"] = block_id
     
     def refine_contribution(self, original_contribution: AgentContribution,
                           feedback: Dict[str, Any]) -> AgentContribution:

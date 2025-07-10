@@ -291,7 +291,7 @@ class MAIFBinaryWriter:
             block_count=len(self.blocks),
             index_offset=index_offset,
             metadata_offset=metadata_offset,
-            checksum=b'\x00' * 32,  # Placeholder
+            checksum=hashlib.sha256(b''.join([header.pack() + data for header, data in self.blocks])).digest(),
             reserved=b'\x00' * 32
         )
         

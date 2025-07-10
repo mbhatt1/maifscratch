@@ -498,21 +498,125 @@ def create_acid_enabled_encoder(maif_path: str, acid_level: ACIDLevel = ACIDLeve
     encoder._acid_level = acid_level
     
     # Override methods to use transactions
-    original_add_block = encoder._add_block
-    
-    def transactional_add_block(block_type: str, data: bytes, metadata: Dict = None, 
-                               update_block_id: str = None, privacy_policy = None) -> str:
-        """Add block with transaction support."""
-        if acid_level == ACIDLevel.PERFORMANCE:
-            # Use original method for maximum performance
-            return original_add_block(block_type, data, metadata, update_block_id, privacy_policy)
-        
-        # Use transaction for ACID compliance
-        with MAIFTransaction(encoder._transaction_manager) as txn:
-            block_id = update_block_id or str(uuid.uuid4())
-            txn.write_block(block_id, data, metadata or {})
-            return block_id
-    
-    encoder._add_block = transactional_add_block
     
     return encoder
+
+
+class AcidMAIFEncoder:
+    """
+    MAIF encoder with ACID transaction support.
+    
+    This class provides a wrapper around the standard MAIFEncoder with
+    added ACID transaction capabilities for reliable data storage.
+    """
+    
+    def __init__(self, maif_path: str = None, acid_level: ACIDLevel = ACIDLevel.FULL_ACID,
+                agent_id: str = None):
+        """
+        Initialize an ACID-compliant MAIF encoder.
+        
+        Args:
+            maif_path: Path to the MAIF file
+            acid_level: ACID compliance level
+            agent_id: ID of the agent using this encoder
+        """
+        from .core import MAIFEncoder
+        
+        self.maif_path = maif_path or f"maif_{int(time.time())}.maif"
+        self.acid_level = acid_level
+        self.agent_id = agent_id
+        
+        # Create base encoder
+        self._encoder = MAIFEncoder(agent_id=agent_id)
+        
+        # Add transaction manager
+        self._transaction_manager = ACIDTransactionManager(self.maif_path, acid_level)
+        
+        # Current transaction context
+        self._current_transaction = None
+    
+    def begin_transaction(self) -> str:
+        """Begin a new transaction."""
+        if self._current_transaction:
+            self.commit_transaction()
+            
+        self._current_transaction = self._transaction_manager.begin_transaction()
+        return self._current_transaction
+    
+    def commit_transaction(self) -> bool:
+        """Commit the current transaction."""
+        if not self._current_transaction:
+            return False
+            
+        result = self._transaction_manager.commit_transaction(self._current_transaction)
+        self._current_transaction = None
+        return result
+    
+    def abort_transaction(self) -> bool:
+        """Abort the current transaction."""
+        if not self._current_transaction:
+            return False
+            
+        result = self._transaction_manager.abort_transaction(self._current_transaction)
+        self._current_transaction = None
+        return result
+    
+    def add_text_block(self, text: str, metadata: Dict = None) -> str:
+        """Add a text block with transaction support."""
+        # Ensure we have a transaction
+        if not self._current_transaction:
+            self.begin_transaction()
+            
+        # Add block to base encoder
+        block_id = self._encoder.add_text_block(text, metadata)
+        
+        # Add to transaction
+        data = text.encode('utf-8')
+        self._transaction_manager.write_block(
+            self._current_transaction,
+            block_id,
+            data,
+            metadata or {}
+        )
+        
+        return block_id
+    
+    def add_binary_block(self, data: bytes, block_type: str, metadata: Dict = None) -> str:
+        """Add a binary block with transaction support."""
+        # Ensure we have a transaction
+        if not self._current_transaction:
+            self.begin_transaction()
+            
+        # Add block to base encoder
+        block_id = self._encoder.add_binary_block(data, block_type, metadata)
+        
+        # Add to transaction
+        self._transaction_manager.write_block(
+            self._current_transaction,
+            block_id,
+            data,
+            metadata or {}
+        )
+        
+        return block_id
+    
+    def save(self, maif_path: str = None, manifest_path: str = None) -> bool:
+        """Save MAIF file with transaction support."""
+        # Commit any pending transaction
+        if self._current_transaction:
+            self.commit_transaction()
+            
+        # Save using base encoder
+        return self._encoder.save(
+            maif_path or self.maif_path,
+            manifest_path or f"{self.maif_path}.json"
+        )
+    
+    def get_performance_stats(self) -> Dict[str, Any]:
+        """Get transaction performance statistics."""
+        return self._transaction_manager.get_performance_stats()
+    
+    def __del__(self):
+        """Cleanup resources."""
+        if hasattr(self, '_transaction_manager'):
+            self._transaction_manager.close()
