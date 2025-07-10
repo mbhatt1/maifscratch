@@ -7,6 +7,8 @@ docs/.vitepress/cache/
 docs/.vitepress/dist/
 
 # Python
+*.maif
+*.blocks
 __pycache__/
 *.py[cod]
 *$py.class
