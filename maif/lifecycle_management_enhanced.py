@@ -545,6 +545,13 @@ class EnhancedSelfGoverningMAIF:
             
             archive_path = archive_dir / f"{self.maif_path.name}.gz"
             
+            # Check if the MAIF file exists
+            if not self.maif_path.exists():
+                logger.info(f"MAIF file {self.maif_path} does not exist, creating an empty file")
+                # Create an empty MAIF file using the encoder
+                self.optimizer.encoder.build_maif(str(self.maif_path), str(self.maif_path.with_suffix('.json')))
+                logger.info(f"Created empty MAIF file {self.maif_path}")
+            
             import gzip
             with open(self.maif_path, 'rb') as f_in:
                 with gzip.open(archive_path, 'wb') as f_out:
