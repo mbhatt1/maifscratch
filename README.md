@@ -1,6 +1,7 @@
 # AI Trust with Artifact-Centric Agentic Paradigm using MAIF
 
 ## 🚀 Trustworthy AI Through Artifact-Centric Design
+Deepwiki - https://deepwiki.com/vineethsai/maifscratch-1/1-maif-overview
 
 [![Implementation Status](https://img.shields.io/badge/Status-Reference%20Implementation-blue.svg)](https://github.com/your-repo/maif)
 [![Paper Alignment](https://img.shields.io/badge/Paper%20Alignment-92%25-brightgreen.svg)](#implementation-analysis)
