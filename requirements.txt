@@ -1,30 +1,42 @@
 # Core dependencies
 numpy>=1.21.0
 cryptography>=3.4.8
+pydantic>=2.0.0       # For data validation
+structlog>=23.0.0     # For structured logging
+tenacity>=8.0.0       # For retry logic
+
+# AWS dependencies
+boto3>=1.26.0         # For AWS services integration
+botocore>=1.29.0      # For AWS low-level interface
 
 # Optional dependencies for enhanced functionality
 sentence-transformers>=2.2.0  # For semantic embeddings
-faiss-cpu>=1.7.0  # For efficient similarity search
+faiss-cpu>=1.7.0      # For efficient similarity search
 opencv-python>=4.5.0  # For video/image processing
 
-# New dependencies for enhanced file format features
-aiofiles>=0.8.0      # For async file operations
-brotli>=1.0.9        # For Brotli compression
-zstandard>=0.18.0    # For Zstandard compression
-xxhash>=3.0.0        # For fast hashing
-msgpack>=1.0.4       # For efficient serialization
-jsonschema>=4.0.0    # For schema validation
-click>=8.0.0         # For CLI interface
-tqdm>=4.64.0         # For progress bars
-psutil>=5.8.0        # For system monitoring
-networkx>=2.6.0      # For knowledge graphs
-matplotlib>=3.4.0    # For visualization
-pillow>=8.3.0        # For image processing
-scipy>=1.7.0         # For scientific computing
-lz4>=4.0.0           # For LZ4 compression
-numba>=0.56.0        # For performance optimization
+# File format features
+aiofiles>=0.8.0       # For async file operations
+brotli>=1.0.9         # For Brotli compression
+zstandard>=0.18.0     # For Zstandard compression
+xxhash>=3.0.0         # For fast hashing
+msgpack>=1.0.4        # For efficient serialization
+jsonschema>=4.0.0     # For schema validation
+click>=8.0.0          # For CLI interface
+tqdm>=4.64.0          # For progress bars
+psutil>=5.8.0         # For system monitoring
+networkx>=2.6.0       # For knowledge graphs
+matplotlib>=3.4.0     # For visualization
+pillow>=8.3.0         # For image processing
+scipy>=1.7.0          # For scientific computing
+lz4>=4.0.0            # For LZ4 compression
+numba>=0.56.0         # For performance optimization
+
+# Production monitoring
+prometheus-client>=0.16.0  # For metrics export
 
 # Development dependencies
 pytest>=6.0.0
 pytest-cov>=2.12.0
+pytest-asyncio>=0.21.0
 black>=21.0.0
+mypy>=1.0.0
