@@ -97,8 +97,8 @@ class EnhancedStreamAccessController(StreamAccessController):
             return AccessDecision.DENY
         
         # Check session-specific nonce
-        if session_id in self.sessions:
-            session = self.sessions[session_id]
+        if session_id in self.active_sessions:
+            session = self.active_sessions[session_id]
             
             # Add nonce tracking to session if not present
             if not hasattr(session, 'nonce_history'):
@@ -131,10 +131,10 @@ class EnhancedStreamAccessController(StreamAccessController):
     
     def _check_mfa_requirement(self, session_id: str, operation: str, block_type: str) -> AccessDecision:
         """Check if MFA is required and verified for this operation."""
-        if session_id not in self.sessions:
+        if session_id not in self.active_sessions:
             return AccessDecision.DENY
         
-        session = self.sessions[session_id]
+        session = self.active_sessions[session_id]
         
         # Add MFA tracking to session if not present
         if not hasattr(session, 'mfa_verified'):
@@ -163,10 +163,10 @@ class EnhancedStreamAccessController(StreamAccessController):
     
     def _analyze_behavioral_pattern(self, session_id: str, operation: str, block_type: str) -> AccessDecision:
         """Analyze user behavior for anomalies."""
-        if session_id not in self.sessions:
+        if session_id not in self.active_sessions:
             return AccessDecision.DENY
         
-        session = self.sessions[session_id]
+        session = self.active_sessions[session_id]
         current_time = time.time()
         
         # Add behavioral tracking to session if not present

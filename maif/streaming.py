@@ -118,6 +118,11 @@ class MAIFStreamReader:
         if not self.decoder or not self.decoder.blocks:
             return
         
+        if not self.file_handle:
+            # File handle not initialized, fall back to regular I/O
+            yield from self._stream_blocks_optimized()
+            return
+            
         try:
             with mmap.mmap(self.file_handle.fileno(), 0, access=mmap.ACCESS_READ) as mm:
                 # Optimize memory access pattern - check platform support
