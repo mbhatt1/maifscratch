@@ -8,6 +8,7 @@ Deepwiki - https://deepwiki.com/vineethsai/maifscratch-1/1-maif-overview
 [![Novel Algorithms](https://img.shields.io/badge/Algorithms-ACAM%20%7C%20HSC%20%7C%20CSB-orange.svg)](#novel-algorithms)
 [![Security Model](https://img.shields.io/badge/Security-Cryptographic%20Provenance-red.svg)](#security-features)
 [![AWS Integration](https://img.shields.io/badge/AWS-Production%20Ready-yellow.svg)](#aws-integration)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](#docker-deployment)
 
 > **The AI trustworthiness crisis threatens to derail the entire artificial intelligence revolution.** Current AI systems operate on fundamentally opaque data structures that cannot provide the audit trails, provenance tracking, or explainability required by emerging regulations like the EU AI Act.
 > MAIF is the sock to stuff all your data, system state into. 
@@ -56,9 +57,16 @@ Deepwiki - https://deepwiki.com/vineethsai/maifscratch-1/1-maif-overview
 ### ☁️ **Production AWS Integration**
 - **Seamless Backend Switch**: Just set `use_aws=True` in MAIFClient
 - **Auto-Scaling**: Lambda for event-driven, ECS/Fargate for long-running
-- **Managed Services**: S3, DynamoDB, Bedrock, Step Functions
+- **Managed Services**: S3, DynamoDB, Bedrock, Step Functions, Kinesis
 - **Enterprise Security**: IAM roles, VPC support, KMS encryption
 - **Cost Optimization**: Built-in tracking, budgets, and alerts
+
+### 🏭 **Production Infrastructure**
+- **Configuration Management**: Environment-based config with validation ([`maif/config.py`](maif/config.py))
+- **Structured Logging**: JSON logging with AWS context and sanitization ([`maif/logging_config.py`](maif/logging_config.py))
+- **Error Handling**: Comprehensive error categorization and retry logic ([`maif/error_handling.py`](maif/error_handling.py))
+- **Health Monitoring**: Built-in health checks and readiness probes ([`maif/health_check.py`](maif/health_check.py))
+- **Rate Limiting**: Token bucket algorithm with cost-based limiting ([`maif/rate_limiter.py`](maif/rate_limiter.py))
 
 ### 📦 **MAIF Container Format**
 - **Hierarchical Blocks**: ISO BMFF-inspired structure with FourCC identifiers ([`maif/block_types.py`](maif/block_types.py:12-29))
@@ -216,6 +224,54 @@ processor = BatchProcessor(
 results = await processor.process_batch(large_dataset)
 ```
 
+## 🐳 Docker Deployment
+
+### Quick Start with Docker
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Or use the Makefile
+make docker-build
+make docker-run
+
+# View logs
+make docker-logs
+```
+
+### Production Configuration
+
+```bash
+# Copy environment template
+cp .env.example .env
+
+# Edit configuration
+vim .env
+
+# Run production stack (includes monitoring)
+docker-compose -f docker-compose.yml up -d
+```
+
+### Local Development
+
+```bash
+# Setup development environment
+make dev-setup
+
+# Run tests
+make test
+
+# Run linting
+make lint
+
+# Format code
+make format
+
+# Run locally with hot reload
+make run-local
+```
+
 ## 📊 Performance & Scalability
 
 ### Core Performance Metrics
@@ -300,6 +356,16 @@ agent.metrics.reasoning_completed(agent_id, "cot", 890.2)
 ```
 
 ## 🛠️ Production Deployment
+
+### Infrastructure as Code
+
+```bash
+# Deploy complete infrastructure
+aws cloudformation deploy \
+  --template-file cloudformation/maif-infrastructure.yaml \
+  --stack-name maif-production \
+  --capabilities CAPABILITY_IAM
+```
 
 ### Lambda Deployment
 
@@ -423,6 +489,18 @@ print(f"Top service: {report['cost_by_service']}")
 
 ## 🔐 Security Best Practices
 
+### Configuration Management
+
+```bash
+# Production configuration via environment variables
+export MAIF_ENVIRONMENT=production
+export MAIF_LOG_LEVEL=INFO
+export MAIF_S3_BUCKET=maif-artifacts
+export MAIF_KMS_KEY_ID=alias/maif-production
+export MAIF_RATE_LIMIT_ENABLED=true
+export MAIF_ENABLE_ENCRYPTION=true
+```
+
 ### IAM Roles
 
 ```json
@@ -501,6 +579,23 @@ We welcome contributions! Whether you're fixing bugs, adding features, or improv
 - 💡 **Feature Requests**: [GitHub Discussions](https://github.com/maif-ai/maif/discussions)
 - 📖 **Improve Docs**: Submit PRs for documentation improvements
 - 🧪 **Add Tests**: Help us maintain high code quality
+
+### Development Setup
+
+```bash
+# Clone repository
+git clone https://github.com/maif-ai/maif.git
+cd maif
+
+# Setup development environment
+make dev-setup
+
+# Run tests
+make test
+
+# Build documentation
+make docs
+```
 
 ## 📄 License
 
