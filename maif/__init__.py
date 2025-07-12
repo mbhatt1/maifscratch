@@ -9,7 +9,7 @@ Production-ready with seamless AWS integration.
 """
 
 from .core import MAIFEncoder, MAIFDecoder, MAIFParser, MAIFBlock, MAIFVersion
-from .signature_verification import MAIFSigner, MAIFVerifier
+from .security import MAIFSigner, MAIFVerifier
 from .privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode, AccessRule, DifferentialPrivacy, SecureMultipartyComputation, ZeroKnowledgeProof
 from .semantic import (
     SemanticEmbedder, SemanticEmbedding, KnowledgeTriple,
@@ -30,8 +30,9 @@ try:
 except ImportError:
     ENHANCED_ALGORITHMS_AVAILABLE = False
 
-from .forensics import ForensicAnalyzer, ForensicReport, ForensicEvidence
-from .compression_manager import CompressionEngine, CompressionMetadata
+from .forensics import ForensicAnalyzer, ForensicEvidence
+from .compression_manager import CompressionManager
+from .compression import CompressionMetadata
 from .binary_format import MAIFBinaryParser, MAIFBinaryWriter
 from .validation import MAIFValidator, MAIFRepairTool
 from .metadata import MAIFMetadataManager
@@ -122,11 +123,10 @@ __all__ = [
     
     # Forensics
     'ForensicAnalyzer',
-    'ForensicReport',
     'ForensicEvidence',
     
     # Compression
-    'CompressionEngine',
+    'CompressionManager',
     'CompressionMetadata',
     
     # Binary Format

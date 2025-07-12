@@ -102,19 +102,21 @@ def verify_and_analyze_maif(maif_path, manifest_path):
     # Perform forensic analysis
     print("\nPerforming forensic analysis...")
     forensic_analyzer = ForensicAnalyzer()
-    report = forensic_analyzer.analyze_maif(parser, verifier)
+    report = forensic_analyzer.analyze_maif_file(maif_path, manifest_path)
     
-    print(f"✓ Forensic status: {report.integrity_status}")
-    print(f"✓ Events analyzed: {report.events_analyzed}")
-    print(f"✓ Tampering detected: {report.tampering_detected}")
+    print(f"✓ Forensic status: {report.get('status', 'analyzed')}")
+    print(f"✓ Risk assessment: {report.get('risk_assessment', {}).get('overall_risk', 'unknown')}")
+    print(f"✓ Total evidence: {report.get('total_evidence', 0)}")
     
-    if report.evidence:
-        print(f"⚠ Found {len(report.evidence)} pieces of evidence:")
-        for evidence in report.evidence:
-            print(f"  - {evidence.severity.upper()}: {evidence.description}")
+    evidence_list = report.get('evidence', [])
+    if evidence_list:
+        print(f"⚠ Found {len(evidence_list)} pieces of evidence:")
+        for evidence in evidence_list[:3]:  # Show first 3
+            print(f"  - {evidence.get('severity', 'unknown').upper()}: {evidence.get('description', 'No description')}")
     
-    print(f"✓ Recommendations: {len(report.recommendations)}")
-    for rec in report.recommendations[:3]:  # Show first 3 recommendations
+    recommendations = report.get('recommendations', [])
+    print(f"✓ Recommendations: {len(recommendations)}")
+    for rec in recommendations[:3]:  # Show first 3 recommendations
         print(f"  - {rec}")
     
     return report
@@ -179,7 +181,7 @@ def main():
         
         # Save forensic report
         with open("forensic_report.json", "w") as f:
-            json.dump(report.to_dict(), f, indent=2)
+            json.dump(report, f, indent=2, default=str)
         print(f"\n✓ Forensic report saved: forensic_report.json")
         
         print("\n" + "=" * 50)
