@@ -12,6 +12,7 @@ import hashlib
 import base64
 import logging
 import datetime
+import threading
 from typing import Dict, List, Optional, Any, Union, Tuple, Set
 import boto3
 from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError, Throttling
@@ -130,6 +131,9 @@ class BedrockClient:
                 "request_latencies": []
             }
             
+            # Thread safety
+            self._lock = threading.RLock()
+            
             logger.info("Bedrock client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize Bedrock client: {e}", exc_info=True)
@@ -151,7 +155,8 @@ class BedrockClient:
             BedrockError: For non-retryable errors or if max retries exceeded
         """
         start_time = time.time()
-        self.metrics["total_requests"] += 1
+        with self._lock:
+            self.metrics["total_requests"] += 1
         
         retries = 0
         last_exception = None
@@ -162,13 +167,14 @@ class BedrockClient:
                 result = operation_func(*args, **kwargs)
                 
                 # Record success metrics
-                self.metrics["successful_requests"] += 1
-                latency = time.time() - start_time
-                self.metrics["request_latencies"].append(latency)
-                
-                # Trim latencies list if it gets too large
-                if len(self.metrics["request_latencies"]) > 1000:
-                    self.metrics["request_latencies"] = self.metrics["request_latencies"][-1000:]
+                with self._lock:
+                    self.metrics["successful_requests"] += 1
+                    latency = time.time() - start_time
+                    self.metrics["request_latencies"].append(latency)
+                    
+                    # Trim latencies list if it gets too large
+                    if len(self.metrics["request_latencies"]) > 1000:
+                        self.metrics["request_latencies"] = self.metrics["request_latencies"][-1000:]
                 
                 logger.debug(f"{operation_name} completed successfully in {latency:.2f}s")
                 return result
@@ -180,7 +186,8 @@ class BedrockClient:
                 # Check if this is a retryable error
                 if error_code in self.RETRYABLE_ERRORS and retries < self.max_retries:
                     retries += 1
-                    self.metrics["retried_requests"] += 1
+                    with self._lock:
+                        self.metrics["retried_requests"] += 1
                     delay = min(self.max_delay, self.base_delay * (2 ** retries))
                     
                     logger.warning(
@@ -192,7 +199,8 @@ class BedrockClient:
                     last_exception = e
                 else:
                     # Non-retryable error or max retries exceeded
-                    self.metrics["failed_requests"] += 1
+                    with self._lock:
+                        self.metrics["failed_requests"] += 1
                     
                     if error_code in self.RETRYABLE_ERRORS:
                         logger.error(
@@ -211,7 +219,8 @@ class BedrockClient:
                 # Network-related errors
                 if retries < self.max_retries:
                     retries += 1
-                    self.metrics["retried_requests"] += 1
+                    with self._lock:
+                        self.metrics["retried_requests"] += 1
                     delay = min(self.max_delay, self.base_delay * (2 ** retries))
                     
                     logger.warning(
@@ -222,13 +231,15 @@ class BedrockClient:
                     time.sleep(delay)
                     last_exception = e
                 else:
-                    self.metrics["failed_requests"] += 1
+                    with self._lock:
+                        self.metrics["failed_requests"] += 1
                     logger.error(f"{operation_name} failed after {retries} retries due to connection error", exc_info=True)
                     raise BedrockConnectionError(f"Connection error: {str(e)}. Max retries exceeded.")
             
             except Exception as e:
                 # Unexpected errors
-                self.metrics["failed_requests"] += 1
+                with self._lock:
+                    self.metrics["failed_requests"] += 1
                 logger.error(f"Unexpected error in {operation_name}: {str(e)}", exc_info=True)
                 raise BedrockError(f"Unexpected error: {str(e)}")
         
@@ -259,12 +270,13 @@ class BedrockClient:
             "success": True
         }
         
-        # Add to history
-        self.request_history.append(request_record)
-        
-        # Limit history size
-        if len(self.request_history) > self.max_history_size:
-            self.request_history = self.request_history[-self.max_history_size:]
+        # Add to history with thread safety
+        with self._lock:
+            self.request_history.append(request_record)
+            
+            # Limit history size
+            if len(self.request_history) > self.max_history_size:
+                self.request_history = self.request_history[-self.max_history_size:]
         
         logger.debug(f"Recorded {request_type} request for model {model_id}")
     
@@ -279,9 +291,10 @@ class BedrockClient:
             BedrockError: If an error occurs while listing models
         """
         # Check if cache is valid
-        if self.model_info_cache and time.time() < self.model_cache_expiry:
-            logger.debug("Returning cached model list")
-            return list(self.model_info_cache.values())
+        with self._lock:
+            if self.model_info_cache and time.time() < self.model_cache_expiry:
+                logger.debug("Returning cached model list")
+                return list(self.model_info_cache.values())
         
         logger.info("Fetching available Bedrock models")
         
@@ -293,8 +306,9 @@ class BedrockClient:
         models = self._execute_with_retry("list_models", list_models_operation)
         
         # Update cache
-        self.model_info_cache = {model['modelId']: model for model in models}
-        self.model_cache_expiry = time.time() + 3600  # Cache expires after 1 hour
+        with self._lock:
+            self.model_info_cache = {model['modelId']: model for model in models}
+            self.model_cache_expiry = time.time() + 3600  # Cache expires after 1 hour
         
         logger.info(f"Found {len(models)} available Bedrock models")
         return models
@@ -333,8 +347,8 @@ class BedrockClient:
         if temperature < 0 or temperature > 1:
             raise BedrockValidationError("temperature must be between 0 and 1")
         
-        if top_p <= 0 or top_p > 1:
-            raise BedrockValidationError("top_p must be between 0 and 1")
+        if not isinstance(top_p, (int, float)) or top_p <= 0 or top_p > 1:
+            raise BedrockValidationError("top_p must be between 0 and 1 (exclusive)")
         
         logger.info(f"Invoking text model {model_id}")
         logger.debug(f"Prompt: {prompt[:100]}{'...' if len(prompt) > 100 else ''}")
@@ -438,6 +452,14 @@ class BedrockClient:
         
         if not texts:
             raise BedrockValidationError("texts cannot be empty")
+        
+        if not isinstance(texts, list):
+            raise BedrockValidationError("texts must be a list")
+        
+        # Validate each text
+        for i, text in enumerate(texts):
+            if not isinstance(text, str):
+                raise BedrockValidationError(f"texts[{i}] must be a string")
         
         logger.info(f"Generating embeddings with model {model_id} for {len(texts)} texts")
         
@@ -632,6 +654,9 @@ class MAIFBedrockIntegration:
             "cache_evictions": 0
         }
         
+        # Thread safety
+        self._lock = threading.RLock()
+        
         logger.info("MAIF Bedrock integration initialized successfully")
     
     def set_default_models(self, text_model: Optional[str] = None, 
@@ -665,30 +690,32 @@ class MAIFBedrockIntegration:
     
     def _clean_embedding_cache(self):
         """Clean expired entries from embedding cache."""
-        current_time = time.time()
-        expired_keys = [
-            key for key, value in self.embedding_cache.items()
-            if current_time > value.get("expiry", 0)
-        ]
-        
-        for key in expired_keys:
-            del self.embedding_cache[key]
-            self.metrics["cache_evictions"] += 1
-        
-        # If cache is still too large, remove oldest entries
-        if len(self.embedding_cache) > self.embedding_cache_max_size:
-            # Sort by access time (oldest first)
-            sorted_items = sorted(
-                self.embedding_cache.items(),
-                key=lambda x: x[1].get("last_access", 0)
-            )
+        with self._lock:
+            current_time = time.time()
+            expired_keys = [
+                key for key, value in self.embedding_cache.items()
+                if current_time > value.get("expiry", 0)
+            ]
             
-            # Remove oldest entries
-            for key, _ in sorted_items[:len(sorted_items) - self.embedding_cache_max_size]:
+            for key in expired_keys:
                 del self.embedding_cache[key]
                 self.metrics["cache_evictions"] += 1
-        
-        logger.debug(f"Cleaned embedding cache: {len(expired_keys)} expired entries removed")
+            
+            # If cache is still too large, remove oldest entries
+            if len(self.embedding_cache) > self.embedding_cache_max_size:
+                # Sort by access time (oldest first)
+                sorted_items = sorted(
+                    self.embedding_cache.items(),
+                    key=lambda x: x[1].get("last_access", 0)
+                )
+                
+                # Remove oldest entries
+                num_to_remove = len(self.embedding_cache) - self.embedding_cache_max_size
+                for key, _ in sorted_items[:num_to_remove]:
+                    del self.embedding_cache[key]
+                    self.metrics["cache_evictions"] += 1
+            
+            logger.debug(f"Cleaned embedding cache: {len(expired_keys)} expired entries removed")
     
     def generate_text_block(self, prompt: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -716,6 +743,10 @@ class MAIFBedrockIntegration:
                 self.default_text_model,
                 prompt
             )
+            
+            if text is None:
+                raise BedrockError("Text generation returned None")
+                
         except BedrockError as e:
             logger.error(f"Failed to generate text: {e}")
             text = f"Error generating text: {str(e)}"
@@ -733,13 +764,14 @@ class MAIFBedrockIntegration:
         
         # Generate embeddings
         try:
-            embeddings = self.bedrock_client.generate_embeddings(
-                self.default_embedding_model,
-                [text]
-            )
-            
-            if embeddings and len(embeddings) > 0:
-                metadata["embedding"] = embeddings[0]
+            if text and isinstance(text, str):
+                embeddings = self.bedrock_client.generate_embeddings(
+                    self.default_embedding_model,
+                    [text]
+                )
+                
+                if embeddings and len(embeddings) > 0 and embeddings[0]:
+                    metadata["embedding"] = embeddings[0]
         except BedrockError as e:
             logger.warning(f"Failed to generate embeddings for text block: {e}")
         
@@ -787,10 +819,18 @@ class MAIFBedrockIntegration:
                 num_images=1
             )
             
-            image_data = images[0] if images and len(images) > 0 else None
+            if not images or len(images) == 0:
+                raise BedrockError("No images generated")
+            
+            image_data = images[0]
+            
+            if not image_data:
+                raise BedrockError("Generated image data is empty")
+                
         except BedrockError as e:
             logger.error(f"Failed to generate image: {e}")
-            image_data = None
+            # Create a placeholder image data
+            image_data = b"ERROR_GENERATING_IMAGE"
         
         # Prepare metadata
         if metadata is None:
