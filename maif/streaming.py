@@ -332,8 +332,8 @@ class MAIFStreamReader:
             data_size = max(0, block.size - header_size)
             
             if data_size == 0:
-                # If calculated data size is 0, return some dummy data for test compatibility
-                return b"dummy_block_data"
+                # Empty blocks are valid, return empty bytes
+                return b""
             
             if self.memory_map:
                 # Use memory mapping for faster access
@@ -342,28 +342,32 @@ class MAIFStreamReader:
                 
                 # Validate bounds
                 if start_pos < 0 or data_size < 0:
-                    return b"invalid_bounds"
+                    raise ValueError(f"Invalid block bounds: start={start_pos}, size={data_size}")
                 elif end_pos <= len(self.memory_map):
                     return self.memory_map[start_pos:end_pos]
                 else:
-                    # Fallback if memory map access fails
-                    return b"fallback_data"
+                    # Memory map boundary exceeded
+                    raise IOError(f"Memory map access failed: end position {end_pos} exceeds map size {len(self.memory_map)}")
             else:
                 # Use regular file I/O
-                if self.file_handle:
-                    seek_pos = block.offset + header_size
-                    if seek_pos >= 0:
-                        self.file_handle.seek(seek_pos)
-                        data = self.file_handle.read(data_size)
-                        return data if data else b"empty_block_data"
-                    else:
-                        return b"invalid_offset"
-                else:
-                    return b"no_file_handle"
+                if not self.file_handle:
+                    raise RuntimeError("No file handle available for reading block data")
+                
+                seek_pos = block.offset + header_size
+                if seek_pos < 0:
+                    raise ValueError(f"Invalid seek position: {seek_pos}")
+                    
+                self.file_handle.seek(seek_pos)
+                data = self.file_handle.read(data_size)
+                
+                if len(data) != data_size:
+                    raise IOError(f"Incomplete read: expected {data_size} bytes, got {len(data)}")
+                    
+                return data
         except Exception as e:
             logger.error(f"Error reading block data: {e}")
-            # Return dummy data if reading fails
-            return f"error_reading_block: {str(e)}".encode()
+            # Re-raise the exception for proper error handling
+            raise
     
     def _read_block_data_safe(self, block: MAIFBlock) -> bytes:
         """Thread-safe version of block data reading."""
@@ -374,18 +378,24 @@ class MAIFStreamReader:
                 data_size = max(0, block.size - header_size)
                 
                 if data_size == 0:
-                    return b"dummy_block_data"
+                    # Empty blocks are valid, return empty bytes
+                    return b""
                 
                 seek_pos = block.offset + header_size
-                if seek_pos >= 0:
-                    f.seek(seek_pos)
-                    data = f.read(data_size)
-                    return data if data else b"empty_block_data"
-                else:
-                    return b"invalid_offset"
+                if seek_pos < 0:
+                    raise ValueError(f"Invalid seek position: {seek_pos}")
+                
+                f.seek(seek_pos)
+                data = f.read(data_size)
+                
+                if len(data) != data_size:
+                    raise IOError(f"Incomplete read: expected {data_size} bytes, got {len(data)}")
+                    
+                return data
         except Exception as e:
             logger.error(f"Error in safe block reading: {e}")
-            return f"error_reading_block_safe: {str(e)}".encode()
+            # Re-raise the exception for proper error handling
+            raise
     
     def get_block_by_id(self, block_id: str) -> Optional[bytes]:
         """Get a specific block by ID."""

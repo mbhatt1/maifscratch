@@ -290,7 +290,7 @@ class ShardManager:
 class DistributedCoordinator:
     """Coordinates distributed MAIF operations."""
     
-    def __init__(self, node_id: str, maif_path: str, 
+    def __init__(self, node_id: str, maif_path: str,
                  peers: Optional[List[Tuple[str, int]]] = None):
         self.node_id = node_id
         self.maif_path = Path(maif_path)
@@ -298,6 +298,12 @@ class DistributedCoordinator:
         
         # Components
         self.shard_manager = ShardManager(node_id)
+        
+        # Node tracking
+        self.node_last_seen: Dict[str, float] = {}
+        self.node_timeout = 30.0  # 30 seconds before considering node dead
+        self.node_cleanup_interval = 60.0  # Clean up dead nodes every minute
+        self.last_cleanup_time = time.time()
         self.vector_clock = VectorClock(node_id)
         self.locks: Dict[str, DistributedLock] = {}
         
@@ -428,9 +434,46 @@ class DistributedCoordinator:
             self._broadcast_message(message)
             
             # Clean up inactive nodes
-            # (In production, would track last seen times)
+            self._cleanup_inactive_nodes()
             
             time.sleep(5)
+    
+    def _cleanup_inactive_nodes(self):
+        """Remove nodes that haven't sent heartbeats recently."""
+        current_time = time.time()
+        
+        # Only run cleanup periodically
+        if current_time - self.last_cleanup_time < self.node_cleanup_interval:
+            return
+        
+        self.last_cleanup_time = current_time
+        
+        # Find inactive nodes
+        inactive_nodes = []
+        for node_id, last_seen in self.node_last_seen.items():
+            if current_time - last_seen > self.node_timeout:
+                inactive_nodes.append(node_id)
+        
+        # Remove inactive nodes
+        for node_id in inactive_nodes:
+            logger.warning(f"Node {node_id} is inactive, removing from cluster")
+            
+            # Remove from tracking
+            del self.node_last_seen[node_id]
+            
+            # Remove from active nodes
+            if node_id in self.active_nodes:
+                self.active_nodes.remove(node_id)
+            
+            # Remove from CRDT state
+            if node_id in self.crdt_state.nodes:
+                del self.crdt_state.nodes[node_id]
+            
+            # Trigger shard rebalancing
+            self._trigger_shard_rebalance()
+        
+        if inactive_nodes:
+            logger.info(f"Cleaned up {len(inactive_nodes)} inactive nodes")
     
     def _handle_heartbeat(self, message: Dict[str, Any]):
         """Handle heartbeat message."""

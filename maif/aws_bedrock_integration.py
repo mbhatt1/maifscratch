@@ -829,8 +829,8 @@ class MAIFBedrockIntegration:
                 
         except BedrockError as e:
             logger.error(f"Failed to generate image: {e}")
-            # Create a placeholder image data
-            image_data = b"ERROR_GENERATING_IMAGE"
+            # Re-raise the exception for proper error handling
+            raise
         
         # Prepare metadata
         if metadata is None:

@@ -412,9 +412,22 @@ class MAIFEncoder:
             
             # Add semantic analysis to processed metadata if enabled
             if enable_semantic_analysis:
-                processed_metadata["has_semantic_analysis"] = True
-                # Generate 384 mock embeddings as expected by the test
-                processed_metadata["semantic_embeddings"] = [0.1 + (i * 0.001) for i in range(384)]
+                try:
+                    # Try to generate real embeddings
+                    if hasattr(self, '_embedder') and self._embedder:
+                        # Extract text description for embedding
+                        video_description = processed_metadata.get('title', '') + ' ' + processed_metadata.get('description', '')
+                        if video_description.strip():
+                            embeddings = self._embedder.embed_text(video_description)
+                            processed_metadata["semantic_embeddings"] = embeddings
+                            processed_metadata["has_semantic_analysis"] = True
+                        else:
+                            processed_metadata["has_semantic_analysis"] = False
+                    else:
+                        processed_metadata["has_semantic_analysis"] = False
+                except Exception as e:
+                    logger.warning(f"Failed to generate semantic embeddings: {e}")
+                    processed_metadata["has_semantic_analysis"] = False
             else:
                 processed_metadata["has_semantic_analysis"] = False
             
@@ -438,9 +451,22 @@ class MAIFEncoder:
         
         # Add semantic analysis if requested
         if extract_metadata and hasattr(self, '_enable_semantic_analysis') and self._enable_semantic_analysis:
-            video_metadata["has_semantic_analysis"] = True
-            # Generate 384 mock embeddings as expected by the test
-            video_metadata["semantic_embeddings"] = [0.1 + (i * 0.001) for i in range(384)]
+            try:
+                # Try to generate real embeddings
+                if hasattr(self, '_embedder') and self._embedder:
+                    # Extract text description for embedding
+                    video_description = video_metadata.get('title', '') + ' ' + video_metadata.get('description', '')
+                    if video_description.strip():
+                        embeddings = self._embedder.embed_text(video_description)
+                        video_metadata["semantic_embeddings"] = embeddings
+                        video_metadata["has_semantic_analysis"] = True
+                    else:
+                        video_metadata["has_semantic_analysis"] = False
+                else:
+                    video_metadata["has_semantic_analysis"] = False
+            except Exception as e:
+                logger.warning(f"Failed to generate semantic embeddings: {e}")
+                video_metadata["has_semantic_analysis"] = False
         else:
             video_metadata["has_semantic_analysis"] = False
         
@@ -2152,10 +2178,22 @@ class MAIFDecoder:
             return []
     
     def get_video_frames_at_timestamps(self, block_id: str, timestamps: List[float]) -> List[bytes]:
-        """Extract frames at specific timestamps (placeholder for future implementation)."""
-        # This would require video processing libraries like OpenCV or FFmpeg
-        # For now, return empty list as placeholder
-        return []
+        """Extract frames at specific timestamps.
+        
+        Args:
+            block_id: ID of the video block
+            timestamps: List of timestamps in seconds
+            
+        Returns:
+            List of frame data as bytes
+            
+        Raises:
+            NotImplementedError: Video frame extraction requires optional dependencies
+        """
+        raise NotImplementedError(
+            "Video frame extraction requires FFmpeg or OpenCV libraries. "
+            "Please install required video processing dependencies to use this feature."
+        )
     
     def get_video_summary(self) -> Dict[str, Any]:
         """Get summary statistics of all videos in the MAIF."""

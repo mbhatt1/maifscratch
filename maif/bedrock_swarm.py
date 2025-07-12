@@ -180,21 +180,8 @@ class BedrockAgentSwarm(MAIFAgentConsortium):
             logger.info(f"Added agent {agent_id} with model {model_id} to swarm")
         except Exception as e:
             logger.error(f"Error creating agent {agent_id}: {e}")
-            # Create a simple mock agent as fallback
-            mock_agent = {
-                "agent_id": agent_id,
-                "model_provider": model_provider,
-                "model_id": model_id,
-                "region_name": region_name
-            }
-            
-            # Add to model group
-            if model_provider not in self.agent_groups:
-                self.agent_groups[model_provider] = []
-            self.agent_groups[model_provider].append(mock_agent)
-            self.agents[agent_id] = mock_agent
-            
-            logger.info(f"Added mock agent {agent_id} with model {model_id} to swarm")
+            # Skip this agent and continue with others
+            logger.warning(f"Skipping agent {agent_id} due to initialization error")
     
     async def run(self):
         """Run the agent swarm."""
@@ -480,46 +467,149 @@ class BedrockAgentSwarm(MAIFAgentConsortium):
                 return {"task": task, "error": "No valid results for ensemble", "timestamp": time.time()}
         
         elif aggregation_method == "semantic_merge":
-            # Semantic merging of results
-            # In a real implementation, this would use embeddings to cluster similar responses
-            # and then merge them based on semantic similarity
-            # For now, we'll implement a simplified version
-            
-            # Group results by provider
-            provider_results = {}
-            for agent_id, result in results.items():
-                if result.get("status") == "success" and "text" in result:
-                    model_info = result.get("model_info", {})
-                    provider = model_info.get("provider", "unknown")
-                    
-                    if provider not in provider_results:
-                        provider_results[provider] = []
-                    
-                    provider_results[provider].append({
-                        "agent_id": agent_id,
-                        "text": result["text"]
-                    })
-            
-            # Create merged result with sections by provider
-            merged_result = "# Merged Analysis\n\n"
-            
-            for provider, provider_data in provider_results.items():
-                merged_result += f"## {provider.capitalize()} Models Perspective\n\n"
+            # Semantic merging of results using embeddings and clustering
+            try:
+                # Import semantic understanding module
+                from .semantic import DeepSemanticUnderstanding
                 
-                # Combine texts from this provider
-                provider_text = "\n".join([
-                    f"- {data['text'][:150]}..." for data in provider_data
-                ])
+                # Initialize semantic analyzer
+                semantic_analyzer = DeepSemanticUnderstanding(
+                    embedder=None,  # Will use default or fallback
+                    knowledge_graph=None
+                )
                 
-                merged_result += provider_text + "\n\n"
-            
-            return {
-                "task": task,
-                "merged_result": merged_result,
-                "provider_results": provider_results,
-                "all_results": results,
-                "timestamp": time.time()
-            }
+                # Collect all successful text results
+                text_results = []
+                agent_texts = {}
+                
+                for agent_id, result in results.items():
+                    if result.get("status") == "success" and "text" in result:
+                        text = result["text"]
+                        text_results.append(text)
+                        agent_texts[agent_id] = text
+                
+                if not text_results:
+                    return {"task": task, "error": "No valid text results to merge", "timestamp": time.time()}
+                
+                # Generate embeddings for all results
+                embeddings = []
+                for text in text_results:
+                    try:
+                        embedding = semantic_analyzer.embedder.embed_text(text)
+                        embeddings.append(embedding)
+                    except:
+                        # Fallback to simple hash-based pseudo-embedding
+                        import hashlib
+                        hash_val = int(hashlib.md5(text.encode()).hexdigest()[:8], 16)
+                        embedding = [float((hash_val >> i) & 1) for i in range(384)]
+                        embeddings.append(embedding)
+                
+                # Perform clustering to find similar responses
+                import numpy as np
+                from sklearn.cluster import DBSCAN
+                from sklearn.metrics.pairwise import cosine_similarity
+                
+                # Convert to numpy array
+                embeddings_array = np.array(embeddings)
+                
+                # Calculate similarity matrix
+                similarity_matrix = cosine_similarity(embeddings_array)
+                
+                # Use DBSCAN for clustering with cosine distance
+                clustering = DBSCAN(eps=0.3, min_samples=1, metric='precomputed')
+                distance_matrix = 1 - similarity_matrix
+                clusters = clustering.fit_predict(distance_matrix)
+                
+                # Group texts by cluster
+                clustered_texts = {}
+                for idx, cluster_id in enumerate(clusters):
+                    if cluster_id not in clustered_texts:
+                        clustered_texts[cluster_id] = []
+                    clustered_texts[cluster_id].append(text_results[idx])
+                
+                # Extract key concepts from each cluster
+                cluster_summaries = {}
+                for cluster_id, texts in clustered_texts.items():
+                    # Find common themes
+                    common_words = self._extract_common_concepts(texts)
+                    
+                    # Select representative text (longest in cluster)
+                    representative = max(texts, key=len)
+                    
+                    cluster_summaries[cluster_id] = {
+                        "representative": representative,
+                        "common_concepts": common_words,
+                        "num_responses": len(texts)
+                    }
+                
+                # Build merged result
+                merged_result = "# Semantically Merged Analysis\n\n"
+                
+                # Add executive summary
+                merged_result += "## Executive Summary\n\n"
+                total_clusters = len(cluster_summaries)
+                total_responses = len(text_results)
+                merged_result += f"Analyzed {total_responses} responses, identifying {total_clusters} distinct perspectives.\n\n"
+                
+                # Add key themes
+                all_concepts = []
+                for summary in cluster_summaries.values():
+                    all_concepts.extend(summary["common_concepts"])
+                
+                # Count concept frequency
+                concept_freq = {}
+                for concept in all_concepts:
+                    concept_freq[concept] = concept_freq.get(concept, 0) + 1
+                
+                # Get top concepts
+                top_concepts = sorted(concept_freq.items(), key=lambda x: x[1], reverse=True)[:10]
+                
+                merged_result += "### Key Themes Identified:\n"
+                for concept, freq in top_concepts:
+                    merged_result += f"- **{concept}** (mentioned by {freq} clusters)\n"
+                merged_result += "\n"
+                
+                # Add detailed perspectives
+                merged_result += "## Detailed Perspectives\n\n"
+                
+                for cluster_id, summary in sorted(cluster_summaries.items(),
+                                                key=lambda x: x[1]["num_responses"],
+                                                reverse=True):
+                    merged_result += f"### Perspective {cluster_id + 1} "
+                    merged_result += f"(Shared by {summary['num_responses']} models)\n\n"
+                    
+                    # Add key concepts for this cluster
+                    if summary["common_concepts"]:
+                        merged_result += f"**Key Concepts:** {', '.join(summary['common_concepts'][:5])}\n\n"
+                    
+                    # Add representative text
+                    merged_result += f"**Representative Response:**\n{summary['representative'][:500]}"
+                    if len(summary['representative']) > 500:
+                        merged_result += "..."
+                    merged_result += "\n\n"
+                
+                # Calculate consensus score
+                max_cluster_size = max(len(texts) for texts in clustered_texts.values())
+                consensus_score = max_cluster_size / total_responses
+                
+                return {
+                    "task": task,
+                    "merged_result": merged_result,
+                    "cluster_summaries": cluster_summaries,
+                    "num_clusters": total_clusters,
+                    "consensus_score": consensus_score,
+                    "top_concepts": dict(top_concepts),
+                    "all_results": results,
+                    "timestamp": time.time()
+                }
+                
+            except ImportError as e:
+                logger.warning(f"Semantic merging dependencies not available: {e}")
+                # Fallback to simple merging
+                return self._simple_merge_fallback(task, results)
+            except Exception as e:
+                logger.error(f"Error in semantic merging: {e}")
+                return self._simple_merge_fallback(task, results)
         
         else:
             # Default: just return all results
@@ -528,6 +618,93 @@ class BedrockAgentSwarm(MAIFAgentConsortium):
                 "results": results,
                 "timestamp": time.time()
             }
+    def _extract_common_concepts(self, texts: List[str]) -> List[str]:
+        """Extract common concepts/keywords from a list of texts."""
+        from collections import Counter
+        import re
+        
+        # Simple word extraction (in production, use proper NLP)
+        all_words = []
+        for text in texts:
+            # Extract words (alphanumeric, length > 3)
+            words = re.findall(r'\b[a-zA-Z]{4,}\b', text.lower())
+            all_words.extend(words)
+        
+        # Skip common stop words
+        stop_words = {
+            'this', 'that', 'these', 'those', 'have', 'been', 'being',
+            'does', 'doing', 'done', 'having', 'with', 'from', 'about',
+            'into', 'through', 'during', 'before', 'after', 'above',
+            'below', 'between', 'under', 'again', 'further', 'then',
+            'once', 'here', 'there', 'when', 'where', 'which', 'while',
+            'some', 'such', 'only', 'more', 'most', 'other', 'than',
+            'very', 'just', 'still', 'each', 'would', 'should', 'could'
+        }
+        
+        # Filter and count
+        filtered_words = [w for w in all_words if w not in stop_words]
+        word_counts = Counter(filtered_words)
+        
+        # Get common words that appear in multiple texts
+        word_text_counts = {}
+        for text in texts:
+            text_words = set(re.findall(r'\b[a-zA-Z]{4,}\b', text.lower()))
+            for word in text_words:
+                if word not in stop_words:
+                    word_text_counts[word] = word_text_counts.get(word, 0) + 1
+        
+        # Return words that appear in at least 30% of texts
+        min_texts = max(1, len(texts) * 0.3)
+        common_concepts = [
+            word for word, count in word_text_counts.items()
+            if count >= min_texts
+        ]
+        
+        # Sort by frequency
+        common_concepts.sort(key=lambda w: word_counts.get(w, 0), reverse=True)
+        
+        return common_concepts[:20]  # Return top 20 concepts
+    
+    def _simple_merge_fallback(self, task: str, results: Dict[str, Dict]) -> Dict:
+        """Simple fallback merging when semantic merging fails."""
+        # Group results by provider
+        provider_results = {}
+        for agent_id, result in results.items():
+            if result.get("status") == "success" and "text" in result:
+                model_info = result.get("model_info", {})
+                provider = model_info.get("provider", "unknown")
+                
+                if provider not in provider_results:
+                    provider_results[provider] = []
+                
+                provider_results[provider].append({
+                    "agent_id": agent_id,
+                    "text": result["text"]
+                })
+        
+        # Create merged result with sections by provider
+        merged_result = "# Merged Analysis (Simple Aggregation)\n\n"
+        
+        for provider, provider_data in provider_results.items():
+            merged_result += f"## {provider.capitalize()} Models Perspective\n\n"
+            
+            # Add each response
+            for data in provider_data:
+                merged_result += f"### Agent: {data['agent_id']}\n"
+                merged_result += f"{data['text'][:500]}"
+                if len(data['text']) > 500:
+                    merged_result += "..."
+                merged_result += "\n\n"
+        
+        return {
+            "task": task,
+            "merged_result": merged_result,
+            "provider_results": provider_results,
+            "all_results": results,
+            "aggregation_method": "simple_fallback",
+            "timestamp": time.time()
+        }
+    
     
     async def _store_result_in_shared_maif(self, task_id: str, result: Dict[str, Any]):
         """

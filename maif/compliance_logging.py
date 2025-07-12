@@ -623,14 +623,21 @@ class MAIFComplianceLogger:
         # Store in MAIF file
         with self.block_storage:
             if self.block_id:
-                # Update existing block
-                # Note: In a real implementation, we would update the block
-                # For now, we'll add a new block and update the reference
-                self.block_id = self.block_storage.add_block(
-                    block_type="LOGS",
+                # Update existing block using the new update_block method
+                success = self.block_storage.update_block(
+                    block_id=self.block_id,
                     data=db_data,
                     metadata=metadata
                 )
+                
+                if not success:
+                    # If update failed, create a new block
+                    logger.warning(f"Failed to update block {self.block_id}, creating new block")
+                    self.block_id = self.block_storage.add_block(
+                        block_type="LOGS",
+                        data=db_data,
+                        metadata=metadata
+                    )
             else:
                 # Add new block
                 self.block_id = self.block_storage.add_block(

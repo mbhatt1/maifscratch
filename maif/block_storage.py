@@ -218,6 +218,107 @@ class BlockStorage:
             
             return block_uuid
     
+    def update_block(self, block_id: str, data: bytes, metadata: Optional[Dict] = None) -> bool:
+        """Update an existing block's data and metadata."""
+        with self._lock:
+            if self._closed:
+                raise RuntimeError("BlockStorage is closed")
+            
+            # Find the block to update
+            block_index = None
+            old_header = None
+            for i, (header, offset) in enumerate(self.blocks):
+                if header.uuid == block_id:
+                    block_index = i
+                    old_header = header
+                    break
+            
+            if block_index is None:
+                logger.error(f"Block {block_id} not found for update")
+                return False
+            
+            # Validate new data
+            if not isinstance(data, bytes):
+                raise TypeError("Block data must be bytes")
+            
+            # For immutability, we create a new version of the block
+            # preserving the chain by linking to the previous version
+            new_uuid = str(uuid.uuid4())
+            timestamp = time.time()
+            
+            # Ensure metadata is a dictionary
+            if metadata is None:
+                metadata = {}
+            
+            # Add reference to previous version
+            metadata["previous_version"] = block_id
+            metadata["version_number"] = old_header.version + 1
+            
+            # Calculate hash of current block for chain integrity
+            if self.file_handle:
+                self.file_handle.seek(self.blocks[block_index][1] + self.HEADER_SIZE)
+                old_data = self.file_handle.read(old_header.size)
+            else:
+                old_data = self._in_memory_data.get(block_id, b"")
+            
+            previous_hash = self._calculate_block_hash(old_header, old_data)
+            
+            # Create new header with updated information
+            new_header = BlockHeader(
+                size=len(data),
+                block_type=old_header.block_type,
+                version=old_header.version + 1,
+                uuid=new_uuid,
+                timestamp=timestamp,
+                previous_hash=previous_hash,
+                flags=old_header.flags | 0x01  # Set update flag
+            )
+            
+            # Sign the new block if signature verification is enabled
+            if self.verify_signatures and self.signature_verifier:
+                try:
+                    signature_metadata = sign_block_data(
+                        self.signature_verifier,
+                        data,
+                        key_id="default"
+                    )
+                    self.block_signatures[new_uuid] = signature_metadata
+                    metadata["signature"] = signature_metadata
+                except Exception as e:
+                    logger.warning(f"Failed to sign updated block {new_uuid}: {e}")
+            
+            # Write the new block
+            if self.file_handle:
+                # Append new block to file
+                self.file_handle.seek(0, 2)  # Seek to end
+                data_offset = self.file_handle.tell() - self.HEADER_SIZE
+                
+                # Write header and data
+                self.file_handle.write(new_header.to_bytes())
+                self.file_handle.write(data)
+                self.file_handle.flush()
+                
+                # Sync to disk
+                if hasattr(self.file_handle, 'fileno'):
+                    os.fsync(self.file_handle.fileno())
+            else:
+                # In-memory storage
+                data_offset = len(self.blocks) * (self.HEADER_SIZE + 1000)  # Simulated offset
+                self._in_memory_data[new_uuid] = data
+            
+            # Add metadata
+            self.block_metadata[new_uuid] = metadata
+            
+            # Add new block to list (keeping old one for history)
+            new_block_index = len(self.blocks)
+            self.blocks.append((new_header, data_offset))
+            
+            # Update block index to point to new version
+            self.block_index[new_uuid] = new_block_index
+            
+            logger.debug(f"Updated block {block_id} -> {new_uuid} (version {new_header.version})")
+            return True
+    
     def get_block(self, block_uuid: str) -> Optional[Tuple[BlockHeader, bytes]]:
         """Retrieve a block by UUID with signature verification."""
         with self._lock:
