@@ -306,7 +306,7 @@ class SelfOptimizingMAIF:
         # Write blocks in optimized order: hot -> warm -> cold
         for block_list in [hot_blocks, warm_blocks, cold_blocks]:
             for block in block_list:
-                block_data = self.decoder.get_block_data(block)
+                block_data = self.decoder.get_block_data(block.block_id)
                 
                 if block.block_type == "text":
                     new_encoder.add_text_block(
@@ -347,7 +347,7 @@ class SelfOptimizingMAIF:
             for block in self.decoder.blocks:
                 try:
                     # Try to read block
-                    data = self.decoder.get_block_data(block)
+                    data = self.decoder.get_block_data(block.block_id)
                     
                     # Verify checksum if available
                     if hasattr(block, 'checksum'):

@@ -113,7 +113,7 @@ class MAIFMerger:
                 stats["total_blocks"] += 1
                 
                 # Get block data and hash
-                block_data = decoder.get_block_data(block)
+                block_data = decoder.get_block_data(block.block_id)
                 block_hash = hashlib.sha256(block_data).hexdigest()
                 
                 # Check for duplicates
@@ -288,7 +288,7 @@ class MAIFSplitter:
         part_num = 1
         
         for block in decoder.blocks:
-            block_data = decoder.get_block_data(block)
+            block_data = decoder.get_block_data(block.block_id)
             block_size = len(block_data)
             
             # Check if adding this block would exceed size limit
@@ -344,7 +344,7 @@ class MAIFSplitter:
             encoder = MAIFEncoder()
             
             for block in part_blocks:
-                block_data = decoder.get_block_data(block)
+                block_data = decoder.get_block_data(block.block_id)
                 
                 if block.block_type == "text":
                     encoder.add_text_block(
@@ -424,7 +424,7 @@ class MAIFSplitter:
         # Get embeddings
         texts = []
         for block in text_blocks:
-            data = decoder.get_block_data(block).decode('utf-8')
+            data = decoder.get_block_data(block.block_id).decode('utf-8')
             texts.append(data)
         
         embeddings = embedder.embed_texts(texts)
@@ -442,7 +442,7 @@ class MAIFSplitter:
             if label not in cluster_encoders:
                 cluster_encoders[label] = MAIFEncoder()
             
-            block_data = decoder.get_block_data(block)
+            block_data = decoder.get_block_data(block.block_id)
             cluster_encoders[label].add_text_block(
                 block_data.decode('utf-8'),
                 block.metadata
@@ -451,7 +451,7 @@ class MAIFSplitter:
         # Add non-text blocks to first cluster
         if 0 in cluster_encoders and other_blocks:
             for block in other_blocks:
-                block_data = decoder.get_block_data(block)
+                block_data = decoder.get_block_data(block.block_id)
                 cluster_encoders[0].add_binary_block(
                     block_data,
                     block.block_type,

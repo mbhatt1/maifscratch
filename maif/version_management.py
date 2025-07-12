@@ -687,7 +687,7 @@ class VersionManager:
             # Copy blocks with transformation
             for block in decoder.blocks:
                 # Get block data
-                data = decoder.get_block_data(block)
+                data = decoder.get_block_data(block.block_id)
                 
                 # Transform metadata if needed
                 if block.metadata:
