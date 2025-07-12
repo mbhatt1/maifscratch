@@ -13,6 +13,10 @@ from dataclasses import dataclass
 from pathlib import Path
 import io
 import uuid
+import mmap
+import concurrent.futures
+import threading
+from contextlib import contextmanager
 from .privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode, AccessRule
 from .block_types import BlockType, BlockHeader, BlockFactory, BlockValidator
 
@@ -134,9 +138,12 @@ class MAIFEncoder:
         self.header = MAIFHeader()
         self.buffer = io.BytesIO()
         self.agent_id = agent_id or str(uuid.uuid4())
-        self.version_history: Dict = {}  # Changed to dict for test compatibility
+        self.version_history: Dict[str, List[MAIFVersion]] = {}  # block_id -> list of versions
         self.block_registry: Dict[str, List[MAIFBlock]] = {}  # block_id -> list of versions
         self.access_rules: List[AccessRule] = []  # Add missing access_rules attribute
+        self._closed = False  # Track if encoder is closed
+        self.file_handle = None  # File handle for writing
+        self._lock = threading.Lock()  # Thread safety lock
         
         # Privacy-by-design features
         self.enable_privacy = enable_privacy
@@ -167,9 +174,20 @@ class MAIFEncoder:
             
             # Load version history if available
             if "version_history" in decoder.manifest:
-                self.version_history = [
-                    MAIFVersion(**v) for v in decoder.manifest["version_history"]
-                ]
+                version_data = decoder.manifest["version_history"]
+                if isinstance(version_data, dict):
+                    # New format: dict of block_id -> list of versions
+                    for block_id, versions in version_data.items():
+                        self.version_history[block_id] = [
+                            MAIFVersion(**v) for v in versions
+                        ]
+                elif isinstance(version_data, list):
+                    # Old format: list of versions
+                    for v in version_data:
+                        block_id = v.get('block_id', 'unknown')
+                        if block_id not in self.version_history:
+                            self.version_history[block_id] = []
+                        self.version_history[block_id].append(MAIFVersion(**v))
             
             # Build block registry
             for block in self.blocks:
@@ -206,6 +224,119 @@ class MAIFEncoder:
         
         text_bytes = text.encode('utf-8')
         return self._add_block("text", text_bytes, metadata, update_block_id, privacy_policy)
+    
+    def _add_block(self, block_type: str, data: bytes, metadata: Optional[Dict] = None,
+                   update_block_id: Optional[str] = None,
+                   privacy_policy: Optional[PrivacyPolicy] = None) -> str:
+        """Internal method to add or update a block with privacy support."""
+        # Normalize block type using mapping
+        normalized_type = self.BLOCK_TYPE_MAPPING.get(block_type, block_type)
+        
+        # Create block ID
+        if update_block_id:
+            block_id = update_block_id
+            # Find existing block
+            existing_block = None
+            for block in self.blocks:
+                if block.block_id == block_id:
+                    existing_block = block
+                    break
+            
+            # Determine version
+            version = existing_block.version + 1 if existing_block else 1
+            previous_hash = existing_block.hash_value if existing_block else None
+        else:
+            block_id = str(uuid.uuid4())
+            version = 1
+            previous_hash = None
+        
+        # Apply privacy policy if provided
+        if privacy_policy and self.enable_privacy:
+            # Apply encryption if required
+            if privacy_policy.encryption_mode != EncryptionMode.NONE:
+                data = self.privacy_engine.encrypt_data(data, block_id)
+                if metadata is None:
+                    metadata = {}
+                metadata["encrypted"] = True
+                metadata["encryption_mode"] = privacy_policy.encryption_mode.value
+            
+            # Store privacy policy in metadata
+            if metadata is None:
+                metadata = {}
+            metadata["privacy_policy"] = {
+                "privacy_level": privacy_policy.privacy_level.value,
+                "encryption_mode": privacy_policy.encryption_mode.value,
+                "anonymization_required": privacy_policy.anonymization_required,
+                "audit_required": privacy_policy.audit_required
+            }
+        
+        # Check if anonymization was applied (set by add_text_block)
+        if hasattr(self, '_last_anonymize_flag') and self._last_anonymize_flag:
+            if metadata is None:
+                metadata = {}
+            metadata["anonymized"] = True
+            self._last_anonymize_flag = False
+        
+        # Write header and data to buffer
+        offset = self.buffer.tell()
+        
+        # Create header
+        header = BlockHeader(
+            block_type=normalized_type,
+            size=len(data) + 32,  # Header is 32 bytes
+            flags=0,
+            timestamp=int(time.time()),
+            reserved=0
+        )
+        
+        # Write header
+        self.buffer.write(header.to_bytes())
+        
+        # Write data
+        self.buffer.write(data)
+        
+        # Calculate hash (data only for compatibility)
+        hash_value = hashlib.sha256(data).hexdigest()
+        
+        # Create block
+        block = MAIFBlock(
+            block_type=normalized_type,
+            offset=offset,
+            size=len(data) + 32,
+            hash_value=hash_value,
+            version=version,
+            previous_hash=previous_hash,
+            block_id=block_id,
+            metadata=metadata,
+            data=data
+        )
+        
+        # Add to blocks list
+        self.blocks.append(block)
+        
+        # Update block registry
+        if block_id not in self.block_registry:
+            self.block_registry[block_id] = []
+        self.block_registry[block_id].append(block)
+        
+        # Create version entry
+        version_entry = MAIFVersion(
+            version=version,
+            timestamp=time.time(),
+            agent_id=self.agent_id,
+            operation="update" if update_block_id else "create",
+            block_hash=hash_value,
+            block_id=block_id,
+            previous_hash=previous_hash,
+            change_description=f"{'Updated' if update_block_id else 'Created'} {block_type} block"
+        )
+        
+        # Add to version history
+        if block_id not in self.version_history:
+            self.version_history[block_id] = []
+        self.version_history[block_id].append(version_entry)
+        
+        return block_id
     
     def add_binary_block(self, data: bytes, block_type: str, metadata: Optional[Dict] = None,
                         update_block_id: Optional[str] = None,
@@ -1177,14 +1308,12 @@ class MAIFEncoder:
             # Calculate root hash including version history
             all_hashes = "".join([block.hash_value for block in self.blocks])
             version_hashes = ""
-            if isinstance(self.version_history, dict):
-                version_hashes = "".join([
-                    v.current_hash if hasattr(v, 'current_hash') else v.block_hash
-                    for versions in self.version_history.values()
-                    for v in (versions if isinstance(versions, list) else [versions])
-                ])
-            elif isinstance(self.version_history, list):
-                version_hashes = "".join([v.current_hash if hasattr(v, 'current_hash') else v.block_hash for v in self.version_history])
+            # version_history is always a dict
+            version_hashes = "".join([
+                v.current_hash if hasattr(v, 'current_hash') else v.block_hash
+                for versions in self.version_history.values()
+                for v in versions
+            ])
             combined_hash = hashlib.sha256((all_hashes + version_hashes).encode()).hexdigest()
             manifest["root_hash"] = f"sha256:{combined_hash}"
             
@@ -1204,6 +1333,15 @@ class MAIFEncoder:
             self._closed = True
             if self.file_handle and not self.file_handle.closed:
                 self.file_handle.close()
+    
+    @contextmanager
+    def _thread_safe_operation(self):
+        """Context manager for thread-safe operations."""
+        self._lock.acquire()
+        try:
+            yield
+        finally:
+            self._lock.release()
     
     def __enter__(self):
         """Context manager support."""
@@ -1618,8 +1756,8 @@ class MAIFDecoder:
         
         return None
     
-    def get_embeddings(self) -> List[Dict]:
-        """Get all embedding blocks."""
+    def get_embeddings_dict(self) -> List[Dict]:
+        """Get all embedding blocks as dictionaries."""
         embeddings = []
         for block in self.blocks:
             if block.block_type in ['embeddings', 'embedding']:
@@ -1644,47 +1782,6 @@ class MAIFDecoder:
                         if floats:
                             embeddings.append({"vector": floats})
         return embeddings
-    
-    def get_accessible_blocks(self, permission: str) -> List['MAIFBlock']:
-        """Get blocks accessible with given permission."""
-        accessible = []
-        for block in self.blocks:
-            # For now, return all blocks - in real implementation would check access rules
-            accessible.append(block)
-        return accessible
-    
-    def check_block_access(self, block_id: str, permission: str) -> bool:
-        """Check if current agent has permission to access block."""
-        # For now, allow all access - in real implementation would check access rules
-        return True
-    
-    def get_privacy_summary(self) -> Dict[str, Any]:
-        """Get privacy summary for the MAIF file."""
-        total_blocks = len(self.blocks)
-        encrypted_blocks = 0
-        anonymized_blocks = 0
-        
-        for block in self.blocks:
-            if block.metadata:
-                # Check both top-level and _system metadata
-                if block.metadata.get("encrypted", False):
-                    encrypted_blocks += 1
-                elif "_system" in block.metadata and block.metadata["_system"].get("encrypted", False):
-                    encrypted_blocks += 1
-                    
-                if block.metadata.get("anonymized", False):
-                    anonymized_blocks += 1
-                elif "_system" in block.metadata and block.metadata["_system"].get("anonymized", False):
-                    anonymized_blocks += 1
-        
-        return {
-            "total_blocks": total_blocks,
-            "encrypted_blocks": encrypted_blocks,
-            "anonymized_blocks": anonymized_blocks,
-            "privacy_enabled": encrypted_blocks > 0 or anonymized_blocks > 0,
-            "encryption_ratio": encrypted_blocks / total_blocks if total_blocks > 0 else 0,
-            "anonymization_ratio": anonymized_blocks / total_blocks if total_blocks > 0 else 0
-        }
     
     def get_text_blocks(self, include_anonymized: bool = False) -> List[str]:
         """Extract all text blocks with privacy filtering."""
@@ -1788,22 +1885,6 @@ class MAIFDecoder:
                 continue
             accessible.append(block)
         return accessible
-    
-    def get_privacy_summary(self) -> Dict[str, Any]:
-        """Get privacy summary for the MAIF file."""
-        total_blocks = len(self.blocks)
-        encrypted_blocks = sum(1 for block in self.blocks
-                             if block.metadata and block.metadata.get("encrypted", False))
-        anonymized_blocks = sum(1 for block in self.blocks
-                              if block.metadata and block.metadata.get("anonymized", False))
-        
-        return {
-            "total_blocks": total_blocks,
-            "encrypted_blocks": encrypted_blocks,
-            "anonymized_blocks": anonymized_blocks,
-            "privacy_enabled": self.privacy_engine is not None,
-            "requesting_agent": self.requesting_agent
-        }
     
     def check_block_access(self, block_id: str, permission: str) -> bool:
         """Check if the requesting agent has access to a specific block."""
@@ -2169,6 +2250,6 @@ class MAIFParser:
         return {
             "text_blocks": self.decoder.get_text_blocks(),
             "texts": self.decoder.get_text_blocks(),
-            "embeddings": self.decoder.get_embeddings(),
+            "embeddings": self.decoder.get_embeddings_dict(),
             "metadata": self.get_metadata()
         }

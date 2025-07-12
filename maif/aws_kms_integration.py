@@ -13,9 +13,10 @@ import time
 import logging
 import datetime
 import secrets
+import threading
 from typing import Dict, List, Optional, Any, Union, Tuple, Set
 import boto3
-from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError, Throttling
+from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError
 
 from .signature_verification import (
     SignatureAlgorithm, SignatureInfo, VerificationResult, KeyStore
@@ -129,6 +130,9 @@ class KMSKeyStore(KeyStore):
                 "cache_misses": 0
             }
             
+            # Thread safety
+            self._lock = threading.RLock()
+            
             logger.info("KMS key store initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize KMS client: {e}", exc_info=True)
@@ -150,7 +154,8 @@ class KMSKeyStore(KeyStore):
             KMSError: For non-retryable errors or if max retries exceeded
         """
         start_time = time.time()
-        self.metrics["total_operations"] += 1
+        with self._lock:
+            self.metrics["total_operations"] += 1
         
         retries = 0
         last_exception = None
@@ -161,13 +166,14 @@ class KMSKeyStore(KeyStore):
                 result = operation_func(*args, **kwargs)
                 
                 # Record success metrics
-                self.metrics["successful_operations"] += 1
-                latency = time.time() - start_time
-                self.metrics["operation_latencies"].append(latency)
-                
-                # Trim latencies list if it gets too large
-                if len(self.metrics["operation_latencies"]) > 1000:
-                    self.metrics["operation_latencies"] = self.metrics["operation_latencies"][-1000:]
+                with self._lock:
+                    self.metrics["successful_operations"] += 1
+                    latency = time.time() - start_time
+                    self.metrics["operation_latencies"].append(latency)
+                    
+                    # Trim latencies list if it gets too large
+                    if len(self.metrics["operation_latencies"]) > 1000:
+                        self.metrics["operation_latencies"] = self.metrics["operation_latencies"][-1000:]
                 
                 logger.debug(f"KMS {operation_name} completed successfully in {latency:.2f}s")
                 return result
@@ -179,7 +185,8 @@ class KMSKeyStore(KeyStore):
                 # Check if this is a retryable error
                 if error_code in self.RETRYABLE_ERRORS and retries < self.max_retries:
                     retries += 1
-                    self.metrics["retried_operations"] += 1
+                    with self._lock:
+                        self.metrics["retried_operations"] += 1
                     delay = min(self.max_delay, self.base_delay * (2 ** retries))
                     
                     logger.warning(
@@ -191,7 +198,8 @@ class KMSKeyStore(KeyStore):
                     last_exception = e
                 else:
                     # Non-retryable error or max retries exceeded
-                    self.metrics["failed_operations"] += 1
+                    with self._lock:
+                        self.metrics["failed_operations"] += 1
                     
                     if error_code in self.RETRYABLE_ERRORS:
                         logger.error(
@@ -216,7 +224,8 @@ class KMSKeyStore(KeyStore):
                 # Network-related errors
                 if retries < self.max_retries:
                     retries += 1
-                    self.metrics["retried_operations"] += 1
+                    with self._lock:
+                        self.metrics["retried_operations"] += 1
                     delay = min(self.max_delay, self.base_delay * (2 ** retries))
                     
                     logger.warning(
@@ -227,13 +236,15 @@ class KMSKeyStore(KeyStore):
                     time.sleep(delay)
                     last_exception = e
                 else:
-                    self.metrics["failed_operations"] += 1
+                    with self._lock:
+                        self.metrics["failed_operations"] += 1
                     logger.error(f"KMS {operation_name} failed after {retries} retries due to connection error", exc_info=True)
                     raise KMSConnectionError(f"Connection error: {str(e)}. Max retries exceeded.")
             
             except Exception as e:
                 # Unexpected errors
-                self.metrics["failed_operations"] += 1
+                with self._lock:
+                    self.metrics["failed_operations"] += 1
                 logger.error(f"Unexpected error in KMS {operation_name}: {str(e)}", exc_info=True)
                 raise KMSError(f"Unexpected error: {str(e)}")
         
@@ -245,20 +256,21 @@ class KMSKeyStore(KeyStore):
     
     def _clean_key_cache(self):
         """Clean expired entries from key cache."""
-        current_time = time.time()
-        expired_keys = [
-            key_id for key_id, expiry in self.key_cache_expiry.items()
-            if current_time > expiry
-        ]
-        
-        for key_id in expired_keys:
-            if key_id in self.kms_key_cache:
-                del self.kms_key_cache[key_id]
-            if key_id in self.key_cache_expiry:
-                del self.key_cache_expiry[key_id]
-        
-        if expired_keys:
-            logger.debug(f"Cleaned key cache: {len(expired_keys)} expired entries removed")
+        with self._lock:
+            current_time = time.time()
+            expired_keys = [
+                key_id for key_id, expiry in self.key_cache_expiry.items()
+                if current_time > expiry
+            ]
+            
+            for key_id in expired_keys:
+                if key_id in self.kms_key_cache:
+                    del self.kms_key_cache[key_id]
+                if key_id in self.key_cache_expiry:
+                    del self.key_cache_expiry[key_id]
+            
+            if expired_keys:
+                logger.debug(f"Cleaned key cache: {len(expired_keys)} expired entries removed")
     
     def _validate_key_permissions(self, key_id: str, required_operations: List[str]) -> bool:
         """
@@ -403,12 +415,13 @@ class KMSKeyStore(KeyStore):
         # Check cache first
         self._clean_key_cache()
         
-        if key_id in self.kms_key_cache:
-            self.metrics["cache_hits"] += 1
-            logger.debug(f"Key cache hit for {key_id}")
-            return self.kms_key_cache[key_id]
-        
-        self.metrics["cache_misses"] += 1
+        with self._lock:
+            if key_id in self.kms_key_cache:
+                self.metrics["cache_hits"] += 1
+                logger.debug(f"Key cache hit for {key_id}")
+                return self.kms_key_cache[key_id]
+            
+            self.metrics["cache_misses"] += 1
         logger.debug(f"Key cache miss for {key_id}")
         
         logger.info(f"Getting metadata for KMS key {key_id}")
@@ -420,8 +433,9 @@ class KMSKeyStore(KeyStore):
         metadata = self._execute_with_retry("describe_key", describe_key_operation)
         
         # Cache metadata with TTL
-        self.kms_key_cache[key_id] = metadata
-        self.key_cache_expiry[key_id] = time.time() + self.key_cache_ttl
+        with self._lock:
+            self.kms_key_cache[key_id] = metadata
+            self.key_cache_expiry[key_id] = time.time() + self.key_cache_ttl
         
         logger.debug(f"Cached metadata for key {key_id}")
         return metadata
@@ -492,8 +506,9 @@ class KMSKeyStore(KeyStore):
             self.add_kms_key(key_id, algorithm=algorithm, key_type="customer")
             
             # Cache key metadata
-            self.kms_key_cache[key_id] = key_metadata
-            self.key_cache_expiry[key_id] = time.time() + self.key_cache_ttl
+            with self._lock:
+                self.kms_key_cache[key_id] = key_metadata
+                self.key_cache_expiry[key_id] = time.time() + self.key_cache_ttl
             
             logger.info(f"Successfully created KMS key {key_id}")
             return key_id
@@ -614,7 +629,8 @@ class KMSKeyStore(KeyStore):
                         self.create_key_alias(new_key_id, alias_name)
             
             # Update metrics
-            self.metrics["key_rotations"] += 1
+            with self._lock:
+                self.metrics["key_rotations"] += 1
             
             logger.info(f"Successfully rotated key {key_id} to {new_key_id}")
             return new_key_id
@@ -656,6 +672,9 @@ class KMSSignatureVerifier:
             "failed_verifications": 0,
             "expired_signatures": 0
         }
+        
+        # Thread safety
+        self._lock = threading.RLock()
         
         logger.info("KMS signature verifier initialized successfully")
     
@@ -703,7 +722,8 @@ class KMSSignatureVerifier:
             raise KMSPermissionError(f"Key {key_id} does not have permission for Sign operation")
         
         logger.info(f"Signing data with KMS key {key_id} using {signing_algorithm}")
-        self.metrics["total_signatures"] += 1
+        with self._lock:
+            self.metrics["total_signatures"] += 1
         
         try:
             # If message type is DIGEST, hash the data first
@@ -723,16 +743,22 @@ class KMSSignatureVerifier:
             
             if not signature:
                 logger.error(f"Failed to get signature from KMS for key {key_id}")
-                self.metrics["failed_signatures"] += 1
+                with self._lock:
+                    self.metrics["failed_signatures"] += 1
                 return None
             
-            self.metrics["successful_signatures"] += 1
+            # KMS returns base64-encoded signature, decode it
+            signature_bytes = base64.b64decode(signature)
+            
+            with self._lock:
+                self.metrics["successful_signatures"] += 1
             logger.info(f"Successfully signed data with KMS key {key_id}")
-            return signature
+            return signature_bytes
             
         except KMSError as e:
             logger.error(f"Failed to sign data with KMS key {key_id}: {e}")
-            self.metrics["failed_signatures"] += 1
+            with self._lock:
+                self.metrics["failed_signatures"] += 1
             raise
     
     def verify_signature(self, data: bytes, signature: bytes, key_id: str,
@@ -783,19 +809,23 @@ class KMSSignatureVerifier:
             raise KMSPermissionError(f"Key {key_id} does not have permission for Verify operation")
         
         logger.info(f"Verifying signature with KMS key {key_id} using {signing_algorithm}")
-        self.metrics["total_verifications"] += 1
+        with self._lock:
+            self.metrics["total_verifications"] += 1
         
         try:
             # If message type is DIGEST, hash the data first
             if message_type == 'DIGEST':
                 data = hashlib.sha256(data).digest()
             
+            # KMS expects base64-encoded signature
+            signature_b64 = base64.b64encode(signature).decode('utf-8')
+            
             def verify_operation():
                 response = self.kms_client.verify(
                     KeyId=key_id,
                     Message=data,
                     MessageType=message_type,
-                    Signature=signature,
+                    Signature=signature_b64,
                     SigningAlgorithm=signing_algorithm
                 )
                 return response.get('SignatureValid', False)
@@ -803,17 +833,20 @@ class KMSSignatureVerifier:
             is_valid = self.key_store._execute_with_retry("verify", verify_operation)
             
             if is_valid:
-                self.metrics["successful_verifications"] += 1
+                with self._lock:
+                    self.metrics["successful_verifications"] += 1
                 logger.info(f"Signature verified successfully with KMS key {key_id}")
             else:
-                self.metrics["failed_verifications"] += 1
+                with self._lock:
+                    self.metrics["failed_verifications"] += 1
                 logger.warning(f"Signature verification failed with KMS key {key_id}")
             
             return is_valid
             
         except KMSError as e:
             logger.error(f"Failed to verify signature with KMS key {key_id}: {e}")
-            self.metrics["failed_verifications"] += 1
+            with self._lock:
+                self.metrics["failed_verifications"] += 1
             raise
     
     def generate_signature_info(self, data: bytes, key_id: str,
@@ -929,7 +962,8 @@ class KMSSignatureVerifier:
         current_time = time.time()
         if signature_info.expiration and current_time > signature_info.expiration:
             logger.warning(f"Signature expired for key {signature_info.key_id}")
-            self.metrics["expired_signatures"] += 1
+            with self._lock:
+                self.metrics["expired_signatures"] += 1
             return VerificationResult.EXPIRED
         
         # Get key metadata
@@ -990,11 +1024,12 @@ class KMSSignatureVerifier:
         }
         
         # Add to history
-        self.verification_results.append(verification_record)
-        
-        # Limit history size
-        if len(self.verification_results) > 1000:
-            self.verification_results = self.verification_results[-1000:]
+        with self._lock:
+            self.verification_results.append(verification_record)
+            
+            # Limit history size
+            if len(self.verification_results) > 1000:
+                self.verification_results = self.verification_results[-1000:]
         
         logger.debug(f"Recorded verification attempt for key {signature_info.key_id}")
 

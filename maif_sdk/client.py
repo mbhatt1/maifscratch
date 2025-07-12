@@ -20,7 +20,7 @@ from typing import Dict, List, Optional, Union, BinaryIO, Any, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, asdict
 
-from ..maif.core import MAIFFile, MAIFBlock
+from ..maif.core import MAIFEncoder, MAIFDecoder, MAIFBlock
 from ..maif.security import SecurityEngine
 from ..maif.compression import CompressionEngine
 from ..maif.privacy import PrivacyEngine, PrivacyPolicy
@@ -131,7 +131,8 @@ class MAIFClient:
             self.encryption_backend = None
         
         self.write_buffer = WriteBuffer(self.config.buffer_size)
-        self._open_files: Dict[str, MAIFFile] = {}
+        self._encoders: Dict[str, MAIFEncoder] = {}
+        self._decoders: Dict[str, MAIFDecoder] = {}
         self._mmaps: Dict[str, mmap.mmap] = {}
         self._lock = threading.RLock()
     
@@ -154,35 +155,62 @@ class MAIFClient:
             mode: File mode ('r', 'w', 'a')
             
         Yields:
-            MAIFFile instance with optional memory mapping
+            Encoder/Decoder instance based on mode
         """
         filepath = str(filepath)
         
         try:
             with self._lock:
-                if filepath in self._open_files:
-                    yield self._open_files[filepath]
-                    return
-                
-                maif_file = MAIFFile(filepath)
-                
-                if mode in ('r', 'a') and os.path.exists(filepath):
-                    maif_file.load()
+                if mode in ('w', 'a'):
+                    if filepath in self._encoders:
+                        yield self._encoders[filepath]
+                        return
+                    
+                    # Create manifest path
+                    manifest_path = filepath + '.manifest.json'
+                    
+                    # For append mode, load existing file if it exists
+                    if mode == 'a' and os.path.exists(filepath):
+                        encoder = MAIFEncoder(
+                            agent_id=self.config.agent_id,
+                            existing_maif_path=filepath,
+                            existing_manifest_path=manifest_path if os.path.exists(manifest_path) else None,
+                            enable_privacy=self.privacy_engine is not None
+                        )
+                    else:
+                        encoder = MAIFEncoder(
+                            agent_id=self.config.agent_id,
+                            enable_privacy=self.privacy_engine is not None
+                        )
+                    
+                    self._encoders[filepath] = encoder
+                    yield encoder
+                    
+                else:  # mode == 'r'
+                    if filepath in self._decoders:
+                        yield self._decoders[filepath]
+                        return
+                    
+                    manifest_path = filepath + '.manifest.json'
+                    decoder = MAIFDecoder(
+                        maif_path=filepath,
+                        manifest_path=manifest_path if os.path.exists(manifest_path) else None,
+                        privacy_engine=self.privacy_engine if self.privacy_engine else None,
+                        requesting_agent=self.config.agent_id
+                    )
                     
                     # Enable memory mapping for read operations if configured
-                    if self.config.enable_mmap and mode == 'r':
+                    if self.config.enable_mmap:
                         try:
                             with open(filepath, 'rb') as f:
                                 mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
                                 self._mmaps[filepath] = mm
-                                maif_file._mmap = mm
                         except (OSError, ValueError):
                             # Fallback to regular file I/O
                             pass
-                
-                self._open_files[filepath] = maif_file
-                
-            yield maif_file
+                    
+                    self._decoders[filepath] = decoder
+                    yield decoder
             
         finally:
             # Keep file open for potential reuse, cleanup happens in close()
@@ -284,27 +312,27 @@ class MAIFClient:
             )
             
             # Also save locally for hybrid approach
-            with self.open_file(filepath, 'a') as maif_file:
-                block = MAIFBlock(
-                    block_type=content_type.value,
+            with self.open_file(filepath, 'a') as encoder:
+                block_id = encoder.add_binary_block(
                     data=b"",  # Don't store data locally, just metadata
+                    block_type=content_type.value,
                     metadata={**meta_dict, "s3_artifact_id": artifact_id}
                 )
-                maif_file.add_block(block)
-                maif_file.save()
+                manifest_path = filepath + '.manifest.json'
+                encoder.save(filepath, manifest_path)
             
             return artifact_id
         else:
             # Local storage only
-            with self.open_file(filepath, 'a') as maif_file:
-                block = MAIFBlock(
-                    block_type=content_type.value,
+            with self.open_file(filepath, 'a') as encoder:
+                block_id = encoder.add_binary_block(
                     data=content,
+                    block_type=content_type.value,
                     metadata=meta_dict
                 )
-                maif_file.add_block(block)
-                maif_file.save()
-                return block.block_id
+                manifest_path = filepath + '.manifest.json'
+                encoder.save(filepath, manifest_path)
+                return block_id
     
     def _flush_buffer_to_file(self, filepath: str):
         """Flush write buffer to file as a single operation."""
@@ -312,15 +340,15 @@ class MAIFClient:
         if not entries:
             return
         
-        with self.open_file(filepath, 'a') as maif_file:
+        with self.open_file(filepath, 'a') as encoder:
             for entry in entries:
-                block = MAIFBlock(
-                    block_type=entry['metadata'].get('content_type', 'data'),
+                encoder.add_binary_block(
                     data=entry['data'],
+                    block_type=entry['metadata'].get('content_type', 'data'),
                     metadata=entry['metadata']
                 )
-                maif_file.add_block(block)
-            maif_file.save()
+            manifest_path = filepath + '.manifest.json'
+            encoder.save(filepath, manifest_path)
     
     def read_content(self, filepath: Union[str, Path],
                     block_id: Optional[str] = None,
@@ -352,8 +380,8 @@ class MAIFClient:
                 }
             )
         
-        with self.open_file(filepath, 'r') as maif_file:
-            for block in maif_file.blocks:
+        with self.open_file(filepath, 'r') as decoder:
+            for block in decoder.blocks:
                 # Apply filters
                 if block_id and block.block_id != block_id:
                     continue
@@ -409,23 +437,23 @@ class MAIFClient:
     
     def get_file_info(self, filepath: Union[str, Path]) -> Dict:
         """Get information about a MAIF file."""
-        with self.open_file(filepath, 'r') as maif_file:
+        with self.open_file(filepath, 'r') as decoder:
             return {
                 'filepath': str(filepath),
-                'total_blocks': len(maif_file.blocks),
+                'total_blocks': len(decoder.blocks),
                 'file_size': os.path.getsize(filepath) if os.path.exists(filepath) else 0,
-                'content_types': list(set(block.block_type for block in maif_file.blocks)),
+                'content_types': list(set(block.block_type for block in decoder.blocks)),
                 'agents': list(set(
-                    block.metadata.get('agent_id', 'unknown') 
-                    for block in maif_file.blocks 
+                    block.metadata.get('agent_id', 'unknown')
+                    for block in decoder.blocks
                     if block.metadata
                 )),
                 'created': min(
-                    (block.metadata.get('timestamp', 0) for block in maif_file.blocks if block.metadata),
+                    (block.metadata.get('timestamp', 0) for block in decoder.blocks if block.metadata),
                     default=0
                 ),
                 'modified': max(
-                    (block.metadata.get('timestamp', 0) for block in maif_file.blocks if block.metadata),
+                    (block.metadata.get('timestamp', 0) for block in decoder.blocks if block.metadata),
                     default=0
                 )
             }
@@ -447,14 +475,17 @@ class MAIFClient:
                     pass
             self._mmaps.clear()
             
-            # Close MAIF files
-            for maif_file in self._open_files.values():
+            # Close encoders
+            for encoder in self._encoders.values():
                 try:
-                    if hasattr(maif_file, 'close'):
-                        maif_file.close()
+                    if hasattr(encoder, 'close'):
+                        encoder.close()
                 except:
                     pass
-            self._open_files.clear()
+            self._encoders.clear()
+            
+            # Decoders don't need explicit closing
+            self._decoders.clear()
     
     def __enter__(self):
         return self

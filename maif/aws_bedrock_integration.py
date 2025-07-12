@@ -15,7 +15,7 @@ import datetime
 import threading
 from typing import Dict, List, Optional, Any, Union, Tuple, Set
 import boto3
-from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError, Throttling
+from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError
 import numpy as np
 
 

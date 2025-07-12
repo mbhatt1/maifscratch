@@ -9,12 +9,13 @@ Production-ready with seamless AWS integration.
 """
 
 from .core import MAIFEncoder, MAIFDecoder, MAIFParser, MAIFBlock, MAIFVersion
-from .security import MAIFSigner
+from .signature_verification import MAIFSigner, MAIFVerifier
 from .privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode, AccessRule, DifferentialPrivacy, SecureMultipartyComputation, ZeroKnowledgeProof
 from .semantic import (
     SemanticEmbedder, SemanticEmbedding, KnowledgeTriple,
     CrossModalAttention, HierarchicalSemanticCompression,
-    CryptographicSemanticBinding, DeepSemanticUnderstanding
+    CryptographicSemanticBinding, DeepSemanticUnderstanding,
+    KnowledgeGraphBuilder
 )
 
 # Import enhanced algorithms from semantic_optimized
@@ -29,8 +30,8 @@ try:
 except ImportError:
     ENHANCED_ALGORITHMS_AVAILABLE = False
 
-from .forensics import ForensicAnalyzer
-from .compression import MAIFCompressor, CompressionMetadata
+from .forensics import ForensicAnalyzer, ForensicReport, ForensicEvidence
+from .compression_manager import CompressionEngine, CompressionMetadata
 from .binary_format import MAIFBinaryParser, MAIFBinaryWriter
 from .validation import MAIFValidator, MAIFRepairTool
 from .metadata import MAIFMetadataManager
@@ -90,6 +91,7 @@ __all__ = [
     
     # Security
     'MAIFSigner',
+    'MAIFVerifier',
     
     # Privacy
     'PrivacyEngine',
@@ -109,6 +111,7 @@ __all__ = [
     'HierarchicalSemanticCompression',
     'CryptographicSemanticBinding',
     'DeepSemanticUnderstanding',
+    'KnowledgeGraphBuilder',
     
     # Enhanced Novel Algorithms (if available)
     'AdaptiveCrossModalAttention',
@@ -119,9 +122,11 @@ __all__ = [
     
     # Forensics
     'ForensicAnalyzer',
+    'ForensicReport',
+    'ForensicEvidence',
     
     # Compression
-    'MAIFCompressor',
+    'CompressionEngine',
     'CompressionMetadata',
     
     # Binary Format

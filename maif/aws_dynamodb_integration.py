@@ -11,6 +11,7 @@ import logging
 import datetime
 import decimal
 import hashlib
+import threading
 from typing import Dict, List, Optional, Any, Union, Tuple, Set
 import boto3
 from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError
@@ -24,7 +25,13 @@ class DecimalEncoder(json.JSONEncoder):
     """Helper class to convert Decimal to float for JSON serialization."""
     def default(self, o):
         if isinstance(o, decimal.Decimal):
-            return float(o) if o % 1 else int(o)
+            # Handle special cases
+            if o.is_nan():
+                return None
+            elif o.is_infinite():
+                return None
+            # Convert to int if it's a whole number, else float
+            return int(o) if o % 1 == 0 else float(o)
         return super(DecimalEncoder, self).default(o)
 
 
@@ -132,6 +139,9 @@ class DynamoDBClient:
                 "table_operations": {}
             }
             
+            # Thread safety
+            self._lock = threading.RLock()
+            
             logger.info("DynamoDB client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize DynamoDB client: {e}", exc_info=True)
@@ -154,19 +164,20 @@ class DynamoDBClient:
             DynamoDBError: For non-retryable errors or if max retries exceeded
         """
         start_time = time.time()
-        self.metrics["total_operations"] += 1
-        
-        # Track table-specific operations
-        if table_name:
-            if table_name not in self.metrics["table_operations"]:
-                self.metrics["table_operations"][table_name] = {
-                    "total": 0,
-                    "successful": 0,
-                    "failed": 0,
-                    "retried": 0,
-                    "throttled": 0
-                }
-            self.metrics["table_operations"][table_name]["total"] += 1
+        with self._lock:
+            self.metrics["total_operations"] += 1
+            
+            # Track table-specific operations
+            if table_name:
+                if table_name not in self.metrics["table_operations"]:
+                    self.metrics["table_operations"][table_name] = {
+                        "total": 0,
+                        "successful": 0,
+                        "failed": 0,
+                        "retried": 0,
+                        "throttled": 0
+                    }
+                self.metrics["table_operations"][table_name]["total"] += 1
         
         retries = 0
         last_exception = None
@@ -177,26 +188,27 @@ class DynamoDBClient:
                 result = operation_func(*args, **kwargs)
                 
                 # Record success metrics
-                self.metrics["successful_operations"] += 1
-                latency = time.time() - start_time
-                self.metrics["operation_latencies"].append(latency)
-                
-                # Track table-specific success
-                if table_name:
-                    self.metrics["table_operations"][table_name]["successful"] += 1
-                
-                # Track consumed capacity
-                if isinstance(result, dict) and 'ConsumedCapacity' in result:
-                    capacity = result['ConsumedCapacity']
-                    if isinstance(capacity, list):
-                        for cap in capacity:
-                            self._track_consumed_capacity(cap)
-                    else:
-                        self._track_consumed_capacity(capacity)
-                
-                # Trim latencies list if it gets too large
-                if len(self.metrics["operation_latencies"]) > 1000:
-                    self.metrics["operation_latencies"] = self.metrics["operation_latencies"][-1000:]
+                with self._lock:
+                    self.metrics["successful_operations"] += 1
+                    latency = time.time() - start_time
+                    self.metrics["operation_latencies"].append(latency)
+                    
+                    # Track table-specific success
+                    if table_name:
+                        self.metrics["table_operations"][table_name]["successful"] += 1
+                    
+                    # Track consumed capacity
+                    if isinstance(result, dict) and 'ConsumedCapacity' in result:
+                        capacity = result['ConsumedCapacity']
+                        if isinstance(capacity, list):
+                            for cap in capacity:
+                                self._track_consumed_capacity(cap)
+                        else:
+                            self._track_consumed_capacity(capacity)
+                    
+                    # Trim latencies list if it gets too large
+                    if len(self.metrics["operation_latencies"]) > 1000:
+                        self.metrics["operation_latencies"] = self.metrics["operation_latencies"][-1000:]
                 
                 logger.debug(f"DynamoDB {operation_name} completed successfully in {latency:.2f}s")
                 return result
@@ -208,17 +220,18 @@ class DynamoDBClient:
                 # Check if this is a retryable error
                 if error_code in self.RETRYABLE_ERRORS and retries < self.max_retries:
                     retries += 1
-                    self.metrics["retried_operations"] += 1
-                    
-                    # Track throttling
-                    if error_code == 'ProvisionedThroughputExceededException' or error_code == 'ThrottlingException':
-                        self.metrics["throttling_count"] += 1
+                    with self._lock:
+                        self.metrics["retried_operations"] += 1
+                        
+                        # Track throttling
+                        if error_code == 'ProvisionedThroughputExceededException' or error_code == 'ThrottlingException':
+                            self.metrics["throttling_count"] += 1
+                            if table_name:
+                                self.metrics["table_operations"][table_name]["throttled"] += 1
+                        
+                        # Track table-specific retries
                         if table_name:
-                            self.metrics["table_operations"][table_name]["throttled"] += 1
-                    
-                    # Track table-specific retries
-                    if table_name:
-                        self.metrics["table_operations"][table_name]["retried"] += 1
+                            self.metrics["table_operations"][table_name]["retried"] += 1
                     
                     delay = min(self.max_delay, self.base_delay * (2 ** retries))
                     
@@ -231,11 +244,12 @@ class DynamoDBClient:
                     last_exception = e
                 else:
                     # Non-retryable error or max retries exceeded
-                    self.metrics["failed_operations"] += 1
-                    
-                    # Track table-specific failures
-                    if table_name:
-                        self.metrics["table_operations"][table_name]["failed"] += 1
+                    with self._lock:
+                        self.metrics["failed_operations"] += 1
+                        
+                        # Track table-specific failures
+                        if table_name:
+                            self.metrics["table_operations"][table_name]["failed"] += 1
                     
                     if error_code in self.RETRYABLE_ERRORS:
                         logger.error(
@@ -260,11 +274,12 @@ class DynamoDBClient:
                 # Network-related errors
                 if retries < self.max_retries:
                     retries += 1
-                    self.metrics["retried_operations"] += 1
-                    
-                    # Track table-specific retries
-                    if table_name:
-                        self.metrics["table_operations"][table_name]["retried"] += 1
+                    with self._lock:
+                        self.metrics["retried_operations"] += 1
+                        
+                        # Track table-specific retries
+                        if table_name:
+                            self.metrics["table_operations"][table_name]["retried"] += 1
                     
                     delay = min(self.max_delay, self.base_delay * (2 ** retries))
                     
@@ -276,22 +291,24 @@ class DynamoDBClient:
                     time.sleep(delay)
                     last_exception = e
                 else:
-                    self.metrics["failed_operations"] += 1
-                    
-                    # Track table-specific failures
-                    if table_name:
-                        self.metrics["table_operations"][table_name]["failed"] += 1
+                    with self._lock:
+                        self.metrics["failed_operations"] += 1
+                        
+                        # Track table-specific failures
+                        if table_name:
+                            self.metrics["table_operations"][table_name]["failed"] += 1
                     
                     logger.error(f"DynamoDB {operation_name} failed after {retries} retries due to connection error", exc_info=True)
                     raise DynamoDBConnectionError(f"Connection error: {str(e)}. Max retries exceeded.")
             
             except Exception as e:
                 # Unexpected errors
-                self.metrics["failed_operations"] += 1
-                
-                # Track table-specific failures
-                if table_name:
-                    self.metrics["table_operations"][table_name]["failed"] += 1
+                with self._lock:
+                    self.metrics["failed_operations"] += 1
+                    
+                    # Track table-specific failures
+                    if table_name:
+                        self.metrics["table_operations"][table_name]["failed"] += 1
                 
                 logger.error(f"Unexpected error in DynamoDB {operation_name}: {str(e)}", exc_info=True)
                 raise DynamoDBError(f"Unexpected error: {str(e)}")
@@ -312,20 +329,21 @@ class DynamoDBClient:
     
     def _clean_table_cache(self):
         """Clean expired entries from table cache."""
-        current_time = time.time()
-        expired_keys = [
-            key for key, expiry in self.table_cache_expiry.items()
-            if current_time > expiry
-        ]
-        
-        for key in expired_keys:
-            if key in self.table_cache:
-                del self.table_cache[key]
-            if key in self.table_cache_expiry:
-                del self.table_cache_expiry[key]
-        
-        if expired_keys:
-            logger.debug(f"Cleaned table cache: {len(expired_keys)} expired entries removed")
+        with self._lock:
+            current_time = time.time()
+            expired_keys = [
+                key for key, expiry in self.table_cache_expiry.items()
+                if current_time > expiry
+            ]
+            
+            for key in expired_keys:
+                if key in self.table_cache:
+                    del self.table_cache[key]
+                if key in self.table_cache_expiry:
+                    del self.table_cache_expiry[key]
+            
+            if expired_keys:
+                logger.debug(f"Cleaned table cache: {len(expired_keys)} expired entries removed")
     
     def list_tables(self, limit: int = 100) -> List[str]:
         """
@@ -386,9 +404,10 @@ class DynamoDBClient:
         self._clean_table_cache()
         
         # Check cache
-        if table_name in self.table_cache:
-            logger.debug(f"Returning cached table info for {table_name}")
-            return self.table_cache[table_name]
+        with self._lock:
+            if table_name in self.table_cache:
+                logger.debug(f"Returning cached table info for {table_name}")
+                return self.table_cache[table_name]
         
         logger.info(f"Describing DynamoDB table {table_name}")
         
@@ -399,8 +418,9 @@ class DynamoDBClient:
         table_info = self._execute_with_retry("describe_table", describe_table_operation, table_name)
         
         # Cache table info
-        self.table_cache[table_name] = table_info
-        self.table_cache_expiry[table_name] = time.time() + self.table_cache_ttl
+        with self._lock:
+            self.table_cache[table_name] = table_info
+            self.table_cache_expiry[table_name] = time.time() + self.table_cache_ttl
         
         return table_info
     
@@ -463,8 +483,9 @@ class DynamoDBClient:
         table_info = self._execute_with_retry("create_table", create_table_operation, table_name)
         
         # Cache table info
-        self.table_cache[table_name] = table_info
-        self.table_cache_expiry[table_name] = time.time() + self.table_cache_ttl
+        with self._lock:
+            self.table_cache[table_name] = table_info
+            self.table_cache_expiry[table_name] = time.time() + self.table_cache_ttl
         
         return table_info
     
@@ -495,11 +516,12 @@ class DynamoDBClient:
         table_info = self._execute_with_retry("delete_table", delete_table_operation, table_name)
         
         # Remove from cache
-        if table_name in self.table_cache:
-            del self.table_cache[table_name]
-        
-        if table_name in self.table_cache_expiry:
-            del self.table_cache_expiry[table_name]
+        with self._lock:
+            if table_name in self.table_cache:
+                del self.table_cache[table_name]
+            
+            if table_name in self.table_cache_expiry:
+                del self.table_cache_expiry[table_name]
         
         return table_info
     

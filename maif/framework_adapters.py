@@ -97,7 +97,7 @@ class MAIFLangChainVectorStore(BaseVectorStore):
         for block in self.decoder.blocks:
             if block.block_type == "text":
                 doc_id = block.metadata.get("doc_id", block.block_id)
-                content = self.decoder.get_block_data(block).decode('utf-8')
+                content = self.decoder.get_block_data(block.block_id).decode('utf-8')
                 
                 self._document_cache[doc_id] = Document(
                     page_content=content,
@@ -109,7 +109,7 @@ class MAIFLangChainVectorStore(BaseVectorStore):
             if block.block_type == "embeddings":
                 doc_id = block.metadata.get("doc_id")
                 if doc_id:
-                    embedding_data = self.decoder.get_block_data(block)
+                    embedding_data = self.decoder.get_block_data(block.block_id)
                     # Deserialize embedding
                     import struct
                     num_floats = len(embedding_data) // 4
@@ -277,7 +277,7 @@ class MAIFLlamaIndexVectorStore:
         for block in self.decoder.blocks:
             if block.block_type == "text" and block.metadata.get("node_id"):
                 node_id = block.metadata["node_id"]
-                content = self.decoder.get_block_data(block).decode('utf-8')
+                content = self.decoder.get_block_data(block.block_id).decode('utf-8')
                 
                 self._nodes[node_id] = {
                     "id": node_id,
@@ -289,7 +289,7 @@ class MAIFLlamaIndexVectorStore:
         for block in self.decoder.blocks:
             if block.block_type == "embeddings" and block.metadata.get("node_id"):
                 node_id = block.metadata["node_id"]
-                embedding_data = self.decoder.get_block_data(block)
+                embedding_data = self.decoder.get_block_data(block.block_id)
                 
                 import struct
                 num_floats = len(embedding_data) // 4
@@ -413,7 +413,7 @@ class MAIFMemGPTBackend:
         for block in self.decoder.blocks:
             if block.block_type == "memory_page":
                 page_id = block.metadata.get("page_id", 0)
-                page_data = json.loads(self.decoder.get_block_data(block).decode('utf-8'))
+                page_data = json.loads(self.decoder.get_block_data(block.block_id).decode('utf-8'))
                 
                 self._pages[page_id] = page_data
                 self._next_page_id = max(self._next_page_id, page_id + 1)
@@ -433,7 +433,7 @@ class MAIFMemGPTBackend:
                 if (block.block_type == "memory_page" and 
                     block.metadata.get("page_id") == page_id):
                     page_data = json.loads(
-                        self.decoder.get_block_data(block).decode('utf-8')
+                        self.decoder.get_block_data(block.block_id).decode('utf-8')
                     )
                     
                     # Add to memory cache

@@ -147,7 +147,6 @@ def create_aws_client(
     
     return MAIFClient(
         agent_id=agent_id,
-        artifact_name=artifact_name,
         use_aws=True,
         aws_config=AWSConfig(region=region) if region else None,
         **kwargs

@@ -2,6 +2,7 @@
 Basic usage example for MAIF library.
 """
 
+import json
 from maif import MAIFEncoder, MAIFParser, MAIFSigner, MAIFVerifier
 from maif.semantic import SemanticEmbedder, KnowledgeGraphBuilder
 from maif.forensics import ForensicAnalyzer
@@ -165,9 +166,6 @@ def main():
     """Main demonstration function."""
     print("MAIF Library Demonstration")
     print("=" * 50)
-    
-    # Import json here since it's used in the functions
-    import json
     
     try:
         # Create sample MAIF
