@@ -15,7 +15,7 @@ from sklearn.decomposition import PCA
 import struct
 
 # Import the base semantic classes
-from .semantic import SemanticEmbedder, SemanticEmbedding
+from .semantic import SemanticEmbedder, SemanticEmbedding, AttentionWeights
 
 try:
     import faiss
@@ -54,14 +54,6 @@ def fast_top_k_indices(similarities, k):
         top_k_indices[i] = top_k_indices[i][np.argsort(similarities[i, top_k_indices[i]])[::-1]]
     
     return top_k_indices
-
-@dataclass
-class AttentionWeights:
-    """Structured attention weights for ACAM."""
-    query_key_weights: np.ndarray
-    trust_scores: Dict[str, float]
-    coherence_matrix: np.ndarray
-    normalized_weights: np.ndarray
 
 class OptimizedSemanticEmbedder(SemanticEmbedder):
     """
