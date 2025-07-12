@@ -20,9 +20,12 @@ from .agentic_framework import (
 )
 from .aws_bedrock_integration import BedrockClient, MAIFBedrockIntegration
 from .aws_kms_integration import create_kms_verifier, sign_block_data_with_kms
+from .aws_xray_integration import MAIFXRayIntegration, xray_trace, xray_subsegment
 
 from maif_sdk.artifact import Artifact as MAIFArtifact
 from maif_sdk.types import SecurityLevel
+from maif_sdk.client import MAIFClient
+from maif_sdk.aws_backend import AWSConfig
 
 
 # ===== Enhanced AWS System Implementations =====
@@ -37,6 +40,7 @@ class AWSEnhancedPerceptionSystem(PerceptionSystem):
         bedrock_client = BedrockClient(region_name=region_name)
         self.bedrock_integration = MAIFBedrockIntegration(bedrock_client)
     
+    @xray_subsegment("perception_process_text")
     async def _process_text(self, text: str, artifact: MAIFArtifact):
         """Process text using AWS Bedrock."""
         # Generate embeddings using Bedrock
@@ -225,21 +229,37 @@ class AWSExecutionSystem(ExecutionSystem):
 
 # ===== Agent Creation Decorators =====
 
-def maif_agent(agent_class: Type = None, **config):
+def maif_agent(agent_class: Type = None, use_aws: bool = False, aws_config: Optional[AWSConfig] = None,
+               enable_xray: bool = False, xray_service_name: Optional[str] = None, **config):
     """
-    Decorator to easily create a MAIF agent class.
+    Decorator to easily create a MAIF agent class with optional AWS backend and X-Ray tracing.
     
-    @maif_agent(workspace="./agent_data")
+    @maif_agent(workspace="./agent_data", use_aws=True, enable_xray=True)
     class MyAgent:
         def process(self, data):
-            # Your logic here
+            # Your logic here - automatically uses AWS backends and X-Ray tracing
+    
+    Args:
+        use_aws: Enable AWS backends for artifact storage
+        aws_config: Optional AWS configuration
+        enable_xray: Enable X-Ray tracing for agent operations
+        xray_service_name: Custom service name for X-Ray (default: agent class name)
+        **config: Additional configuration for the agent
     """
     def decorator(cls):
         # Create a new class that inherits from both the original class and MAIFAgent
         class MixedAgent(cls, MAIFAgent):
             def __init__(self, agent_id="default_agent", workspace_path="./workspace", **kwargs):
-                # Initialize MAIFAgent
+                # Initialize MAIFAgent with AWS backend support
                 MAIFAgent.__init__(self, agent_id, workspace_path, config)
+                
+                # Replace the MAIF client with AWS-enabled version if requested
+                if use_aws:
+                    self.maif_client = MAIFClient(
+                        agent_id=agent_id,
+                        use_aws=True,
+                        aws_config=aws_config
+                    )
                 
                 # Initialize the original class
                 cls.__init__(self, **kwargs)
@@ -611,18 +631,42 @@ def enhance_with_step_functions(region_name: str = "us-east-1"):
 
 # ===== Full AWS Agent Decorator =====
 
-def aws_agent(region_name: str = "us-east-1", profile_name: Optional[str] = None, **config):
+def aws_agent(region_name: str = "us-east-1", profile_name: Optional[str] = None,
+              use_aws: bool = True, aws_config: Optional[AWSConfig] = None,
+              enable_xray: bool = True, xray_service_name: Optional[str] = None, **config):
     """
     Comprehensive decorator to create a fully AWS-integrated MAIF agent.
     
     @aws_agent(workspace="./agent_data")
     class MyAgent:
         def process(self):
-            # Your logic here
+            # Your logic here - automatically uses AWS backends and X-Ray tracing
+    
+    Args:
+        region_name: AWS region name (default: us-east-1)
+        profile_name: AWS profile name (optional)
+        use_aws: Enable AWS backends for artifact storage (default: True)
+        aws_config: Optional AWS configuration object
+        enable_xray: Enable X-Ray tracing (default: True)
+        xray_service_name: Custom service name for X-Ray
+        **config: Additional configuration passed to maif_agent
     """
     def decorator(cls):
-        # First apply the maif_agent decorator
-        agent_cls = maif_agent(**config)(cls)
+        # Configure AWS settings if aws_config not provided
+        if use_aws and aws_config is None:
+            aws_config = AWSConfig(
+                region_name=region_name,
+                profile_name=profile_name
+            )
+        
+        # First apply the maif_agent decorator with AWS backend support and X-Ray
+        agent_cls = maif_agent(
+            use_aws=use_aws,
+            aws_config=aws_config,
+            enable_xray=enable_xray,
+            xray_service_name=xray_service_name,
+            **config
+        )(cls)
         
         # Then apply all AWS enhancement decorators
         agent_cls = enhance_perception_with_bedrock(region_name)(agent_cls)
@@ -633,3 +677,59 @@ def aws_agent(region_name: str = "us-east-1", profile_name: Optional[str] = None
         return agent_cls
     
     return decorator
+
+
+# ===== X-Ray Tracing Decorator =====
+
+def aws_xray(service_name: Optional[str] = None, sampling_rate: float = 0.1):
+    """
+    Decorator to add AWS X-Ray tracing to a method or class.
+    
+    @aws_xray(service_name="MyService")
+    def process_data(data):
+        # Your code here - automatically traced
+        pass
+    
+    Args:
+        service_name: Optional service name for X-Ray
+        sampling_rate: Percentage of requests to trace (0.0-1.0)
+    """
+    def decorator(target):
+        # Initialize X-Ray integration
+        xray_integration = MAIFXRayIntegration(
+            service_name=service_name or target.__name__,
+            sampling_rate=sampling_rate
+        )
+        
+        # If decorating a class
+        if isinstance(target, type):
+            # Trace all public methods
+            for attr_name in dir(target):
+                attr = getattr(target, attr_name)
+                if callable(attr) and not attr_name.startswith('_'):
+                    traced_method = xray_integration.trace_agent_operation(attr_name)(attr)
+                    setattr(target, attr_name, traced_method)
+            
+            # Store X-Ray integration
+            target._xray_integration = xray_integration
+            return target
+        
+        # If decorating a function/method
+        else:
+            return xray_integration.trace_agent_operation(target.__name__)(target)
+    
+    return decorator
+
+
+# Convenience decorator for tracing AWS service calls
+def trace_aws_call(service_name: str):
+    """
+    Decorator to trace AWS service calls with X-Ray.
+    
+    @trace_aws_call("s3")
+    async def upload_to_s3(bucket, key, data):
+        # S3 upload code
+        pass
+    """
+    xray_integration = MAIFXRayIntegration()
+    return xray_integration.trace_aws_call(service_name)

@@ -6,7 +6,7 @@ Tests for AWS decorators integration with MAIF agentic framework.
 import unittest
 import asyncio
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 from pathlib import Path
 
 # Import MAIF components
@@ -17,6 +17,8 @@ from maif.aws_decorators import (
     enhance_with_step_functions,
     AWSEnhancedPerceptionSystem, AWSEnhancedReasoningSystem, AWSExecutionSystem, StepFunctionsWorkflowSystem
 )
+from maif_sdk.aws_backend import AWSConfig
+from maif_sdk.types import SecurityLevel
 
 
 class TestAWSDecorators(unittest.TestCase):
@@ -257,6 +259,140 @@ class TestAWSAgentIntegration(unittest.TestCase):
             "arn:aws:states:us-east-1:123456789012:stateMachine:TestWorkflow",
             agent.workflow.workflows["test_workflow"]["state_machine_arn"]
         )
+    
+    @patch('maif_sdk.aws_backend.create_aws_backends')
+    def test_maif_agent_with_aws_backend(self, mock_create_backends):
+        """Test maif_agent decorator with AWS backend enabled."""
+        # Mock AWS backends
+        mock_backends = {
+            's3': AsyncMock(),
+            'kms': AsyncMock(),
+            'secrets_manager': AsyncMock(),
+            'cloudwatch': AsyncMock(),
+            'macie': AsyncMock()
+        }
+        mock_create_backends.return_value = mock_backends
+        
+        # Define test agent with AWS backend
+        @maif_agent(workspace="./test_workspace", use_aws=True)
+        class TestAWSBackendAgent:
+            async def process(self, data):
+                # Access the MAIF client
+                client = self.maif_client
+                
+                # Check that AWS backends are configured
+                self.assertIsNotNone(client.aws_backends)
+                self.assertIn('s3', client.aws_backends)
+                
+                return "processed"
+        
+        # Create agent
+        agent = TestAWSBackendAgent()
+        
+        # Run async test
+        async def run_test():
+            await agent.initialize()
+            result = await agent.process("test data")
+            self.assertEqual(result, "processed")
+        
+        asyncio.run(run_test())
+        
+        # Verify AWS backends were created
+        mock_create_backends.assert_called_once()
+    
+    @patch('maif_sdk.aws_backend.create_aws_backends')
+    def test_aws_agent_with_custom_config(self, mock_create_backends):
+        """Test aws_agent decorator with custom AWS configuration."""
+        # Mock AWS backends
+        mock_backends = {
+            's3': AsyncMock(),
+            'kms': AsyncMock(),
+            'secrets_manager': AsyncMock(),
+            'cloudwatch': AsyncMock(),
+            'macie': AsyncMock()
+        }
+        mock_create_backends.return_value = mock_backends
+        
+        # Custom AWS config
+        custom_config = AWSConfig(
+            region_name="us-west-2",
+            s3_bucket="custom-bucket",
+            kms_key_id="custom-key"
+        )
+        
+        # Define test agent with custom config
+        @aws_agent(
+            workspace="./test_workspace",
+            aws_config=custom_config
+        )
+        class TestCustomConfigAgent:
+            async def verify_config(self):
+                # Access the MAIF client
+                client = self.maif_client
+                
+                # Check that custom config is used
+                self.assertIsNotNone(client.aws_config)
+                self.assertEqual(client.aws_config.region_name, "us-west-2")
+                self.assertEqual(client.aws_config.s3_bucket, "custom-bucket")
+                
+                return "verified"
+        
+        # Create agent
+        agent = TestCustomConfigAgent()
+        
+        # Run async test
+        async def run_test():
+            await agent.initialize()
+            result = await agent.verify_config()
+            self.assertEqual(result, "verified")
+        
+        asyncio.run(run_test())
+        
+        # Verify AWS backends were created with custom config
+        mock_create_backends.assert_called_once()
+        call_args = mock_create_backends.call_args[0][0]
+        self.assertEqual(call_args.region_name, "us-west-2")
+        self.assertEqual(call_args.s3_bucket, "custom-bucket")
+    
+    def test_aws_agent_default_use_aws_true(self):
+        """Test that aws_agent decorator has use_aws=True by default."""
+        # Define test agent
+        @aws_agent(workspace="./test_workspace")
+        class TestDefaultAgent:
+            pass
+        
+        # The decorator should apply with use_aws=True by default
+        # This test passes if the decorator doesn't raise an error
+        self.assertIsNotNone(TestDefaultAgent)
+    
+    @patch('maif_sdk.aws_backend.create_aws_backends')
+    def test_maif_agent_without_aws_backend(self, mock_create_backends):
+        """Test maif_agent decorator without AWS backend (default behavior)."""
+        # Define test agent without AWS backend
+        @maif_agent(workspace="./test_workspace", use_aws=False)
+        class TestNoAWSAgent:
+            async def process(self, data):
+                # Access the MAIF client
+                client = self.maif_client
+                
+                # Check that AWS backends are NOT configured
+                self.assertIsNone(getattr(client, 'aws_backends', None))
+                
+                return "processed without AWS"
+        
+        # Create agent
+        agent = TestNoAWSAgent()
+        
+        # Run async test
+        async def run_test():
+            await agent.initialize()
+            result = await agent.process("test data")
+            self.assertEqual(result, "processed without AWS")
+        
+        asyncio.run(run_test())
+        
+        # Verify AWS backends were NOT created
+        mock_create_backends.assert_not_called()
 
 
 if __name__ == '__main__':

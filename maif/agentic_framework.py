@@ -16,11 +16,13 @@ import logging
 import numpy as np
 from datetime import datetime
 from enum import Enum
+import os
 
 # Import MAIF components
 from maif_sdk.artifact import Artifact as MAIFArtifact
 from maif_sdk.client import MAIFClient
 from maif_sdk.types import ContentType, SecurityLevel, CompressionLevel
+from maif_sdk.aws_backend import AWSConfig, create_aws_backends
 
 # Import MAIF advanced features
 from .semantic_optimized import (
@@ -48,22 +50,48 @@ class AgentState(Enum):
     LEARNING = "learning"
     TERMINATED = "terminated"
 
+# Import AWS integrations if enabled
+try:
+    from .aws_xray_integration import MAIFXRayIntegration
+    from .aws_bedrock_integration import BedrockClient, MAIFBedrockIntegration
+    from .aws_cloudwatch_compliance import CloudWatchComplianceLogger
+    AWS_AVAILABLE = True
+except ImportError:
+    AWS_AVAILABLE = False
+    logger.warning("AWS integrations not available. Install boto3 and aws-xray-sdk to enable.")
+
 # Base Agent Interface
 class MAIFAgent(ABC):
-    """Base class for MAIF-centric agents."""
+    """Base class for MAIF-centric agents with optional AWS integration."""
     
-    def __init__(self, agent_id: str, workspace_path: str, config: Optional[Dict] = None):
+    def __init__(self, agent_id: str, workspace_path: str, config: Optional[Dict] = None,
+                 use_aws: bool = False, aws_config: Optional[AWSConfig] = None,
+                 restore_from: Optional[Union[str, Path]] = None):
         self.agent_id = agent_id
         self.workspace_path = Path(workspace_path)
         self.config = config or {}
+        self.use_aws = use_aws and AWS_AVAILABLE
+        self.aws_config = aws_config
+        self.restore_from = restore_from
         
-        # Initialize MAIF client
-        self.maif_client = MAIFClient()
+        # Initialize MAIF client with optional AWS backends
+        if self.use_aws:
+            if not self.aws_config:
+                self.aws_config = AWSConfig()
+            self.maif_client = MAIFClient(use_aws=True, aws_config=self.aws_config)
+        else:
+            self.maif_client = MAIFClient()
         
         # Agent state
         self.state = AgentState.INITIALIZING
         self.memory_path = self.workspace_path / f"{agent_id}_memory.maif"
         self.knowledge_path = self.workspace_path / f"{agent_id}_knowledge.maif"
+        self.state_dump_path = self.workspace_path / f"{agent_id}_state_dump.maif"
+        
+        # AWS components (if enabled)
+        self.xray_integration = None
+        self.bedrock_integration = None
+        self.cloudwatch_logger = None
         
         # Core components
         self.perception = PerceptionSystem(self)
@@ -75,12 +103,51 @@ class MAIFAgent(ABC):
         
         # Initialize
         self._initialize()
+        
+        # Restore state if specified
+        if self.restore_from:
+            self.restore_state(self.restore_from)
     
     def _initialize(self):
-        """Initialize agent systems."""
+        """Initialize agent systems and optional AWS integrations."""
         self.workspace_path.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize AWS systems if enabled
+        if self.use_aws:
+            self._initialize_aws_systems()
+        
         self.state = AgentState.IDLE
-        logger.info(f"Agent {self.agent_id} initialized")
+        logger.info(f"Agent {self.agent_id} initialized" +
+                   (" with AWS integration" if self.use_aws else ""))
+    
+    def _initialize_aws_systems(self):
+        """Initialize AWS systems for the agent."""
+        try:
+            # Initialize X-Ray tracing
+            self.xray_integration = MAIFXRayIntegration(
+                service_name=f"MAIF-Agent-{self.agent_id}",
+                region_name=self.aws_config.region_name,
+                sampling_rate=self.config.get('xray_sampling_rate', 0.1)
+            )
+            
+            # Initialize Bedrock integration
+            bedrock_client = BedrockClient(region_name=self.aws_config.region_name)
+            self.bedrock_integration = MAIFBedrockIntegration(bedrock_client)
+            
+            # Initialize CloudWatch compliance logging
+            self.cloudwatch_logger = CloudWatchComplianceLogger(
+                log_group_name=f"/maif/agents/{self.agent_id}",
+                region_name=self.aws_config.region_name
+            )
+            
+            # Trace initialization
+            if self.xray_integration:
+                with self.xray_integration.trace_subsegment("aws_initialization"):
+                    logger.info("AWS systems initialized successfully")
+                    
+        except Exception as e:
+            logger.error(f"Failed to initialize AWS systems: {e}")
+            self.use_aws = False
     
     @abstractmethod
     async def run(self):
@@ -90,14 +157,37 @@ class MAIFAgent(ABC):
     async def perceive(self, input_data: Any, input_type: str) -> MAIFArtifact:
         """Process perception input."""
         self.state = AgentState.PERCEIVING
-        artifact = await self.perception.process(input_data, input_type)
+        
+        # Trace with X-Ray if enabled
+        if self.use_aws and self.xray_integration:
+            segment = self.xray_integration.trace_agent_operation("perceive")
+            try:
+                artifact = await self.perception.process(input_data, input_type)
+                self.xray_integration.add_annotation("perception_type", input_type)
+                self.xray_integration.add_metadata("input_size", len(str(input_data)))
+            finally:
+                segment.__exit__(None, None, None)
+        else:
+            artifact = await self.perception.process(input_data, input_type)
+        
         self.state = AgentState.IDLE
         return artifact
     
     async def reason(self, context: List[MAIFArtifact]) -> MAIFArtifact:
         """Apply reasoning to context."""
         self.state = AgentState.REASONING
-        artifact = await self.reasoning.process(context)
+        
+        # Trace with X-Ray if enabled
+        if self.use_aws and self.xray_integration:
+            segment = self.xray_integration.trace_agent_operation("reason")
+            try:
+                artifact = await self.reasoning.process(context)
+                self.xray_integration.add_annotation("context_size", len(context))
+            finally:
+                segment.__exit__(None, None, None)
+        else:
+            artifact = await self.reasoning.process(context)
+        
         self.state = AgentState.IDLE
         return artifact
     
@@ -144,19 +234,264 @@ class MAIFAgent(ABC):
         
         state_artifact.save(self.workspace_path / f"{self.agent_id}_state.maif")
     
+    async def initialize(self):
+        """Async initialization for components that require it."""
+        if self.use_aws and self.cloudwatch_logger:
+            self.cloudwatch_logger.log_compliance_event(
+                event_type="AGENT_START",
+                agent_id=self.agent_id,
+                metadata={"config": self.config}
+            )
+    
+    def dump_complete_state(self):
+        """Dump complete agent state to a MAIF file."""
+        # Create comprehensive state artifact
+        state_artifact = MAIFArtifact(
+            name=f"{self.agent_id}_complete_dump",
+            client=self.maif_client,
+            security_level=SecurityLevel.L4_REGULATED,
+            enable_embeddings=True
+        )
+        
+        # Collect all agent data
+        state_data = {
+            "agent_id": self.agent_id,
+            "final_state": self.state.value,
+            "shutdown_time": datetime.now().isoformat(),
+            "config": self.config,
+            "statistics": {
+                "total_perceptions": getattr(self.perception, 'perception_count', 0),
+                "total_reasoning": getattr(self.reasoning, 'reasoning_count', 0),
+                "total_executions": getattr(self.execution, 'execution_count', 0)
+            }
+        }
+        
+        # Add state data
+        state_artifact.add_data(
+            json.dumps(state_data, indent=2).encode(),
+            title="Agent Final State",
+            data_type="agent_state"
+        )
+        
+        # Add memory contents if exists
+        if self.memory_path.exists():
+            try:
+                memory_artifact = self.maif_client.read_content(str(self.memory_path))
+                state_artifact.add_text(
+                    f"Memory artifact ID: {memory_artifact.name}",
+                    title="Memory Reference"
+                )
+            except Exception as e:
+                logger.error(f"Failed to include memory: {e}")
+        
+        # Add knowledge contents if exists
+        if self.knowledge_path.exists():
+            try:
+                knowledge_artifact = self.maif_client.read_content(str(self.knowledge_path))
+                state_artifact.add_text(
+                    f"Knowledge artifact ID: {knowledge_artifact.name}",
+                    title="Knowledge Reference"
+                )
+            except Exception as e:
+                logger.error(f"Failed to include knowledge: {e}")
+        
+        # Add AWS integration data if enabled
+        if self.use_aws:
+            aws_data = {
+                "aws_enabled": True,
+                "region": self.aws_config.region_name,
+                "services_used": []
+            }
+            
+            if self.xray_integration:
+                aws_data["services_used"].append("X-Ray")
+                aws_data["xray_metrics"] = self.xray_integration.get_metrics()
+            
+            if self.bedrock_integration:
+                aws_data["services_used"].append("Bedrock")
+                
+            if self.cloudwatch_logger:
+                aws_data["services_used"].append("CloudWatch")
+            
+            state_artifact.add_analysis(aws_data, title="AWS Integration Summary")
+        
+        # Save the complete dump
+        artifact_id = self.maif_client.write_content(state_artifact)
+        dump_path = self.state_dump_path
+        
+        # Also save locally
+        state_artifact.save(dump_path)
+        
+        logger.info(f"Agent state dumped to {dump_path} (ID: {artifact_id})")
+        return dump_path
+    
     def shutdown(self):
-        """Gracefully shutdown agent."""
+        """Gracefully shutdown agent and dump complete state."""
+        logger.info(f"Shutting down agent {self.agent_id}...")
+        
+        # Change state
         self.state = AgentState.TERMINATED
+        
+        # Save current state
         self.save_state()
-        logger.info(f"Agent {self.agent_id} terminated")
+        
+        # Dump complete state to MAIF
+        dump_path = self.dump_complete_state()
+        
+        # Log shutdown event if AWS is enabled
+        if self.use_aws and self.cloudwatch_logger:
+            self.cloudwatch_logger.log_compliance_event(
+                event_type="AGENT_SHUTDOWN",
+                agent_id=self.agent_id,
+                metadata={
+                    "state_dump": str(dump_path),
+                    "final_state": self.state.value
+                }
+            )
+        
+        # Close AWS resources
+        if self.use_aws:
+            if self.xray_integration:
+                # Final X-Ray trace
+                with self.xray_integration.trace_subsegment("agent_shutdown"):
+                    logger.info("Closing AWS resources")
+        
+        logger.info(f"Agent {self.agent_id} terminated. State dumped to: {dump_path}")
+    
+    def restore_state(self, dump_path: Union[str, Path]):
+        """Restore agent state from a MAIF dump file."""
+        logger.info(f"Restoring agent state from: {dump_path}")
+        
+        try:
+            # Read the dump artifact
+            if self.use_aws and str(dump_path).startswith('s3://'):
+                # Load from S3
+                artifact = self.maif_client.read_content(str(dump_path))
+            else:
+                # Load from local file
+                dump_path = Path(dump_path)
+                if not dump_path.exists():
+                    raise FileNotFoundError(f"Dump file not found: {dump_path}")
+                
+                # Create temporary artifact to load the dump
+                temp_artifact = MAIFArtifact(
+                    name="temp_restore",
+                    client=self.maif_client
+                )
+                temp_artifact.load(dump_path)
+                artifact = temp_artifact
+            
+            # Extract state data
+            state_data = None
+            for content in artifact.get_content():
+                if content['metadata'].get('custom', {}).get('title') == 'Agent Final State':
+                    state_data = json.loads(content['data'].decode())
+                    break
+            
+            if not state_data:
+                raise ValueError("No agent state data found in dump")
+            
+            # Restore agent configuration
+            self.agent_id = state_data.get('agent_id', self.agent_id)
+            self.config.update(state_data.get('config', {}))
+            
+            # Restore statistics to components
+            stats = state_data.get('statistics', {})
+            if hasattr(self.perception, 'perception_count'):
+                self.perception.perception_count = stats.get('total_perceptions', 0)
+            if hasattr(self.reasoning, 'reasoning_count'):
+                self.reasoning.reasoning_count = stats.get('total_reasoning', 0)
+            if hasattr(self.execution, 'execution_count'):
+                self.execution.execution_count = stats.get('total_executions', 0)
+            
+            # Restore AWS metrics if available
+            if self.use_aws:
+                for content in artifact.get_content():
+                    if content['metadata'].get('custom', {}).get('title') == 'AWS Integration Summary':
+                        aws_data = json.loads(content['data'].decode())
+                        
+                        # Restore X-Ray metrics
+                        if self.xray_integration and 'xray_metrics' in aws_data:
+                            self.xray_integration.metrics.update(aws_data['xray_metrics'])
+                        
+                        logger.info(f"Restored AWS integration data: {aws_data['services_used']}")
+            
+            # Log restoration event if AWS is enabled
+            if self.use_aws and self.cloudwatch_logger:
+                self.cloudwatch_logger.log_compliance_event(
+                    event_type="AGENT_RESTORED",
+                    agent_id=self.agent_id,
+                    metadata={
+                        "restored_from": str(dump_path),
+                        "original_shutdown_time": state_data.get('shutdown_time'),
+                        "statistics": stats
+                    }
+                )
+            
+            self.state = AgentState.IDLE
+            logger.info(f"Agent state successfully restored. Statistics: {stats}")
+            
+        except Exception as e:
+            logger.error(f"Failed to restore agent state: {e}")
+            raise
+    
+    @classmethod
+    def from_dump(cls, dump_path: Union[str, Path], workspace_path: Optional[str] = None,
+                  use_aws: bool = False, aws_config: Optional[AWSConfig] = None):
+        """Create an agent instance from a MAIF dump file."""
+        # Load the dump to get agent ID and config
+        temp_client = MAIFClient(use_aws=use_aws, aws_config=aws_config)
+        
+        if use_aws and str(dump_path).startswith('s3://'):
+            artifact = temp_client.read_content(str(dump_path))
+        else:
+            temp_artifact = MAIFArtifact(name="temp", client=temp_client)
+            temp_artifact.load(Path(dump_path))
+            artifact = temp_artifact
+        
+        # Extract agent data
+        state_data = None
+        for content in artifact.get_content():
+            if content['metadata'].get('custom', {}).get('title') == 'Agent Final State':
+                state_data = json.loads(content['data'].decode())
+                break
+        
+        if not state_data:
+            raise ValueError("No agent state data found in dump")
+        
+        # Create agent with restored configuration
+        agent_id = state_data['agent_id']
+        config = state_data.get('config', {})
+        
+        if not workspace_path:
+            workspace_path = f"./restored_agents/{agent_id}"
+        
+        # Create new instance with restore_from parameter
+        return cls(
+            agent_id=agent_id,
+            workspace_path=workspace_path,
+            config=config,
+            use_aws=use_aws,
+            aws_config=aws_config,
+            restore_from=dump_path
+        )
 
 # Perception System
 class PerceptionSystem:
-    """Handles multimodal perception using MAIF."""
+    """Handles multimodal perception using MAIF with optional AWS enhancement."""
     
     def __init__(self, agent: MAIFAgent):
         self.agent = agent
-        self.embedder = OptimizedSemanticEmbedder()
+        self.perception_count = 0
+        
+        # Use Bedrock embeddings if AWS is enabled, otherwise local
+        if agent.use_aws and agent.bedrock_integration:
+            self.embedder = agent.bedrock_integration  # Use Bedrock for embeddings
+            self.use_bedrock = True
+        else:
+            self.embedder = OptimizedSemanticEmbedder()
+            self.use_bedrock = False
+            
         self.hsc = HierarchicalSemanticCompression()
         self.csb = CryptographicSemanticBinding()
         
@@ -187,15 +522,38 @@ class PerceptionSystem:
             await self._process_generic(input_data, input_type, artifact)
         
         # Save to agent's memory
-        artifact.save(self.agent.memory_path)
+        if self.agent.use_aws:
+            # Save to S3 via AWS-enabled client
+            artifact_id = self.agent.maif_client.write_content(artifact)
+            logger.info(f"Perception saved to S3: {artifact_id}")
+        else:
+            # Save locally
+            artifact.save(self.agent.memory_path)
         
+        self.perception_count += 1
         return artifact
     
     async def _process_text(self, text: str, artifact: MAIFArtifact):
         """Process text perception."""
         # Generate embedding
-        embeddings = self.embedder.embed_texts([text])
-        embedding_vec = embeddings[0].vector if embeddings else None
+        if self.use_bedrock:
+            # Use Bedrock for embeddings
+            embedding_vec = self.embedder.embed_text(text)
+        else:
+            # Use local embeddings
+            embeddings = self.embedder.embed_texts([text])
+            embedding_vec = embeddings[0].vector if embeddings else None
+        
+        # Log perception event if AWS is enabled
+        if self.agent.use_aws and self.agent.cloudwatch_logger:
+            self.agent.cloudwatch_logger.log_compliance_event(
+                event_type="PERCEPTION_TEXT",
+                agent_id=self.agent.agent_id,
+                metadata={
+                    "text_length": len(text),
+                    "has_embedding": embedding_vec is not None
+                }
+            )
         
         # Add to artifact
         artifact.add_text(
@@ -396,10 +754,11 @@ class PlanningSystem:
 
 # Execution System
 class ExecutionSystem:
-    """Executes plans and records results in MAIF."""
+    """Executes plans and records results in MAIF with optional AWS enhancement."""
     
     def __init__(self, agent: MAIFAgent):
         self.agent = agent
+        self.execution_count = 0
         self.executors: Dict[str, Callable] = {
             "gather_data": self._gather_data,
             "process_data": self._process_data,
@@ -462,8 +821,28 @@ class ExecutionSystem:
             data_type="execution_result"
         )
         
-        artifact.save(self.agent.memory_path)
+        # Save execution result
+        if self.agent.use_aws:
+            # Save to S3 via AWS-enabled client
+            artifact_id = self.agent.maif_client.write_content(artifact)
+            logger.info(f"Execution result saved to S3: {artifact_id}")
+            
+            # Log execution event
+            if self.agent.cloudwatch_logger:
+                self.agent.cloudwatch_logger.log_compliance_event(
+                    event_type="EXECUTION_COMPLETE",
+                    agent_id=self.agent.agent_id,
+                    metadata={
+                        "goal": plan_data['goal'],
+                        "status": execution_data['overall_status'],
+                        "execution_time": execution_data['execution_time']
+                    }
+                )
+        else:
+            # Save locally
+            artifact.save(self.agent.memory_path)
         
+        self.execution_count += 1
         return artifact
     
     async def _gather_data(self, parameters: Dict) -> Dict:

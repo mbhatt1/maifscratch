@@ -3,6 +3,9 @@ MAIF SDK Client - High-performance native interface for MAIF operations.
 
 This client provides the "hot path" for latency-sensitive operations with direct
 memory-mapped I/O and optimized block handling as recommended in the decision memo.
+
+Supports AWS backend integration with use_aws=True for seamless cloud storage,
+encryption, compliance, and privacy features.
 """
 
 import os
@@ -10,6 +13,8 @@ import mmap
 import json
 import time
 import threading
+import uuid
+import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Union, BinaryIO, Any, Iterator
 from contextlib import contextmanager
@@ -21,6 +26,10 @@ from ..maif.compression import CompressionEngine
 from ..maif.privacy import PrivacyEngine, PrivacyPolicy
 from .types import ContentType, SecurityLevel, CompressionLevel, ContentMetadata, SecurityOptions, ProcessingOptions
 from .artifact import Artifact
+from .aws_backend import AWSConfig, create_aws_backends
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -34,6 +43,8 @@ class ClientConfig:
     default_security_level: SecurityLevel = SecurityLevel.PUBLIC
     cache_embeddings: bool = True
     validate_blocks: bool = True
+    use_aws: bool = False
+    aws_config: Optional[AWSConfig] = None
 
 
 class WriteBuffer:
@@ -77,11 +88,48 @@ class MAIFClient:
     providing native SDK performance without FUSE overhead.
     """
     
-    def __init__(self, agent_id: str = "default_agent", **kwargs):
-        self.config = ClientConfig(agent_id=agent_id, **kwargs)
-        self.security_engine = SecurityEngine()
-        self.compression_engine = CompressionEngine()
-        self.privacy_engine = PrivacyEngine()
+    def __init__(self, agent_id: str = "default_agent", use_aws: bool = False,
+                 aws_config: Optional[AWSConfig] = None, **kwargs):
+        """
+        Initialize MAIF client with optional AWS backend support.
+        
+        Args:
+            agent_id: Agent identifier
+            use_aws: Enable AWS backend integrations
+            aws_config: AWS configuration (uses environment if not provided)
+            **kwargs: Additional configuration options
+        """
+        self.config = ClientConfig(
+            agent_id=agent_id,
+            use_aws=use_aws,
+            aws_config=aws_config or (AWSConfig.from_environment() if use_aws else None),
+            **kwargs
+        )
+        
+        # Initialize AWS backends if enabled
+        if self.config.use_aws:
+            self._aws_backends = create_aws_backends(self.config.aws_config)
+            
+            # Use AWS backends for security, privacy, and storage
+            self.security_engine = self._aws_backends.get('security', SecurityEngine())
+            self.compression_engine = CompressionEngine()  # Still use local compression
+            self.privacy_engine = self._aws_backends.get('privacy', PrivacyEngine())
+            self.compliance_logger = self._aws_backends.get('compliance')
+            self.storage_backend = self._aws_backends.get('storage')
+            self.block_storage = self._aws_backends.get('block_storage')
+            self.streaming_backend = self._aws_backends.get('streaming')
+            self.encryption_backend = self._aws_backends.get('encryption')
+        else:
+            # Use local backends
+            self.security_engine = SecurityEngine()
+            self.compression_engine = CompressionEngine()
+            self.privacy_engine = PrivacyEngine()
+            self.compliance_logger = None
+            self.storage_backend = None
+            self.block_storage = None
+            self.streaming_backend = None
+            self.encryption_backend = None
+        
         self.write_buffer = WriteBuffer(self.config.buffer_size)
         self._open_files: Dict[str, MAIFFile] = {}
         self._mmaps: Dict[str, mmap.mmap] = {}
@@ -197,16 +245,66 @@ class MAIFClient:
             if should_flush:
                 self._flush_buffer_to_file(filepath)
         
-        # Write immediately
-        with self.open_file(filepath, 'a') as maif_file:
-            block = MAIFBlock(
-                block_type=content_type.value,
+        # Log to compliance logger if AWS enabled
+        if self.config.use_aws and self.compliance_logger:
+            from ..maif.compliance_logging import LogLevel, LogCategory
+            self.compliance_logger.log(
+                level=LogLevel.INFO,
+                category=LogCategory.DATA,
+                user_id=self.config.agent_id,
+                action="write_content",
+                resource_id=str(filepath),
+                details={
+                    "content_type": content_type.value,
+                    "size": len(content),
+                    "encrypted": meta_dict.get('encrypted', False),
+                    "compressed": meta_dict.get('compressed', False)
+                }
+            )
+        
+        # Use AWS S3 storage if enabled
+        if self.config.use_aws and self.storage_backend:
+            # Store in S3
+            artifact_id = f"{content_type.value}-{uuid.uuid4()}"
+            
+            # Apply AWS KMS encryption if available
+            if self.encryption_backend and security_options and security_options.encrypt:
+                encrypted_data, encryption_metadata = self.encryption_backend.encrypt_with_context(
+                    content,
+                    context={"artifact_id": artifact_id, "content_type": content_type.value}
+                )
+                content = encrypted_data
+                meta_dict.update(encryption_metadata)
+            
+            # Upload to S3
+            self.storage_backend.upload_artifact(
+                artifact_id=artifact_id,
                 data=content,
                 metadata=meta_dict
             )
-            maif_file.add_block(block)
-            maif_file.save()
-            return block.block_id
+            
+            # Also save locally for hybrid approach
+            with self.open_file(filepath, 'a') as maif_file:
+                block = MAIFBlock(
+                    block_type=content_type.value,
+                    data=b"",  # Don't store data locally, just metadata
+                    metadata={**meta_dict, "s3_artifact_id": artifact_id}
+                )
+                maif_file.add_block(block)
+                maif_file.save()
+            
+            return artifact_id
+        else:
+            # Local storage only
+            with self.open_file(filepath, 'a') as maif_file:
+                block = MAIFBlock(
+                    block_type=content_type.value,
+                    data=content,
+                    metadata=meta_dict
+                )
+                maif_file.add_block(block)
+                maif_file.save()
+                return block.block_id
     
     def _flush_buffer_to_file(self, filepath: str):
         """Flush write buffer to file as a single operation."""
@@ -224,11 +322,12 @@ class MAIFClient:
                 maif_file.add_block(block)
             maif_file.save()
     
-    def read_content(self, filepath: Union[str, Path], 
+    def read_content(self, filepath: Union[str, Path],
                     block_id: Optional[str] = None,
                     content_type: Optional[ContentType] = None) -> Iterator[Dict]:
         """
         Read content from MAIF file with memory-mapped access for performance.
+        Supports reading from AWS S3 when use_aws=True.
         
         Args:
             filepath: MAIF file path
@@ -238,6 +337,21 @@ class MAIFClient:
         Yields:
             Dictionary with block data and metadata
         """
+        # Log read access if AWS enabled
+        if self.config.use_aws and self.compliance_logger:
+            from ..maif.compliance_logging import LogLevel, LogCategory
+            self.compliance_logger.log(
+                level=LogLevel.INFO,
+                category=LogCategory.ACCESS,
+                user_id=self.config.agent_id,
+                action="read_content",
+                resource_id=str(filepath),
+                details={
+                    "block_id": block_id,
+                    "content_type": content_type.value if content_type else None
+                }
+            )
+        
         with self.open_file(filepath, 'r') as maif_file:
             for block in maif_file.blocks:
                 # Apply filters
@@ -246,14 +360,43 @@ class MAIFClient:
                 if content_type and block.block_type != content_type.value:
                     continue
                 
-                # Decrypt if needed
-                data = block.data
-                if block.metadata and block.metadata.get('encrypted'):
+                # Check if data is stored in S3
+                if self.config.use_aws and block.metadata and 's3_artifact_id' in block.metadata:
+                    # Retrieve from S3
+                    s3_artifact_id = block.metadata['s3_artifact_id']
+                    
+                    if self.storage_backend:
+                        try:
+                            data = self.storage_backend.download_artifact(s3_artifact_id)
+                            
+                            # Decrypt with AWS KMS if needed
+                            if self.encryption_backend and block.metadata.get('kms_encrypted'):
+                                data = self.encryption_backend.decrypt_with_context(
+                                    data,
+                                    block.metadata
+                                )
+                        except Exception as e:
+                            # Fallback to local data if S3 fails
+                            logger.warning(f"Failed to retrieve from S3: {e}, using local data")
+                            data = block.data
+                    else:
+                        data = block.data
+                else:
+                    # Use local data
+                    data = block.data
+                
+                # Decrypt if needed (local encryption)
+                if block.metadata and block.metadata.get('encrypted') and not block.metadata.get('kms_encrypted'):
                     data = self.security_engine.decrypt_data(data)
                 
                 # Decompress if needed
                 if block.metadata and block.metadata.get('compressed'):
                     data = self.compression_engine.decompress(data)
+                
+                # Apply privacy policy if AWS Macie is enabled
+                if self.config.use_aws and self.privacy_engine and hasattr(self.privacy_engine, 'classify_data'):
+                    privacy_level = self.privacy_engine.classify_data(data, block.block_id)
+                    block.metadata['privacy_level'] = privacy_level.value
                 
                 yield {
                     'block_id': block.block_id,
