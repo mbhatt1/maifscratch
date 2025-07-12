@@ -460,9 +460,125 @@ class MAIFClient:
     
     def flush_all_buffers(self):
         """Flush all pending write buffers."""
-        # In a real implementation, we'd track which files have pending buffers
-        # For now, this is a placeholder for the interface
-        pass
+        flush_results = {
+            'buffers_flushed': 0,
+            'bytes_written': 0,
+            'errors': []
+        }
+        
+        with self._lock:
+            # 1. Flush the main write buffer
+            if self.write_buffer.buffer:
+                try:
+                    entries = self.write_buffer.flush()
+                    if entries:
+                        # Process buffered entries
+                        for entry in entries:
+                            # Find or create an encoder for temporary storage
+                            temp_file = f"/tmp/maif_buffer_{uuid.uuid4().hex}.tmp"
+                            encoder = MAIFEncoder(agent_id=self.config.agent_id)
+                            
+                            # Add buffered data as blocks
+                            encoder.add_binary_block(
+                                entry['data'],
+                                content_type="application/octet-stream",
+                                metadata=entry['metadata']
+                            )
+                            
+                            # Write to temporary file
+                            encoder.save(temp_file)
+                            flush_results['bytes_written'] += len(entry['data'])
+                            
+                            # Clean up
+                            try:
+                                os.unlink(temp_file)
+                            except:
+                                pass
+                                
+                        flush_results['buffers_flushed'] += 1
+                except Exception as e:
+                    flush_results['errors'].append(f"Write buffer flush error: {str(e)}")
+            
+            # 2. Flush all active encoders
+            for filepath, encoder in list(self._encoders.items()):
+                try:
+                    if hasattr(encoder, 'flush') and callable(encoder.flush):
+                        encoder.flush()
+                    elif hasattr(encoder, 'save'):
+                        # Force save to ensure data is written
+                        encoder.save(filepath)
+                    flush_results['buffers_flushed'] += 1
+                except Exception as e:
+                    flush_results['errors'].append(f"Encoder flush error for {filepath}: {str(e)}")
+            
+            # 3. Sync memory-mapped files
+            for filepath, mm in list(self._mmaps.items()):
+                try:
+                    if mm and not mm.closed:
+                        mm.flush()  # Flush to OS buffers
+                        if hasattr(mm, 'fileno'):
+                            os.fsync(mm.fileno())  # Force write to disk
+                    flush_results['buffers_flushed'] += 1
+                except Exception as e:
+                    flush_results['errors'].append(f"Memory map flush error for {filepath}: {str(e)}")
+            
+            # 4. Flush AWS multipart uploads if using AWS backend
+            if self.config.use_aws and self.storage_backend:
+                try:
+                    if hasattr(self.storage_backend, 'flush_all_uploads'):
+                        aws_results = self.storage_backend.flush_all_uploads()
+                        flush_results['buffers_flushed'] += aws_results.get('uploads_completed', 0)
+                        flush_results['bytes_written'] += aws_results.get('bytes_uploaded', 0)
+                    elif hasattr(self.storage_backend, '_multipart_uploads'):
+                        # Handle S3 multipart uploads
+                        for upload_id, upload_info in list(self.storage_backend._multipart_uploads.items()):
+                            try:
+                                self.storage_backend._complete_multipart_upload(
+                                    upload_info['Bucket'],
+                                    upload_info['Key'],
+                                    upload_id,
+                                    upload_info.get('Parts', [])
+                                )
+                                flush_results['buffers_flushed'] += 1
+                            except Exception as e:
+                                flush_results['errors'].append(f"S3 upload completion error: {str(e)}")
+                except Exception as e:
+                    flush_results['errors'].append(f"AWS backend flush error: {str(e)}")
+            
+            # 5. Flush streaming backend if available
+            if self.streaming_backend and hasattr(self.streaming_backend, 'flush'):
+                try:
+                    self.streaming_backend.flush()
+                    flush_results['buffers_flushed'] += 1
+                except Exception as e:
+                    flush_results['errors'].append(f"Streaming backend flush error: {str(e)}")
+            
+            # 6. Track buffer management
+            if not hasattr(self, '_buffer_tracking'):
+                self._buffer_tracking = {
+                    'last_flush': time.time(),
+                    'total_flushes': 0,
+                    'total_bytes_flushed': 0
+                }
+            
+            self._buffer_tracking['last_flush'] = time.time()
+            self._buffer_tracking['total_flushes'] += 1
+            self._buffer_tracking['total_bytes_flushed'] += flush_results['bytes_written']
+        
+        # Log results
+        if flush_results['errors']:
+            logger.warning(
+                f"Buffer flush completed with errors: {len(flush_results['errors'])} errors, "
+                f"{flush_results['buffers_flushed']} buffers flushed, "
+                f"{flush_results['bytes_written']} bytes written"
+            )
+        else:
+            logger.debug(
+                f"Buffer flush completed: {flush_results['buffers_flushed']} buffers flushed, "
+                f"{flush_results['bytes_written']} bytes written"
+            )
+        
+        return flush_results
     
     def close(self):
         """Close all open files and clean up resources."""

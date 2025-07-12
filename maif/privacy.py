@@ -874,18 +874,135 @@ class PrivacyEngine:
             }
     
     def _delete_expired_block(self, block_id: str):
-        """Delete expired block (placeholder for retention policy enforcement)."""
-        # Remove from privacy policies
-        if block_id in self.privacy_policies:
-            del self.privacy_policies[block_id]
+        """Delete expired block with full retention policy enforcement."""
+        deletion_log = {
+            'block_id': block_id,
+            'timestamp': time.time(),
+            'deletion_reason': 'retention_policy_expired',
+            'deleted_from': []
+        }
         
-        # Remove from retention policies
-        if block_id in self.retention_policies:
-            del self.retention_policies[block_id]
+        try:
+            # Remove from privacy policies
+            if block_id in self.privacy_policies:
+                del self.privacy_policies[block_id]
+                deletion_log['deleted_from'].append('privacy_policies')
+            
+            # Remove from retention policies
+            if block_id in self.retention_policies:
+                policy = self.retention_policies[block_id]
+                deletion_log['retention_policy'] = policy.to_dict() if hasattr(policy, 'to_dict') else str(policy)
+                del self.retention_policies[block_id]
+                deletion_log['deleted_from'].append('retention_policies')
+            
+            # Remove encryption keys
+            if block_id in self.encryption_keys:
+                # Securely overwrite key memory before deletion
+                key_data = self.encryption_keys[block_id]
+                if isinstance(key_data, (bytes, bytearray)):
+                    # Overwrite with random data
+                    import secrets
+                    for i in range(len(key_data)):
+                        key_data[i] = secrets.randbits(8)
+                del self.encryption_keys[block_id]
+                deletion_log['deleted_from'].append('encryption_keys')
+            
+            # Remove from anonymization maps
+            if block_id in self.anonymization_maps:
+                del self.anonymization_maps[block_id]
+                deletion_log['deleted_from'].append('anonymization_maps')
+            
+            # Remove from access rules
+            if block_id in self.access_rules:
+                del self.access_rules[block_id]
+                deletion_log['deleted_from'].append('access_rules')
+            
+            # Remove actual block data if we have access to block storage
+            if hasattr(self, 'block_storage') and self.block_storage:
+                try:
+                    self.block_storage.delete_block(block_id)
+                    deletion_log['deleted_from'].append('block_storage')
+                except Exception as e:
+                    logger.error(f"Failed to delete block {block_id} from storage: {e}")
+                    deletion_log['storage_deletion_error'] = str(e)
+            
+            # AWS S3 deletion if configured
+            if hasattr(self, 's3_client') and self.s3_client:
+                try:
+                    import boto3
+                    bucket_name = os.environ.get('MAIF_S3_BUCKET', 'maif-blocks')
+                    self.s3_client.delete_object(
+                        Bucket=bucket_name,
+                        Key=f"blocks/{block_id}"
+                    )
+                    deletion_log['deleted_from'].append('s3')
+                    
+                    # Also delete any associated metadata
+                    self.s3_client.delete_object(
+                        Bucket=bucket_name,
+                        Key=f"metadata/{block_id}.json"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to delete block {block_id} from S3: {e}")
+                    deletion_log['s3_deletion_error'] = str(e)
+            
+            # Log deletion for compliance
+            deletion_log['status'] = 'success'
+            deletion_log['deleted_components'] = len(deletion_log['deleted_from'])
+            
+            # Write to compliance log
+            self._log_retention_action(block_id, 'deleted', deletion_log)
+            
+            # Emit deletion event if event system is available
+            if hasattr(self, 'event_emitter') and self.event_emitter:
+                self.event_emitter.emit('block_deleted', deletion_log)
+            
+            logger.info(f"Successfully deleted expired block {block_id}", extra=deletion_log)
+            
+        except Exception as e:
+            deletion_log['status'] = 'error'
+            deletion_log['error'] = str(e)
+            logger.error(f"Error deleting block {block_id}: {e}", extra=deletion_log)
+            self._log_retention_action(block_id, 'deletion_failed', deletion_log)
+            raise
+    
+    def _log_retention_action(self, block_id: str, action: str, details: dict):
+        """Log retention policy actions for compliance."""
+        log_entry = {
+            'timestamp': time.time(),
+            'block_id': block_id,
+            'action': action,
+            'details': details
+        }
         
-        # Remove encryption keys
-        if block_id in self.encryption_keys:
-            del self.encryption_keys[block_id]
+        # Add to in-memory log
+        if not hasattr(self, 'retention_logs'):
+            self.retention_logs = []
+        self.retention_logs.append(log_entry)
+        
+        # Write to file if configured
+        log_file = os.environ.get('MAIF_RETENTION_LOG_FILE')
+        if log_file:
+            try:
+                import json
+                with open(log_file, 'a') as f:
+                    f.write(json.dumps(log_entry) + '\n')
+            except Exception as e:
+                logger.error(f"Failed to write retention log: {e}")
+        
+        # Send to CloudWatch if available
+        if hasattr(self, 'cloudwatch_client') and self.cloudwatch_client:
+            try:
+                self.cloudwatch_client.put_log_events(
+                    logGroupName='/aws/maif/retention',
+                    logStreamName=f"retention-{time.strftime('%Y-%m-%d')}",
+                    logEvents=[{
+                        'timestamp': int(log_entry['timestamp'] * 1000),
+                        'message': json.dumps(log_entry)
+                    }]
+                )
+            except Exception as e:
+                logger.error(f"Failed to send retention log to CloudWatch: {e}")
 
 class DifferentialPrivacy:
     """Differential privacy implementation for MAIF."""

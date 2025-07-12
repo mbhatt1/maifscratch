@@ -12,6 +12,9 @@ from functools import wraps
 import time
 from enum import Enum
 from dataclasses import dataclass
+import json
+import os
+import requests
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -23,6 +26,13 @@ from tenacity import (
 from .logging_config import get_logger
 
 logger = get_logger(__name__)
+
+# Try to import AWS SDK
+try:
+    import boto3
+    AWS_AVAILABLE = True
+except ImportError:
+    AWS_AVAILABLE = False
 
 
 class ErrorSeverity(Enum):
@@ -279,9 +289,96 @@ def handle_error(
 
 
 def _send_critical_alert(error: MAIFError):
-    """Send critical error alert (implement based on your alerting system)."""
-    # TODO: Implement integration with PagerDuty, SNS, etc.
-    logger.critical("CRITICAL ERROR ALERT", error=error.to_dict())
+    """Send critical error alert through multiple channels."""
+    error_dict = error.to_dict()
+    logger.critical("CRITICAL ERROR ALERT", error=error_dict)
+    
+    # AWS SNS Integration
+    if AWS_AVAILABLE and os.environ.get('AWS_SNS_ALERT_TOPIC_ARN'):
+        try:
+            sns_client = boto3.client('sns')
+            topic_arn = os.environ['AWS_SNS_ALERT_TOPIC_ARN']
+            
+            sns_client.publish(
+                TopicArn=topic_arn,
+                Subject=f"MAIF Critical Error: {error.error_code}",
+                Message=json.dumps({
+                    'default': json.dumps(error_dict),
+                    'email': f"Critical error in MAIF:\n\n"
+                            f"Error Code: {error.error_code}\n"
+                            f"Severity: {error.severity.value}\n"
+                            f"Component: {error.component}\n"
+                            f"Operation: {error.operation}\n"
+                            f"Message: {error.message}\n"
+                            f"Details: {json.dumps(error.details, indent=2)}"
+                }),
+                MessageStructure='json'
+            )
+            logger.info(f"Alert sent via AWS SNS to {topic_arn}")
+        except Exception as sns_error:
+            logger.error(f"Failed to send SNS alert: {sns_error}")
+    
+    # PagerDuty Integration
+    pagerduty_key = os.environ.get('PAGERDUTY_INTEGRATION_KEY')
+    if pagerduty_key:
+        try:
+            pagerduty_url = "https://events.pagerduty.com/v2/enqueue"
+            
+            payload = {
+                "routing_key": pagerduty_key,
+                "event_action": "trigger",
+                "payload": {
+                    "summary": f"MAIF Critical Error: {error.error_code}",
+                    "severity": "critical" if error.severity == ErrorSeverity.CRITICAL else "error",
+                    "source": f"MAIF/{error.component}",
+                    "custom_details": error_dict
+                },
+                "client": "MAIF Error Handler",
+                "client_url": "https://github.com/your-org/maif"
+            }
+            
+            response = requests.post(
+                pagerduty_url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            response.raise_for_status()
+            logger.info("Alert sent via PagerDuty")
+        except Exception as pd_error:
+            logger.error(f"Failed to send PagerDuty alert: {pd_error}")
+    
+    # Slack Webhook Integration
+    slack_webhook_url = os.environ.get('SLACK_ALERT_WEBHOOK_URL')
+    if slack_webhook_url:
+        try:
+            slack_payload = {
+                "text": f"🚨 MAIF Critical Error Alert",
+                "attachments": [{
+                    "color": "danger",
+                    "title": f"Error: {error.error_code}",
+                    "fields": [
+                        {"title": "Severity", "value": error.severity.value, "short": True},
+                        {"title": "Component", "value": error.component, "short": True},
+                        {"title": "Operation", "value": error.operation, "short": True},
+                        {"title": "Time", "value": error.timestamp.isoformat(), "short": True},
+                        {"title": "Message", "value": error.message, "short": False}
+                    ],
+                    "footer": "MAIF Error Handler",
+                    "ts": int(error.timestamp.timestamp())
+                }]
+            }
+            
+            response = requests.post(
+                slack_webhook_url,
+                json=slack_payload,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            response.raise_for_status()
+            logger.info("Alert sent via Slack")
+        except Exception as slack_error:
+            logger.error(f"Failed to send Slack alert: {slack_error}")
 
 
 def error_handler(
@@ -380,8 +477,74 @@ def validate_input(
     """
     errors = []
     
-    # TODO: Implement actual schema validation
-    # For now, this is a placeholder
+    # Implement schema validation
+    if isinstance(schema, dict) and schema.get('type') == 'json_schema':
+        # JSON Schema validation
+        try:
+            import jsonschema
+            validator = jsonschema.Draft7Validator(schema.get('schema', {}))
+            for error in validator.iter_errors(data):
+                errors.append(f"{'.'.join(str(p) for p in error.path)}: {error.message}")
+        except ImportError:
+            errors.append("jsonschema library not installed for JSON schema validation")
+        except Exception as e:
+            errors.append(f"Schema validation error: {str(e)}")
+    
+    elif isinstance(schema, dict) and schema.get('type') == 'dataclass':
+        # Dataclass validation
+        dataclass_type = schema.get('dataclass')
+        if dataclass_type:
+            try:
+                from dataclasses import fields
+                if hasattr(dataclass_type, '__dataclass_fields__'):
+                    for field in fields(dataclass_type):
+                        if field.name not in data and field.default is field.default_factory:
+                            errors.append(f"Missing required field: {field.name}")
+                        elif field.name in data:
+                            # Type checking
+                            expected_type = field.type
+                            actual_value = data[field.name]
+                            if not isinstance(actual_value, expected_type):
+                                errors.append(f"{field.name}: expected {expected_type.__name__}, got {type(actual_value).__name__}")
+            except Exception as e:
+                errors.append(f"Dataclass validation error: {str(e)}")
+    
+    elif isinstance(schema, dict):
+        # Simple dict-based validation
+        for key, rules in schema.items():
+            if isinstance(rules, dict):
+                # Check required fields
+                if rules.get('required', False) and key not in data:
+                    errors.append(f"Missing required field: {key}")
+                
+                # Check type
+                if key in data and 'type' in rules:
+                    expected_type = rules['type']
+                    actual_value = data.get(key)
+                    if expected_type == 'string' and not isinstance(actual_value, str):
+                        errors.append(f"{key}: expected string, got {type(actual_value).__name__}")
+                    elif expected_type == 'number' and not isinstance(actual_value, (int, float)):
+                        errors.append(f"{key}: expected number, got {type(actual_value).__name__}")
+                    elif expected_type == 'boolean' and not isinstance(actual_value, bool):
+                        errors.append(f"{key}: expected boolean, got {type(actual_value).__name__}")
+                    elif expected_type == 'array' and not isinstance(actual_value, list):
+                        errors.append(f"{key}: expected array, got {type(actual_value).__name__}")
+                    elif expected_type == 'object' and not isinstance(actual_value, dict):
+                        errors.append(f"{key}: expected object, got {type(actual_value).__name__}")
+                
+                # Check min/max for numbers
+                if key in data and isinstance(data[key], (int, float)):
+                    if 'min' in rules and data[key] < rules['min']:
+                        errors.append(f"{key}: value {data[key]} is less than minimum {rules['min']}")
+                    if 'max' in rules and data[key] > rules['max']:
+                        errors.append(f"{key}: value {data[key]} is greater than maximum {rules['max']}")
+                
+                # Check length for strings and arrays
+                if key in data and isinstance(data[key], (str, list)):
+                    if 'minLength' in rules and len(data[key]) < rules['minLength']:
+                        errors.append(f"{key}: length {len(data[key])} is less than minimum {rules['minLength']}")
+                    if 'maxLength' in rules and len(data[key]) > rules['maxLength']:
+                        errors.append(f"{key}: length {len(data[key])} is greater than maximum {rules['maxLength']}")
     
     if errors and raise_on_error:
         raise ValidationError(
