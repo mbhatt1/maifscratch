@@ -7,6 +7,7 @@ for MAIF files, implementing the hybrid architecture recommended in the decision
 - Native SDK: High-performance "hot path" with direct memory-mapped I/O
 - FUSE Filesystem: POSIX interface for exploration, debugging, and legacy tools  
 - gRPC Daemon: Multi-writer service for containerized and distributed scenarios
+- AWS Backend: Seamless cloud integration with S3, DynamoDB, and more
 
 Architecture Overview:
                        ┌──────────────────────────────────────┐
@@ -24,6 +25,13 @@ Architecture Overview:
             ▼                          ▼                          ▼
         MAIF bundle            Same bundle via IPC          Same bundle
          on NVMe/SSD            (container / remote)          (read‑only)
+            │                          │                          │
+            └──────────────────────────┼──────────────────────────┘
+                                       ▼
+                        ┌──────────────────────────────────────┐
+                        │         AWS Backend Layer           │
+                        │  (S3, DynamoDB, Bedrock, Lambda)    │
+                        └──────────────────────────────────────┘
 """
 
 from .client import MAIFClient, quick_write, quick_read
@@ -32,6 +40,15 @@ from .types import (
     ContentType, SecurityLevel, CompressionLevel, 
     ContentMetadata, SecurityOptions, ProcessingOptions
 )
+
+# AWS Backend support
+try:
+    from .aws_backend import AWSConfig, create_aws_backends
+    AWS_AVAILABLE = True
+except ImportError:
+    AWS_AVAILABLE = False
+    AWSConfig = None
+    create_aws_backends = None
 
 # Optional components (may not be available on all systems)
 try:
@@ -60,6 +77,10 @@ __all__ = [
     "ContentMetadata", "SecurityOptions", "ProcessingOptions",
     "quick_write", "quick_read",
     
+    # AWS Backend components
+    "AWSConfig", "create_aws_backends",
+    "AWS_AVAILABLE",
+    
     # Optional FUSE components
     "MAIFFilesystem", "mount_maif_filesystem", "unmount_filesystem",
     "FUSE_AVAILABLE",
@@ -69,12 +90,12 @@ __all__ = [
     "GRPC_AVAILABLE",
     
     # Factory functions
-    "create_client", "create_artifact"
+    "create_client", "create_artifact", "create_aws_client"
 ]
 
 
 # Factory functions for easy SDK usage
-def create_client(agent_id: str = "default_agent", **kwargs) -> MAIFClient:
+def create_client(agent_id: str = "default_agent", use_aws: bool = False, **kwargs) -> MAIFClient:
     """
     Create a new MAIF client with simplified configuration.
     
@@ -83,12 +104,54 @@ def create_client(agent_id: str = "default_agent", **kwargs) -> MAIFClient:
     
     Args:
         agent_id: Unique identifier for this agent
+        use_aws: Enable AWS backend integration
         **kwargs: Additional configuration options
         
     Returns:
         Configured MAIF client ready for use
     """
-    return MAIFClient(agent_id=agent_id, **kwargs)
+    return MAIFClient(agent_id=agent_id, use_aws=use_aws, **kwargs)
+
+
+def create_aws_client(
+    agent_id: str = "aws_agent",
+    artifact_name: str = "default",
+    region: str = None,
+    **kwargs
+) -> MAIFClient:
+    """
+    Create a MAIF client with AWS backend integration enabled.
+    
+    This provides seamless integration with AWS services:
+    - S3 for artifact storage
+    - DynamoDB for metadata
+    - Bedrock for AI models
+    - KMS for encryption
+    
+    Args:
+        agent_id: Unique identifier for this agent
+        artifact_name: Name for the artifact
+        region: AWS region (uses default if not specified)
+        **kwargs: Additional configuration options
+        
+    Returns:
+        MAIF client configured for AWS
+        
+    Raises:
+        RuntimeError: If AWS backend is not available
+    """
+    if not AWS_AVAILABLE:
+        raise RuntimeError(
+            "AWS backend not available. Install boto3: pip install boto3"
+        )
+    
+    return MAIFClient(
+        agent_id=agent_id,
+        artifact_name=artifact_name,
+        use_aws=True,
+        aws_config=AWSConfig(region=region) if region else None,
+        **kwargs
+    )
 
 
 def create_artifact(name: str = "untitled", client: MAIFClient = None, **kwargs) -> Artifact:
@@ -167,6 +230,7 @@ def get_recommended_interface(workload_pattern: str = "interactive") -> str:
             - "chat_medium": Chat agent with medium frequency writes
             - "high_tps": High-TPS multi-agent SaaS
             - "data_exchange": Cross-org data exchange
+            - "cloud_native": AWS-integrated deployment
             
     Returns:
         Recommendation string with interface choice and rationale
@@ -191,18 +255,23 @@ def get_recommended_interface(workload_pattern: str = "interactive") -> str:
         "data_exchange": (
             "Ship file directly; receiver chooses interface. "
             "Can mount with FUSE or use maif-cli export."
+        ),
+        "cloud_native": (
+            "Use AWS backend with Native SDK. "
+            "S3 for storage, DynamoDB for metadata, auto-scaling with Lambda/ECS."
         )
     }
     
     return recommendations.get(workload_pattern, 
         "Unknown workload pattern. Use Native SDK for performance-critical, "
-        "FUSE for convenience, gRPC for multi-writer scenarios."
+        "FUSE for convenience, gRPC for multi-writer scenarios, "
+        "AWS backend for cloud deployments."
     )
 
 
 # Module-level configuration
 def configure_sdk(enable_mmap: bool = True, buffer_size: int = 64*1024, 
-                 cache_timeout: int = 30, **kwargs):
+                 cache_timeout: int = 30, enable_aws: bool = False, **kwargs):
     """
     Configure global SDK settings.
     
@@ -210,6 +279,7 @@ def configure_sdk(enable_mmap: bool = True, buffer_size: int = 64*1024,
         enable_mmap: Enable memory mapping for read operations
         buffer_size: Write buffer size for combining operations
         cache_timeout: Cache timeout for FUSE filesystem
+        enable_aws: Enable AWS backend by default
         **kwargs: Additional configuration options
     """
     # Store configuration for use by factory functions
@@ -218,6 +288,7 @@ def configure_sdk(enable_mmap: bool = True, buffer_size: int = 64*1024,
         'enable_mmap': enable_mmap,
         'buffer_size': buffer_size,
         'cache_timeout': cache_timeout,
+        'enable_aws': enable_aws,
         **kwargs
     }
 
@@ -226,5 +297,6 @@ def configure_sdk(enable_mmap: bool = True, buffer_size: int = 64*1024,
 _sdk_config = {
     'enable_mmap': True,
     'buffer_size': 64 * 1024,
-    'cache_timeout': 30
+    'cache_timeout': 30,
+    'enable_aws': False
 }

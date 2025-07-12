@@ -1,14 +1,113 @@
 # AWS Integration with MAIF Agentic Framework
 
-This guide explains how to use the decorator-based AWS integration with the MAIF agentic framework.
+This comprehensive guide covers all AWS integrations available in the MAIF agentic framework for production use.
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Quick Start](#quick-start)
+3. [Configuration](#configuration)
+4. [Available Decorators](#available-decorators)
+5. [Core Features](#core-features)
+6. [AWS Service Integrations](#aws-service-integrations)
+7. [Agent Lifecycle Management](#agent-lifecycle-management)
+8. [Deployment](#deployment)
+9. [Monitoring & Observability](#monitoring--observability)
+10. [Security Best Practices](#security-best-practices)
+11. [Error Handling](#error-handling)
+12. [Cost Optimization](#cost-optimization)
+13. [Troubleshooting](#troubleshooting)
 
 ## Overview
 
-The MAIF agentic framework provides simple decorator-based APIs for integrating with AWS services. These decorators make it easy to:
+The MAIF agentic framework provides production-ready AWS integrations with:
 
-1. Create agents with MAIF that leverage AWS services
-2. Enhance agent systems with AWS capabilities
-3. Add AWS service access to specific methods
+- **Automatic AWS Service Integration**: Agents automatically use AWS services when `use_aws=True`
+- **Production Features**: Retry logic, connection pooling, error handling, monitoring
+- **State Management**: Automatic state dumps and restoration from S3
+- **Deployment Tools**: CloudFormation, CDK, Lambda, ECS/Fargate support
+- **Observability**: X-Ray tracing, CloudWatch logging, custom metrics
+- **Security**: KMS encryption, IAM roles, Secrets Manager integration
+
+## Quick Start
+
+```python
+from maif.agentic_framework import MAIFAgent
+from maif_sdk.aws_backend import AWSConfig
+
+# Create an AWS-enabled agent
+class MyAgent(MAIFAgent):
+    async def run(self):
+        # Your agent logic here
+        pass
+
+# Initialize with AWS
+agent = MyAgent(
+    agent_id="my-agent",
+    workspace_path="./workspace",
+    use_aws=True,  # Enable AWS integration
+    aws_config=AWSConfig(
+        region_name="us-east-1",
+        s3_bucket="my-maif-bucket"
+    )
+)
+
+# AWS services automatically start up
+await agent.initialize()
+
+# Run agent
+await agent.run()
+
+# Shutdown dumps state to S3
+agent.shutdown()
+```
+
+## Configuration
+
+### AWS Configuration Options
+
+```python
+from maif_sdk.aws_backend import AWSConfig
+
+config = AWSConfig(
+    # Required
+    region_name="us-east-1",              # AWS region
+    
+    # Storage
+    s3_bucket="maif-artifacts",           # S3 bucket for artifacts
+    s3_prefix="agents/",                  # S3 key prefix
+    
+    # Security
+    kms_key_id="alias/maif-key",         # KMS key for encryption
+    use_encryption=True,                  # Enable KMS encryption
+    
+    # Compliance
+    use_compliance_logging=True,          # Enable CloudWatch compliance logs
+    compliance_log_group="/maif/compliance",
+    
+    # Monitoring
+    enable_xray=True,                     # Enable X-Ray tracing
+    xray_sampling_rate=0.1,              # Sample 10% of requests
+    
+    # Credentials (optional - uses IAM role by default)
+    profile_name=None,                    # AWS profile name
+    access_key_id=None,                   # Explicit credentials
+    secret_access_key=None
+)
+```
+
+### Environment Variables
+
+```bash
+# AWS credentials (if not using IAM roles)
+export AWS_DEFAULT_REGION=us-east-1
+export AWS_PROFILE=myprofile
+
+# MAIF-specific
+export MAIF_S3_BUCKET=my-maif-bucket
+export MAIF_USE_AWS=true
+export MAIF_KMS_KEY_ID=alias/maif-key
+```
 
 ## Available Decorators
 
@@ -674,3 +773,372 @@ For production, X-Ray daemon is pre-installed on:
 ### Complete X-Ray Example
 
 See the [AWS X-Ray Agent Demo](../examples/aws_xray_agent_demo.py) for a comprehensive example of using X-Ray tracing with MAIF agents.
+
+## Agent Lifecycle Management
+
+### Automatic State Preservation
+
+Agents automatically dump their complete state to MAIF when shutting down:
+
+```python
+# State is automatically saved on shutdown
+agent.shutdown()  # Creates comprehensive MAIF dump in S3
+```
+
+### State Restoration
+
+Resume agents from previous state dumps:
+
+```python
+# Method 1: Restore on initialization
+restored_agent = MyAgent(
+    agent_id="my-agent",
+    workspace_path="./workspace",
+    use_aws=True,
+    restore_from="./dumps/agent_state.maif"  # or S3 artifact ID
+)
+
+# Method 2: Create from dump
+agent = MyAgent.from_dump(
+    dump_path="s3://bucket/agent_dump.maif",
+    use_aws=True,
+    aws_config=aws_config
+)
+```
+
+### Checkpointing
+
+Create periodic checkpoints for long-running agents:
+
+```python
+class CheckpointAgent(MAIFAgent):
+    def create_checkpoint(self):
+        return self.dump_complete_state()
+    
+    async def run(self):
+        for i in range(100):
+            # Process work
+            if i % 10 == 0:
+                checkpoint = self.create_checkpoint()
+                print(f"Checkpoint saved: {checkpoint}")
+```
+
+## Deployment
+
+### Lambda Deployment
+
+Deploy agents to AWS Lambda for event-driven processing:
+
+```python
+from maif.aws_deployment import deploy_agent_to_lambda
+
+# Deploy agent
+deployment = deploy_agent_to_lambda(
+    agent_name="my-processing-agent",
+    agent_class="ProcessingAgent",
+    agent_module="myapp.agents",
+    s3_bucket="maif-deployments",
+    memory_mb=1024,
+    timeout_seconds=300,
+    environment_vars={
+        "LOG_LEVEL": "INFO"
+    }
+)
+
+# Deployment creates:
+# - Lambda function with handler
+# - CloudFormation template
+# - IAM roles with required permissions
+# - CloudWatch log groups
+```
+
+### ECS/Fargate Deployment
+
+Deploy long-running agents to ECS:
+
+```python
+from maif.aws_deployment import deploy_agent_to_ecs
+
+deployment = deploy_agent_to_ecs(
+    agent_name="continuous-agent",
+    agent_class="ContinuousAgent",
+    agent_module="myapp.agents",
+    ecr_repository="123456789012.dkr.ecr.us-east-1.amazonaws.com/agents",
+    ecs_cluster="maif-agents",
+    memory_mb=2048
+)
+
+# Creates:
+# - Dockerfile
+# - ECS task definition
+# - ECS service
+# - CloudFormation template
+```
+
+### CDK Deployment
+
+Generate AWS CDK projects for infrastructure as code:
+
+```python
+from maif.aws_deployment import DeploymentConfig, DeploymentManager
+
+config = DeploymentConfig(
+    agent_name="my-agent",
+    agent_class="MyAgent",
+    memory_mb=512,
+    s3_bucket="maif-data"
+)
+
+manager = DeploymentManager(config)
+cdk_project = manager.generate_cdk_project(output_dir="./cdk")
+```
+
+## Monitoring & Observability
+
+### CloudWatch Metrics
+
+Agents automatically publish metrics to CloudWatch:
+
+```python
+# Automatic metrics include:
+# - Perception count
+# - Reasoning operations
+# - Execution results
+# - Error rates
+# - Processing latency
+```
+
+### Custom Metrics
+
+Add custom metrics:
+
+```python
+if self.use_aws and self.cloudwatch_logger:
+    self.cloudwatch_logger.log_metric(
+        metric_name="ItemsProcessed",
+        value=self.items_processed,
+        unit="Count",
+        dimensions={
+            "AgentId": self.agent_id,
+            "Environment": "production"
+        }
+    )
+```
+
+### Alarms
+
+Set up CloudWatch alarms:
+
+```python
+# CloudFormation template includes alarm definitions
+alarms:
+  - ErrorRate:
+      threshold: 5
+      evaluationPeriods: 2
+      period: 300
+  - MemoryUtilization:
+      threshold: 80
+      evaluationPeriods: 1
+```
+
+## Security Best Practices
+
+### IAM Roles
+
+Always use IAM roles instead of credentials:
+
+```python
+# Good - uses IAM role
+agent = MyAgent(use_aws=True)
+
+# Avoid - explicit credentials
+agent = MyAgent(
+    use_aws=True,
+    aws_config=AWSConfig(
+        access_key_id="AKIAIOSFODNN7EXAMPLE",  # Don't do this
+        secret_access_key="wJalrXUtnFEMI..."   # Don't do this
+    )
+)
+```
+
+### Encryption
+
+All data is encrypted by default:
+
+- **At Rest**: S3 with KMS encryption
+- **In Transit**: TLS 1.2+
+- **Secrets**: AWS Secrets Manager
+
+### Network Security
+
+Use VPC for network isolation:
+
+```python
+config = DeploymentConfig(
+    agent_name="secure-agent",
+    vpc_config={
+        "SubnetIds": ["subnet-12345", "subnet-67890"],
+        "SecurityGroupIds": ["sg-12345"]
+    }
+)
+```
+
+## Error Handling
+
+### Automatic Retry Logic
+
+All AWS operations include exponential backoff:
+
+```python
+# Built-in retry configuration
+retry_config = {
+    "max_attempts": 3,
+    "initial_backoff": 1.0,
+    "max_backoff": 60.0,
+    "backoff_multiplier": 2.0
+}
+```
+
+### Error Classification
+
+Errors are automatically classified:
+
+```python
+try:
+    result = await agent.process()
+except AWSServiceError as e:
+    if e.is_retryable:
+        # Automatic retry
+        pass
+    elif e.is_throttling:
+        # Backoff and retry
+        pass
+    else:
+        # Non-retryable error
+        logger.error(f"Fatal error: {e}")
+```
+
+### Circuit Breaker
+
+Automatic circuit breaker for failing services:
+
+```python
+# Services automatically disabled after repeated failures
+if self.s3_circuit_breaker.is_open():
+    # Fallback to local storage
+    artifact.save(local_path)
+```
+
+## Cost Optimization
+
+### S3 Lifecycle Policies
+
+Automatic lifecycle management for artifacts:
+
+```python
+# Old artifacts moved to cheaper storage
+lifecycle_rules = [
+    {
+        "id": "archive-old-artifacts",
+        "transitions": [
+            {"days": 30, "storage_class": "STANDARD_IA"},
+            {"days": 90, "storage_class": "GLACIER"}
+        ]
+    }
+]
+```
+
+### Lambda Cost Optimization
+
+- Use appropriate memory settings
+- Enable X-Ray sampling (not 100%)
+- Use Step Functions for orchestration
+
+### Monitoring Costs
+
+Track costs with CloudWatch:
+
+```python
+# Cost metrics automatically tracked
+cost_metrics = {
+    "S3Storage": "USD/GB",
+    "LambdaInvocations": "USD/million",
+    "BedrockTokens": "USD/1k tokens"
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Permission Denied**
+   ```python
+   # Check IAM role has required permissions
+   # Use AWS Policy Simulator to test
+   ```
+
+2. **Timeout Errors**
+   ```python
+   # Increase timeout settings
+   config.timeout_seconds = 900  # 15 minutes
+   ```
+
+3. **Out of Memory**
+   ```python
+   # Increase memory allocation
+   config.memory_mb = 3008  # Maximum for Lambda
+   ```
+
+### Debug Mode
+
+Enable debug logging:
+
+```python
+import logging
+
+# Enable debug logs
+logging.basicConfig(level=logging.DEBUG)
+
+# AWS SDK debug logs
+boto3.set_stream_logger('boto3', logging.DEBUG)
+```
+
+### X-Ray Trace Analysis
+
+Use X-Ray to debug performance issues:
+
+1. Open X-Ray console
+2. Filter by service name
+3. Analyze service map
+4. Drill into slow traces
+
+## Production Checklist
+
+Before deploying to production:
+
+- [ ] IAM roles configured with least privilege
+- [ ] Encryption enabled (KMS, S3, transit)
+- [ ] VPC and security groups configured
+- [ ] CloudWatch alarms set up
+- [ ] X-Ray tracing enabled (with sampling)
+- [ ] Cost budgets and alerts configured
+- [ ] Backup and recovery tested
+- [ ] Load testing completed
+- [ ] Monitoring dashboards created
+- [ ] Runbook documentation prepared
+
+## Examples
+
+- [Basic AWS Agent](../examples/aws_agent_demo.py)
+- [AWS Agent with Backends](../examples/aws_agent_with_backends_demo.py)
+- [AWS X-Ray Integration](../examples/aws_xray_agent_demo.py)
+- [Agent State Restoration](../examples/agent_state_restoration_demo.py)
+- [AWS Deployment](../examples/aws_deployment_demo.py)
+- [Integrated Agent Demo](../examples/aws_integrated_agent_demo.py)
+
+## API Reference
+
+For detailed API documentation, see:
+- [AWS Decorators API](../api/aws_decorators.md)
+- [AWS Backend API](../api/aws_backend.md)
+- [AWS Deployment API](../api/aws_deployment.md)
