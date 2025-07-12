@@ -11,6 +11,8 @@ import logging
 import datetime
 import io
 import hashlib
+import os
+import threading
 from typing import Dict, List, Optional, Any, Union, Tuple, BinaryIO
 import boto3
 from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError
@@ -129,6 +131,9 @@ class S3Client:
                 "multipart_uploads": 0
             }
             
+            # Thread safety
+            self._lock = threading.RLock()
+            
             logger.info("S3 client initialized successfully")
         except Exception as e:
             logger.error(f"Failed to initialize S3 client: {e}", exc_info=True)
@@ -150,7 +155,8 @@ class S3Client:
             S3Error: For non-retryable errors or if max retries exceeded
         """
         start_time = time.time()
-        self.metrics["total_operations"] += 1
+        with self._lock:
+            self.metrics["total_operations"] += 1
         
         retries = 0
         last_exception = None
@@ -161,13 +167,14 @@ class S3Client:
                 result = operation_func(*args, **kwargs)
                 
                 # Record success metrics
-                self.metrics["successful_operations"] += 1
-                latency = time.time() - start_time
-                self.metrics["operation_latencies"].append(latency)
-                
-                # Trim latencies list if it gets too large
-                if len(self.metrics["operation_latencies"]) > 1000:
-                    self.metrics["operation_latencies"] = self.metrics["operation_latencies"][-1000:]
+                with self._lock:
+                    self.metrics["successful_operations"] += 1
+                    latency = time.time() - start_time
+                    self.metrics["operation_latencies"].append(latency)
+                    
+                    # Trim latencies list if it gets too large
+                    if len(self.metrics["operation_latencies"]) > 1000:
+                        self.metrics["operation_latencies"] = self.metrics["operation_latencies"][-1000:]
                 
                 logger.debug(f"S3 {operation_name} completed successfully in {latency:.2f}s")
                 return result
@@ -179,7 +186,8 @@ class S3Client:
                 # Check if this is a retryable error
                 if error_code in self.RETRYABLE_ERRORS and retries < self.max_retries:
                     retries += 1
-                    self.metrics["retried_operations"] += 1
+                    with self._lock:
+                        self.metrics["retried_operations"] += 1
                     delay = min(self.max_delay, self.base_delay * (2 ** retries))
                     
                     logger.warning(
@@ -191,7 +199,8 @@ class S3Client:
                     last_exception = e
                 else:
                     # Non-retryable error or max retries exceeded
-                    self.metrics["failed_operations"] += 1
+                    with self._lock:
+                        self.metrics["failed_operations"] += 1
                     
                     if error_code in self.RETRYABLE_ERRORS:
                         logger.error(
@@ -216,7 +225,8 @@ class S3Client:
                 # Network-related errors
                 if retries < self.max_retries:
                     retries += 1
-                    self.metrics["retried_operations"] += 1
+                    with self._lock:
+                        self.metrics["retried_operations"] += 1
                     delay = min(self.max_delay, self.base_delay * (2 ** retries))
                     
                     logger.warning(
@@ -227,13 +237,15 @@ class S3Client:
                     time.sleep(delay)
                     last_exception = e
                 else:
-                    self.metrics["failed_operations"] += 1
+                    with self._lock:
+                        self.metrics["failed_operations"] += 1
                     logger.error(f"S3 {operation_name} failed after {retries} retries due to connection error", exc_info=True)
                     raise S3ConnectionError(f"Connection error: {str(e)}. Max retries exceeded.")
             
             except Exception as e:
                 # Unexpected errors
-                self.metrics["failed_operations"] += 1
+                with self._lock:
+                    self.metrics["failed_operations"] += 1
                 logger.error(f"Unexpected error in S3 {operation_name}: {str(e)}", exc_info=True)
                 raise S3Error(f"Unexpected error: {str(e)}")
         
@@ -343,13 +355,17 @@ class S3Client:
         
         logger.info(f"Uploading file {file_path} to s3://{bucket}/{key}")
         
-        import os
+        # Check if file exists
+        if not os.path.exists(file_path):
+            raise S3ValidationError(f"File not found: {file_path}")
+        
         file_size = os.path.getsize(file_path)
         
         # Use multipart upload for large files
         if use_multipart and file_size > part_size:
             logger.info(f"Using multipart upload for file {file_path} ({file_size} bytes)")
-            self.metrics["multipart_uploads"] += 1
+            with self._lock:
+                self.metrics["multipart_uploads"] += 1
             
             def multipart_upload_operation():
                 transfer_config = boto3.s3.transfer.TransferConfig(
@@ -369,7 +385,8 @@ class S3Client:
                 return True
             
             result = self._execute_with_retry("multipart_upload", multipart_upload_operation)
-            self.metrics["bytes_uploaded"] += file_size
+            with self._lock:
+                self.metrics["bytes_uploaded"] += file_size
             return result
         else:
             # Use standard upload for smaller files
@@ -383,7 +400,8 @@ class S3Client:
                 return True
             
             result = self._execute_with_retry("upload_file", upload_operation)
-            self.metrics["bytes_uploaded"] += file_size
+            with self._lock:
+                self.metrics["bytes_uploaded"] += file_size
             return result
     
     def upload_fileobj(self, fileobj: BinaryIO, bucket: str, key: str, 
@@ -426,7 +444,8 @@ class S3Client:
         # Determine if we should use multipart upload
         if use_multipart:
             logger.info(f"Using multipart upload for file object to s3://{bucket}/{key}")
-            self.metrics["multipart_uploads"] += 1
+            with self._lock:
+                self.metrics["multipart_uploads"] += 1
             
             def multipart_upload_operation():
                 transfer_config = boto3.s3.transfer.TransferConfig(
@@ -496,9 +515,9 @@ class S3Client:
         # Update metrics
         if result:
             try:
-                import os
                 file_size = os.path.getsize(file_path)
-                self.metrics["bytes_downloaded"] += file_size
+                with self._lock:
+                    self.metrics["bytes_downloaded"] += file_size
             except Exception:
                 pass
         
@@ -569,7 +588,8 @@ class S3Client:
             body = response['Body'].read()
             
             # Update metrics
-            self.metrics["bytes_downloaded"] += len(body)
+            with self._lock:
+                self.metrics["bytes_downloaded"] += len(body)
             
             # Create result with metadata and body
             result = {k: v for k, v in response.items() if k != 'Body'}
@@ -633,7 +653,8 @@ class S3Client:
             
             # Update metrics
             if isinstance(body, bytes):
-                self.metrics["bytes_uploaded"] += len(body)
+                with self._lock:
+                    self.metrics["bytes_uploaded"] += len(body)
             
             return response
         
@@ -760,11 +781,21 @@ class S3Client:
         logger.info(f"Generating presigned URL for s3://{bucket}/{key} (method: {http_method}, expiration: {expiration}s)")
         
         def generate_url_operation():
+            # Map HTTP methods to S3 operations
+            method_map = {
+                'GET': 'get_object',
+                'PUT': 'put_object',
+                'HEAD': 'head_object',
+                'DELETE': 'delete_object',
+                'POST': 'post_object'
+            }
+            
+            client_method = method_map.get(http_method, http_method.lower() + '_object')
+            
             return self.s3_client.generate_presigned_url(
-                'get_object' if http_method == 'GET' else http_method.lower(),
+                client_method,
                 Params={'Bucket': bucket, 'Key': key},
-                ExpiresIn=expiration,
-                HttpMethod=http_method
+                ExpiresIn=expiration
             )
         
         return self._execute_with_retry("generate_presigned_url", generate_url_operation)
@@ -772,7 +803,10 @@ class S3Client:
     def close(self):
         """Close the client and release resources."""
         logger.info("Closing S3 client")
-        self.thread_pool.shutdown()
+        try:
+            self.thread_pool.shutdown(wait=True)
+        except Exception as e:
+            logger.error(f"Error closing thread pool: {e}")
 
 
 class MAIFS3Integration:
@@ -803,6 +837,9 @@ class MAIFS3Integration:
             "bytes_stored": 0,
             "bytes_retrieved": 0
         }
+        
+        # Thread safety
+        self._lock = threading.RLock()
         
         logger.info("MAIF S3 integration initialized successfully")
     
@@ -874,10 +911,10 @@ class MAIFS3Integration:
             )
             
             # Update metrics
-            import os
             file_size = os.path.getsize(artifact_path)
-            self.metrics["artifacts_stored"] += 1
-            self.metrics["bytes_stored"] += file_size
+            with self._lock:
+                self.metrics["artifacts_stored"] += 1
+                self.metrics["bytes_stored"] += file_size
             
             # Return S3 URI
             return f"s3://{bucket_name}/{key}"
@@ -920,10 +957,10 @@ class MAIFS3Integration:
             self.s3_client.download_file(bucket, key, temp_file.name)
             
             # Update metrics
-            import os
             file_size = os.path.getsize(temp_file.name)
-            self.metrics["artifacts_retrieved"] += 1
-            self.metrics["bytes_retrieved"] += file_size
+            with self._lock:
+                self.metrics["artifacts_retrieved"] += 1
+                self.metrics["bytes_retrieved"] += file_size
             
             # Load artifact
             from maif_sdk.artifact import Artifact
@@ -964,10 +1001,13 @@ class MAIFS3Integration:
             if obj['Key'].endswith('.maif'):
                 # Get object metadata
                 try:
-                    metadata = self.s3_client.s3_client.head_object(
+                    # Get object metadata using the S3 client's internal boto3 client
+                    # Note: self.s3_client is our S3Client wrapper, self.s3_client.s3_client is the boto3 client
+                    response = self.s3_client.s3_client.head_object(
                         Bucket=bucket_name,
                         Key=obj['Key']
-                    ).get('Metadata', {})
+                    )
+                    metadata = response.get('Metadata', {})
                     
                     # Create artifact info
                     artifact_info = {
@@ -979,8 +1019,13 @@ class MAIFS3Integration:
                     }
                     
                     artifacts.append(artifact_info)
+                except ClientError as e:
+                    if e.response.get('Error', {}).get('Code') == 'NotFound':
+                        logger.warning(f"Object not found when getting metadata for {obj['Key']}")
+                    else:
+                        logger.error(f"Error getting metadata for {obj['Key']}: {e}")
                 except Exception as e:
-                    logger.warning(f"Error getting metadata for {obj['Key']}: {e}")
+                    logger.error(f"Unexpected error getting metadata for {obj['Key']}: {e}")
         
         logger.info(f"Found {len(artifacts)} MAIF artifacts")
         return artifacts
