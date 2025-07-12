@@ -15,6 +15,34 @@ from datetime import datetime, timedelta
 import threading
 from collections import defaultdict, deque
 import statistics
+import os
+import logging
+import struct
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Try to import HSM support libraries
+try:
+    import PyKCS11
+    PKCS11_AVAILABLE = True
+except ImportError:
+    PKCS11_AVAILABLE = False
+    logger.warning("PyKCS11 not available. Install python-pkcs11 for HSM support.")
+
+try:
+    import yubihsm
+    YUBIHSM_AVAILABLE = True
+except ImportError:
+    YUBIHSM_AVAILABLE = False
+
+try:
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.backends import default_backend
+    from cryptography.hazmat.primitives import padding
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    CRYPTO_AVAILABLE = False
 
 class ThreatLevel(Enum):
     """Threat severity levels."""
