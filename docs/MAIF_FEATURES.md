@@ -18,6 +18,12 @@ MAIF (Multimodal Artifact File Format) 2.0 is a comprehensive, AI-native file fo
 - **Cryptographic Provenance**: Immutable audit trails with cryptographic verification
 - **Access Control**: Role-based permissions and encryption
 - **Integrity Verification**: Multi-level checksums and validation
+- **Classified Data Support** (NEW):
+  - Mandatory Access Control (Bell-LaPadula model)
+  - PKI/CAC/PIV authentication
+  - Hardware MFA integration
+  - FIPS 140-2 compliant encryption
+  - AWS CloudWatch immutable audit trails
 
 ## Feature Categories
 
@@ -59,7 +65,7 @@ metadata = parser.get_metadata()
 
 #### Digital Signatures
 ```python
-from maif import MAIFSigner, MAIFVerifier
+from maif.security import MAIFSigner, MAIFVerifier
 
 signer = MAIFSigner(private_key_path="key.pem", agent_id="signer")
 signer.add_provenance_entry("create", block_hash)
@@ -72,30 +78,62 @@ is_valid = verifier.verify_maif_signature(signed_manifest)
 **Features:**
 - RSA/ECDSA signature support
 - Certificate chain validation
-- Provenance chain tracking
+- Provenance chain tracking with cryptographic hash chaining
 - Timestamp verification
 - Non-repudiation guarantees
 
-### 3. Semantic Processing (`maif.semantic`)
+#### Classified Security (NEW)
+```python
+from maif.classified_api import SecureMAIF
+
+# Simple API for classified data
+maif = SecureMAIF(classification="SECRET")
+
+# Grant clearance
+maif.grant_clearance("analyst.001", "SECRET", compartments=["CRYPTO"])
+
+# Store with automatic encryption
+doc_id = maif.store_classified_data(
+    data={"mission": "CLASSIFIED"},
+    classification="SECRET"
+)
+
+# Access control enforced
+if maif.can_access("analyst.001", doc_id):
+    data = maif.retrieve_classified_data(doc_id)
+```
+
+**Features:**
+- Government classification levels (UNCLASSIFIED through TOP_SECRET/SCI)
+- Mandatory Access Control (Bell-LaPadula model)
+- PKI/CAC/PIV authentication support
+- Hardware MFA integration
+- FIPS 140-2 compliant encryption via AWS KMS
+- Immutable audit trails with AWS CloudWatch
+- Works with both AWS Commercial and GovCloud
+
+### 3. Semantic Processing (`maif.semantic` & `maif.semantic_optimized`)
 
 #### Embeddings & Knowledge Graphs
 ```python
-from maif import SemanticProcessor, KnowledgeGraph
+from maif.semantic import SemanticProcessor, KnowledgeGraphBuilder
 
 processor = SemanticProcessor()
 embeddings = processor.generate_embeddings(["text1", "text2"])
 
-kg = KnowledgeGraph()
-kg.add_entity("entity1", {"type": "person", "name": "John"})
-kg.add_relationship("entity1", "knows", "entity2")
+kg_builder = KnowledgeGraphBuilder()
+kg_builder.add_entity("entity1", {"type": "person", "name": "John"})
+kg_builder.add_relationship("entity1", "knows", "entity2")
 ```
 
 **Features:**
 - Multimodal embeddings (text, image, audio)
 - Knowledge graph construction
 - Semantic similarity search
-- Cross-modal attention mechanisms
+- Cross-modal attention mechanisms (ACAM algorithm)
 - Entity relationship modeling
+- Hierarchical Semantic Compression (HSC)
+- Cryptographic Semantic Binding (CSB)
 
 ### 4. Compression (`maif.compression`)
 

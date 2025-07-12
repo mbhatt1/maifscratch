@@ -35,12 +35,17 @@ Deepwiki - https://deepwiki.com/vineethsai/maifscratch-1/1-maif-overview
 - **Multi-Agent Collaboration**: Universal MAIF exchange format
 - **State Management**: Automatic state dumps and restoration
 
-### 🔒 **Cryptographic Security**
+### 🔒 **Cryptographic Security & Classified Data Support**
 - **Digital Signatures**: RSA/ECDSA with provenance chains ([`maif/security.py`](maif/security.py))
 - **Tamper Detection**: SHA-256 block-level integrity verification
 - **Access Control**: Granular permissions with expiry and conditions
-- **Audit Trails**: Immutable operation history with cryptographic binding
-- **AWS KMS Integration**: Enterprise-grade key management
+- **Classified Data Management**: Full support for government classification levels ([`maif/classified_security.py`](maif/classified_security.py))
+  - Mandatory Access Control (Bell-LaPadula model)
+  - PKI/CAC/PIV authentication support
+  - Hardware MFA integration
+  - FIPS 140-2 compliant encryption
+- **Audit Trails**: Immutable operation history with AWS CloudWatch integration
+- **AWS KMS Integration**: Enterprise-grade key management with FIPS endpoints
 
 ### 🧠 **Novel AI Algorithms**
 - **ACAM**: Adaptive Cross-Modal Attention with trust-aware weighting ([`maif/semantic_optimized.py`](maif/semantic_optimized.py:25-145))
@@ -136,10 +141,12 @@ pip install maif[production]
 ### Simple Local Usage
 
 ```python
-import maif
+from maif_sdk.client import MAIFClient
+from maif_sdk.artifact import Artifact
 
-# Create a new MAIF
-artifact = maif.create_maif("my_agent")
+# Create client and artifact
+client = MAIFClient()
+artifact = Artifact(name="my_agent", client=client)
 
 # Add content
 artifact.add_text("Hello, trustworthy AI world!")
@@ -152,8 +159,31 @@ artifact.add_multimodal({
 artifact.save("my_artifact.maif")
 
 # Load and verify
-loaded = maif.load_maif("my_artifact.maif")
+loaded = Artifact.load("my_artifact.maif", client=client)
 print(f"✅ Verified: {loaded.verify_integrity()}")
+```
+
+### Classified Data Usage (NEW)
+
+```python
+from maif.classified_api import SecureMAIF
+
+# Simple API for classified data
+maif = SecureMAIF(classification="SECRET")
+
+# Grant clearance
+maif.grant_clearance("analyst.001", "SECRET", compartments=["CRYPTO"])
+
+# Store classified data with automatic encryption
+doc_id = maif.store_classified_data(
+    data={"mission": "OPERATION_X", "status": "ACTIVE"},
+    classification="SECRET"
+)
+
+# Access control enforced automatically
+if maif.can_access("analyst.001", doc_id):
+    data = maif.retrieve_classified_data(doc_id)
+    maif.log_access("analyst.001", doc_id, "read")
 ```
 
 ### Production AWS Usage
@@ -190,8 +220,8 @@ def analyze_data(data):
 ```python
 # Health checks
 from maif.health_check import HealthChecker
-health = HealthChecker(agent)
-status = await health.check_health()
+health = HealthChecker()
+status = health.check_health()
 
 # Rate limiting
 from maif.rate_limiter import RateLimiter, RateLimitConfig
@@ -217,11 +247,27 @@ metrics = initialize_metrics(namespace="MAIF/Production")
 # Batch processing
 from maif.batch_processor import BatchProcessor
 processor = BatchProcessor(
-    process_func=agent.process,
+    process_func=lambda x: x,  # Your processing function
     batch_size=100,
     use_aws_batch=True
 )
-results = await processor.process_batch(large_dataset)
+results = processor.process_batch(large_dataset)
+
+# Classified Security (NEW)
+from maif.classified_security import ClassifiedSecurityManager
+
+# Initialize with FIPS compliance
+security = ClassifiedSecurityManager(use_fips=True)
+
+# PKI authentication
+user_id = security.authenticate_user(
+    AuthenticationMethod.PKI_CERTIFICATE,
+    {"certificate": cert_pem}
+)
+
+# Hardware MFA
+challenge = security.mfa_auth.initiate_hardware_mfa(user_id, token_serial)
+verified = security.mfa_auth.verify_hardware_token(challenge, token_code)
 ```
 
 ## 🐳 Docker Deployment

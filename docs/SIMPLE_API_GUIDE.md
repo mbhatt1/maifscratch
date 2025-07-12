@@ -1,75 +1,163 @@
 # MAIF Simple API Guide
 
-The MAIF Simple API provides an easy-to-use interface for working with Multimodal Artifact File Format (MAIF) files. This API abstracts away the complexity of the underlying implementation while maintaining full access to all MAIF features.
+The MAIF SDK provides an easy-to-use interface for working with Multimodal Artifact File Format (MAIF) files. This guide covers both the standard SDK and the new classified security API.
 
 ## Quick Start
 
 ### Installation
 
-The API uses the existing MAIF library. Simply import the API:
-
-```python
-from maif_api import create_maif, load_maif
+```bash
+pip install maif
 ```
 
-### Basic Usage
+### Basic Usage with SDK
 
 ```python
-# Create a new MAIF
-maif = create_maif("my_agent")
+from maif_sdk.client import MAIFClient
+from maif_sdk.artifact import Artifact
+
+# Create client and artifact
+client = MAIFClient()
+artifact = Artifact(name="my_agent", client=client)
 
 # Add content
-maif.add_text("Hello world!", title="Greeting")
-maif.add_multimodal({
+artifact.add_text("Hello world!")
+artifact.add_multimodal({
     "text": "A beautiful sunset",
     "description": "Nature photography"
-}, title="Sunset Scene")
+})
 
 # Save
-maif.save("my_artifact.maif")
+artifact.save("my_artifact.maif")
 
 # Load existing
-loaded_maif = load_maif("my_artifact.maif")
+loaded = Artifact.load("my_artifact.maif", client=client)
+```
+
+### Classified Data API (NEW)
+
+For working with classified data, use the simplified SecureMAIF API:
+
+```python
+from maif.classified_api import SecureMAIF
+
+# Create secure instance
+maif = SecureMAIF(classification="SECRET")
+
+# Grant clearance
+maif.grant_clearance("user.001", "SECRET")
+
+# Store classified data
+doc_id = maif.store_classified_data(
+    data={"mission": "OPERATION_X"},
+    classification="SECRET"
+)
+
+# Retrieve with access control
+if maif.can_access("user.001", doc_id):
+    data = maif.retrieve_classified_data(doc_id)
 ```
 
 ## API Reference
 
-### Core Class: `MAIF`
+### SDK API: `Artifact` Class
 
 The main class for creating and manipulating MAIF files.
 
 #### Constructor
 
 ```python
-MAIF(agent_id: str = "default_agent", enable_privacy: bool = False)
+Artifact(name: str, client: MAIFClient,
+         security_level: SecurityLevel = SecurityLevel.PUBLIC)
 ```
 
-- `agent_id`: Unique identifier for the agent creating the MAIF
-- `enable_privacy`: Enable privacy features (encryption, anonymization)
+- `name`: Name of the artifact
+- `client`: MAIFClient instance
+- `security_level`: Security level (PUBLIC, INTERNAL, CONFIDENTIAL, RESTRICTED)
 
-#### Methods
+#### Key Methods
 
-##### `add_text(text, title=None, language="en", encrypt=False, anonymize=False)`
+##### `add_text(text: str, metadata: dict = None)`
 
-Add text content to the MAIF.
-
-**Parameters:**
-- `text` (str): Text content to add
-- `title` (str, optional): Title for the text
-- `language` (str): Language code (default: "en")
-- `encrypt` (bool): Whether to encrypt the text
-- `anonymize` (bool): Whether to anonymize sensitive data
-
-**Returns:** Block ID (str)
+Add text content to the artifact.
 
 **Example:**
 ```python
-block_id = maif.add_text(
+artifact.add_text(
     "This is confidential information",
-    title="Secret Document",
-    encrypt=True,
-    anonymize=True
+    metadata={"title": "Secret Document"}
 )
+```
+
+##### `add_binary(data: bytes, content_type: str, metadata: dict = None)`
+
+Add binary data (images, documents, etc).
+
+**Example:**
+```python
+with open("image.jpg", "rb") as f:
+    artifact.add_binary(f.read(), "image/jpeg", {"title": "Photo"})
+```
+
+### Classified Security API: `SecureMAIF` Class
+
+Simple API for handling classified data with built-in security.
+
+#### Constructor
+
+```python
+SecureMAIF(classification: str = "UNCLASSIFIED",
+          region: str = None, use_fips: bool = True)
+```
+
+- `classification`: Default classification level
+- `region`: AWS region (auto-detected if not specified)
+- `use_fips`: Enable FIPS 140-2 compliant mode
+
+#### Key Methods
+
+##### Authentication
+
+```python
+# PKI/CAC authentication
+user_id = maif.authenticate_with_pki(certificate_pem)
+
+# Hardware MFA
+challenge = maif.authenticate_with_mfa(user_id, token_serial)
+verified = maif.verify_mfa(challenge, token_code)
+```
+
+##### User Management
+
+```python
+# Grant clearance
+maif.grant_clearance(
+    user_id="analyst.001",
+    level="SECRET",
+    compartments=["CRYPTO", "SIGINT"],
+    caveats=["NOFORN"]
+)
+
+# Check clearance
+level = maif.check_clearance("analyst.001")
+```
+
+##### Data Operations
+
+```python
+# Store classified data
+doc_id = maif.store_classified_data(
+    data={"content": "classified"},
+    classification="SECRET",
+    compartments=["CRYPTO"]
+)
+
+# Access control
+if maif.can_access("analyst.001", doc_id):
+    data = maif.retrieve_classified_data(doc_id)
+    
+# Audit logging
+maif.log_access("analyst.001", doc_id, "read")
 ```
 
 ##### `add_image(image_path, title=None, extract_metadata=True)`
