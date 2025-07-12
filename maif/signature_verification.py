@@ -15,6 +15,11 @@ from dataclasses import dataclass
 from enum import Enum
 import secrets
 import json
+import os
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 class SignatureAlgorithm(Enum):
     """Supported signature algorithms."""
@@ -349,10 +354,11 @@ class SignatureVerifier:
             try:
                 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
                 
-                # For Ed25519, we need a private key
-                # In a real implementation, we would retrieve the private key from a secure store
-                # For this example, we'll derive it from the key_data
-                private_key = Ed25519PrivateKey.from_private_bytes(key_data["key_data"][:32])
+                # Retrieve private key from secure store
+                private_key = self._retrieve_private_key(key_id, algorithm)
+                if not private_key:
+                    # Fallback to embedded key data if secure store unavailable
+                    private_key = Ed25519PrivateKey.from_private_bytes(key_data["key_data"][:32])
                 signature = private_key.sign(message)
             except ImportError:
                 raise ValueError("Ed25519 algorithm requires the cryptography library")
@@ -361,13 +367,14 @@ class SignatureVerifier:
                 from cryptography.hazmat.primitives.asymmetric import ec
                 from cryptography.hazmat.primitives import hashes
                 
-                # For ECDSA, we need a private key
-                # In a real implementation, we would retrieve the private key from a secure store
-                # For this example, we'll derive it from the key_data
-                private_key = ec.derive_private_key(
-                    int.from_bytes(key_data["key_data"][:32], byteorder='big'),
-                    ec.SECP256R1()
-                )
+                # Retrieve private key from secure store
+                private_key = self._retrieve_private_key(key_id, algorithm)
+                if not private_key:
+                    # Fallback to derived key if secure store unavailable
+                    private_key = ec.derive_private_key(
+                        int.from_bytes(key_data["key_data"][:32], byteorder='big'),
+                        ec.SECP256R1()
+                    )
                 signature = private_key.sign(
                     message,
                     ec.ECDSA(hashes.SHA256())
@@ -443,4 +450,129 @@ def verify_block_signature(verifier: SignatureVerifier, block_data: bytes,
         result = verifier.verify_signature(block_data, signature_info)
         return result == VerificationResult.VALID
     except Exception:
+        return False
+    
+    def _retrieve_private_key(self, key_id: str, algorithm: SignatureAlgorithm) -> Optional[Any]:
+        """Retrieve private key from secure store."""
+        try:
+            # Try AWS KMS first for asymmetric keys
+            if hasattr(self, 'kms_client') and self.kms_client and algorithm in [SignatureAlgorithm.ED25519, SignatureAlgorithm.ECDSA_P256]:
+                try:
+                    # For KMS, the key_id would be the KMS key ARN
+                    if key_id.startswith('arn:aws:kms:'):
+                        response = self.kms_client.get_public_key(KeyId=key_id)
+                        # KMS handles signing internally, return key reference
+                        return {'kms_key_id': key_id, 'type': 'kms'}
+                except Exception as e:
+                    logger.debug(f"KMS key retrieval failed: {e}")
+            
+            # Try key store backend
+            if hasattr(self, 'key_store_backend') and self.key_store_backend:
+                key_data = self.key_store_backend.retrieve_key(key_id)
+                if key_data:
+                    return self._deserialize_private_key(key_data, algorithm)
+            
+            # Try local key cache as last resort
+            if hasattr(self.key_store, 'keys') and key_id in self.key_store.keys:
+                key_info = self.key_store.keys[key_id]
+                if 'private_key' in key_info:
+                    return key_info['private_key']
+                    
+        except Exception as e:
+            logger.error(f"Failed to retrieve private key {key_id}: {e}")
+        
+        return None
+    
+    def _deserialize_private_key(self, key_data: bytes, algorithm: SignatureAlgorithm) -> Optional[Any]:
+        """Deserialize private key from bytes."""
+        try:
+            if algorithm == SignatureAlgorithm.ED25519:
+                from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+                return Ed25519PrivateKey.from_private_bytes(key_data[:32])
+            elif algorithm == SignatureAlgorithm.ECDSA_P256:
+                from cryptography.hazmat.primitives.asymmetric import ec
+                from cryptography.hazmat.primitives import serialization
+                # Try PEM format first
+                try:
+                    return serialization.load_pem_private_key(key_data, password=None)
+                except:
+                    # Fallback to raw key derivation
+                    return ec.derive_private_key(
+                        int.from_bytes(key_data[:32], byteorder='big'),
+                        ec.SECP256R1()
+                    )
+        except Exception as e:
+            logger.error(f"Failed to deserialize private key: {e}")
+            return None
+
+
+class KeyStoreBackend:
+    """Abstract base class for key storage backends."""
+    
+    def store_key(self, key_id: str, key_data: bytes) -> bool:
+        """Store a key."""
+        raise NotImplementedError
+    
+    def retrieve_key(self, key_id: str) -> Optional[bytes]:
+        """Retrieve a key."""
+        raise NotImplementedError
+    
+    def delete_key(self, key_id: str) -> bool:
+        """Delete a key."""
+        raise NotImplementedError
+
+
+class FileKeyStore(KeyStoreBackend):
+    """File-based key storage backend."""
+    
+    def __init__(self, base_path: str):
+        self.base_path = Path(base_path)
+        self.base_path.mkdir(parents=True, exist_ok=True)
+        # Set restrictive permissions
+        os.chmod(self.base_path, 0o700)
+    
+    def store_key(self, key_id: str, key_data: bytes) -> bool:
+        """Store a key in a file."""
+        try:
+            # Sanitize key_id for filesystem
+            safe_key_id = base64.urlsafe_b64encode(key_id.encode()).decode()
+            key_path = self.base_path / f"{safe_key_id}.key"
+            
+            # Write with restrictive permissions
+            with open(key_path, 'wb') as f:
+                f.write(key_data)
+            os.chmod(key_path, 0o600)
+            
+            return True
+        except Exception as e:
+            logger.error(f"Failed to store key {key_id}: {e}")
+            return False
+    
+    def retrieve_key(self, key_id: str) -> Optional[bytes]:
+        """Retrieve a key from file."""
+        try:
+            safe_key_id = base64.urlsafe_b64encode(key_id.encode()).decode()
+            key_path = self.base_path / f"{safe_key_id}.key"
+            
+            if key_path.exists():
+                with open(key_path, 'rb') as f:
+                    return f.read()
+        except Exception as e:
+            logger.error(f"Failed to retrieve key {key_id}: {e}")
+        return None
+    
+    def delete_key(self, key_id: str) -> bool:
+        """Delete a key file."""
+        try:
+            safe_key_id = base64.urlsafe_b64encode(key_id.encode()).decode()
+            key_path = self.base_path / f"{safe_key_id}.key"
+            
+            if key_path.exists():
+                # Overwrite with random data before deletion
+                with open(key_path, 'wb') as f:
+                    f.write(secrets.token_bytes(f.seek(0, 2)))
+                key_path.unlink()
+                return True
+        except Exception as e:
+            logger.error(f"Failed to delete key {key_id}: {e}")
         return False

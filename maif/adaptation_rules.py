@@ -1121,11 +1121,124 @@ class MAIFAdaptationManager:
                     manager.upgrade_file(str(self.maif_path), output_path, target_version)
                 
                 elif transform_type == "columnar":
-                    from .columnar_storage import ColumnarFile
+                    from .columnar_storage import ColumnarFile, ColumnType, EncodingType, CompressionType
+                    from .core import MAIFEncoder
                     
                     # Convert to columnar format
-                    # This is a simplified implementation
-                    pass
+                    output_path = action.get_parameter("output_path") or str(self.maif_path) + ".columnar"
+                    chunk_size = action.get_parameter("chunk_size") or 1000
+                    
+                    # Open source MAIF file
+                    encoder = MAIFEncoder(str(self.maif_path))
+                    
+                    # Create columnar file
+                    with ColumnarFile(output_path) as columnar_file:
+                        # Analyze blocks to determine schema
+                        schema = {}
+                        sample_size = min(100, len(encoder.blocks))
+                        
+                        for i, (block_id, block) in enumerate(encoder.blocks.items()):
+                            if i >= sample_size:
+                                break
+                            
+                            # Extract metadata fields
+                            metadata = block.get("metadata", {})
+                            for key, value in metadata.items():
+                                if key not in schema:
+                                    # Infer column type from value
+                                    if isinstance(value, bool):
+                                        schema[key] = ColumnType.BOOLEAN
+                                    elif isinstance(value, int):
+                                        schema[key] = ColumnType.INT64
+                                    elif isinstance(value, float):
+                                        schema[key] = ColumnType.FLOAT64
+                                    elif isinstance(value, str):
+                                        schema[key] = ColumnType.STRING
+                                    elif isinstance(value, bytes):
+                                        schema[key] = ColumnType.BINARY
+                                    elif isinstance(value, dict) or isinstance(value, list):
+                                        schema[key] = ColumnType.JSON
+                                    else:
+                                        schema[key] = ColumnType.STRING  # Default to string
+                        
+                        # Add standard columns
+                        schema["block_id"] = ColumnType.STRING
+                        schema["block_type"] = ColumnType.STRING
+                        schema["timestamp"] = ColumnType.TIMESTAMP
+                        schema["data_size"] = ColumnType.INT64
+                        
+                        # Add columns to columnar file
+                        for column_name, column_type in schema.items():
+                            columnar_file.add_column(column_name, column_type)
+                        
+                        # Convert blocks to columnar format in chunks
+                        data_buffer = {col: [] for col in schema}
+                        blocks_processed = 0
+                        
+                        for block_id, block in encoder.blocks.items():
+                            # Extract block data
+                            metadata = block.get("metadata", {})
+                            
+                            # Add standard fields
+                            data_buffer["block_id"].append(block_id)
+                            data_buffer["block_type"].append(block.get("type", "unknown"))
+                            data_buffer["timestamp"].append(metadata.get("timestamp", time.time()))
+                            data_buffer["data_size"].append(len(block.get("data", b"")))
+                            
+                            # Add metadata fields
+                            for column_name in schema:
+                                if column_name not in ["block_id", "block_type", "timestamp", "data_size"]:
+                                    value = metadata.get(column_name, None)
+                                    data_buffer[column_name].append(value)
+                            
+                            blocks_processed += 1
+                            
+                            # Write chunk when buffer is full
+                            if blocks_processed % chunk_size == 0:
+                                # Determine best encoding and compression for each column
+                                encodings = {}
+                                compressions = {}
+                                
+                                for col_name, col_type in schema.items():
+                                    # Use dictionary encoding for string columns with low cardinality
+                                    if col_type == ColumnType.STRING:
+                                        unique_values = len(set(v for v in data_buffer[col_name] if v is not None))
+                                        total_values = len([v for v in data_buffer[col_name] if v is not None])
+                                        if total_values > 0 and unique_values / total_values < 0.5:
+                                            encodings[col_name] = EncodingType.DICTIONARY
+                                        else:
+                                            encodings[col_name] = EncodingType.PLAIN
+                                    
+                                    # Use delta encoding for numeric/timestamp columns
+                                    elif col_type in [ColumnType.INT32, ColumnType.INT64,
+                                                    ColumnType.FLOAT32, ColumnType.FLOAT64,
+                                                    ColumnType.TIMESTAMP]:
+                                        encodings[col_name] = EncodingType.DELTA
+                                    else:
+                                        encodings[col_name] = EncodingType.PLAIN
+                                    
+                                    # Use compression for all columns
+                                    compressions[col_name] = CompressionType.ZSTD
+                                
+                                # Write batch
+                                columnar_file.write_batch(
+                                    data_buffer,
+                                    row_group_size=chunk_size,
+                                    encodings=encodings,
+                                    compressions=compressions
+                                )
+                                
+                                # Clear buffer
+                                data_buffer = {col: [] for col in schema}
+                        
+                        # Write remaining data
+                        if any(len(values) > 0 for values in data_buffer.values()):
+                            columnar_file.write_batch(
+                                data_buffer,
+                                row_group_size=chunk_size
+                            )
+                    
+                    logger.info(f"Converted {blocks_processed} blocks to columnar format: {output_path}")
                 
                 return True
             except Exception as e:

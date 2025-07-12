@@ -255,10 +255,145 @@ class WriteAheadLog:
         return entries
     
     def truncate_after_commit(self, transaction_id: str) -> None:
-        """Remove committed transaction entries from WAL."""
-        # In production, this would be more sophisticated
-        # For now, we keep all entries for audit purposes
-        pass
+        """Remove old committed transaction entries from WAL."""
+        with self._lock:
+            if self._closed:
+                return
+            
+            try:
+                # Read current WAL position
+                current_position = self.wal_file.tell()
+                
+                # Parameters for cleanup policy
+                min_entries_to_keep = 1000  # Keep at least this many entries
+                max_age_seconds = 86400  # Keep entries for 24 hours
+                max_wal_size = 100 * 1024 * 1024  # 100MB max WAL size
+                
+                # Check if cleanup is needed
+                self.wal_file.seek(0, 2)  # Seek to end
+                wal_size = self.wal_file.tell()
+                
+                if wal_size < max_wal_size:
+                    self.wal_file.seek(current_position)
+                    return
+                
+                # Read all entries to determine what to keep
+                entries_to_keep = []
+                current_time = time.time()
+                self.wal_file.seek(0)
+                
+                entry_count = 0
+                while True:
+                    position = self.wal_file.tell()
+                    try:
+                        # Read entry header
+                        header_data = self.wal_file.read(44)
+                        if len(header_data) < 44:
+                            break
+                        
+                        magic, size, seq_num, timestamp = struct.unpack('!QIIQ', header_data[:28])
+                        
+                        if magic != self.WAL_MAGIC:
+                            break
+                        
+                        # Read rest of entry
+                        entry_data = self.wal_file.read(size - 44)
+                        
+                        # Check if entry should be kept
+                        keep_entry = False
+                        
+                        # Keep recent entries
+                        if current_time - timestamp < max_age_seconds:
+                            keep_entry = True
+                        
+                        # Keep minimum number of entries
+                        if entry_count >= len(entries_to_keep) - min_entries_to_keep:
+                            keep_entry = True
+                        
+                        # Parse entry to check transaction state
+                        checksum_data = header_data[28:44]
+                        json_size = struct.unpack('!I', entry_data[:4])[0]
+                        json_data = entry_data[4:4+json_size].decode('utf-8')
+                        entry_dict = json.loads(json_data)
+                        
+                        # Always keep entries for active transactions
+                        if entry_dict.get('operation_type') in ['begin', 'write'] and \
+                           entry_dict.get('transaction_id') not in self._committed_transactions:
+                            keep_entry = True
+                        
+                        if keep_entry:
+                            entries_to_keep.append({
+                                'position': position,
+                                'size': size,
+                                'header': header_data,
+                                'data': entry_data
+                            })
+                        
+                        entry_count += 1
+                        
+                    except Exception:
+                        break
+                
+                # If we're keeping everything, no need to rewrite
+                if len(entries_to_keep) == entry_count:
+                    self.wal_file.seek(current_position)
+                    return
+                
+                # Create new WAL file
+                temp_wal_path = self.wal_path + '.tmp'
+                with open(temp_wal_path, 'wb') as new_wal:
+                    # Write kept entries
+                    new_sequence = 1
+                    for entry in entries_to_keep:
+                        # Update sequence number in header
+                        header = bytearray(entry['header'])
+                        struct.pack_into('!I', header, 16, new_sequence)
+                        
+                        # Recalculate checksum
+                        checksum_data = header[:28] + entry['data']
+                        checksum = hashlib.sha256(checksum_data).digest()[:16]
+                        header[28:44] = checksum
+                        
+                        # Write to new WAL
+                        new_wal.write(header)
+                        new_wal.write(entry['data'])
+                        new_sequence += 1
+                    
+                    new_wal.flush()
+                    os.fsync(new_wal.fileno())
+                
+                # Close current WAL and replace with new one
+                self.wal_file.close()
+                
+                # Atomic rename
+                if os.path.exists(self.wal_path + '.old'):
+                    os.remove(self.wal_path + '.old')
+                os.rename(self.wal_path, self.wal_path + '.old')
+                os.rename(temp_wal_path, self.wal_path)
+                
+                # Open new WAL file
+                self.wal_file = open(self.wal_path, 'ab+')
+                self._sequence_number = new_sequence
+                
+                # Clean up old WAL
+                try:
+                    os.remove(self.wal_path + '.old')
+                except:
+                    pass
+                
+                # Track committed transactions for cleanup
+                if not hasattr(self, '_committed_transactions'):
+                    self._committed_transactions = set()
+                self._committed_transactions.add(transaction_id)
+                
+                # Clean up old committed transactions
+                if len(self._committed_transactions) > 100:
+                    self._committed_transactions = set(list(self._committed_transactions)[-50:])
+                    
+            except Exception as e:
+                # Log error but don't fail - WAL cleanup is not critical
+                if hasattr(self, 'logger'):
+                    self.logger.warning(f"WAL cleanup failed: {e}")
     
     def close(self):
         """Close WAL file."""

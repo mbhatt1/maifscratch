@@ -471,35 +471,117 @@ class HierarchicalSemanticCompression:
         }
     
     def _tier3_entropy_coding(self, quantized_data: np.ndarray) -> Dict[str, Any]:
-        """Tier 3: Entropy coding (simplified Huffman-like)."""
-        # Simple run-length encoding for demonstration
-        # In production, would use proper entropy coding like Huffman or arithmetic coding
-        
+        """Tier 3: Entropy coding using Huffman encoding."""
         if len(quantized_data) == 0:
             return {"encoded_data": b"", "encoding_type": "empty"}
         
-        # Run-length encoding
-        encoded = []
-        current_value = quantized_data[0]
-        count = 1
+        # Build frequency table
+        freq = Counter(quantized_data.tolist())
         
-        for value in quantized_data[1:]:
-            if value == current_value and count < 255:
-                count += 1
-            else:
-                encoded.extend([current_value, count])
-                current_value = value
-                count = 1
+        # Handle single unique value case
+        if len(freq) == 1:
+            value = list(freq.keys())[0]
+            return {
+                "encoded_data": struct.pack('!IIB', len(quantized_data), 1, value),
+                "encoding_type": "single_value",
+                "original_length": len(quantized_data),
+                "encoded_length": 9  # 4 + 4 + 1 bytes
+            }
         
-        encoded.extend([current_value, count])
-        encoded_data = bytes(encoded)
+        # Build Huffman tree
+        huffman_tree = self._build_huffman_tree(freq)
+        
+        # Generate Huffman codes
+        codes = {}
+        self._generate_codes(huffman_tree, "", codes)
+        
+        # Encode data
+        bit_stream = []
+        for value in quantized_data:
+            bit_stream.extend(codes[value])
+        
+        # Pack bits into bytes
+        encoded_bytes = self._pack_bits(bit_stream)
+        
+        # Create header with tree structure for decoding
+        header = self._serialize_huffman_tree(huffman_tree)
+        
+        # Combine header and encoded data
+        encoded_data = struct.pack('!I', len(header)) + header + encoded_bytes
         
         return {
             "encoded_data": encoded_data,
-            "encoding_type": "run_length",
+            "encoding_type": "huffman",
             "original_length": len(quantized_data),
-            "encoded_length": len(encoded_data)
+            "encoded_length": len(encoded_data),
+            "compression_ratio": len(quantized_data) / len(encoded_data)
         }
+    
+    def _build_huffman_tree(self, freq: Dict[int, int]) -> 'HuffmanNode':
+        """Build Huffman tree from frequency table."""
+        # Create leaf nodes
+        heap = []
+        for value, frequency in freq.items():
+            node = HuffmanNode(value=value, freq=frequency)
+            heapq.heappush(heap, (frequency, id(node), node))
+        
+        # Build tree
+        while len(heap) > 1:
+            freq1, _, left = heapq.heappop(heap)
+            freq2, _, right = heapq.heappop(heap)
+            
+            merged = HuffmanNode(
+                value=None,
+                freq=freq1 + freq2,
+                left=left,
+                right=right
+            )
+            
+            heapq.heappush(heap, (merged.freq, id(merged), merged))
+        
+        return heap[0][2]
+    
+    def _generate_codes(self, node: 'HuffmanNode', code: str, codes: Dict[int, str]):
+        """Generate Huffman codes recursively."""
+        if node.value is not None:
+            codes[node.value] = code if code else "0"
+            return
+        
+        if node.left:
+            self._generate_codes(node.left, code + "0", codes)
+        if node.right:
+            self._generate_codes(node.right, code + "1", codes)
+    
+    def _pack_bits(self, bit_stream: List[str]) -> bytes:
+        """Pack bit stream into bytes."""
+        # Pad to byte boundary
+        padding = (8 - len(bit_stream) % 8) % 8
+        bit_stream.extend(['0'] * padding)
+        
+        # Pack into bytes
+        packed = bytearray()
+        for i in range(0, len(bit_stream), 8):
+            byte = int(''.join(bit_stream[i:i+8]), 2)
+            packed.append(byte)
+        
+        # Add metadata about padding
+        return struct.pack('!B', padding) + bytes(packed)
+    
+    def _serialize_huffman_tree(self, node: 'HuffmanNode') -> bytes:
+        """Serialize Huffman tree for decoding."""
+        def serialize(node):
+            if node.value is not None:
+                # Leaf node: 1 bit (1) + value
+                return [1, node.value]
+            else:
+                # Internal node: 1 bit (0) + left subtree + right subtree
+                result = [0]
+                result.extend(serialize(node.left))
+                result.extend(serialize(node.right))
+                return result
+        
+        tree_data = serialize(node)
+        return pickle.dumps(tree_data)
     
     def _calculate_fidelity(self, original: np.ndarray, tier1_result: Dict, tier2_result: Dict) -> float:
         """Calculate semantic fidelity preservation score."""

@@ -1160,10 +1160,264 @@ class MAIFAgentConsortium:
             knowledge_artifact.save(shared_path)
     
     async def _coordinate_tasks(self):
-        """Coordinate task distribution."""
-        # Simple round-robin task assignment
-        # In production, use more sophisticated coordination
-        pass
+        """Coordinate task distribution among agents."""
+        # Initialize task queue if not exists
+        if not hasattr(self, '_task_queue'):
+            self._task_queue = asyncio.Queue()
+            self._task_assignments = {}
+            self._agent_loads = {agent_id: 0 for agent_id in self.agents}
+            self._completed_tasks = []
+            self._failed_tasks = []
+            self._task_id_counter = 0
+        
+        # Check for new tasks from agents
+        for agent_id, agent in self.agents.items():
+            # Check if agent has pending tasks to distribute
+            if hasattr(agent, 'pending_tasks'):
+                while agent.pending_tasks:
+                    task = agent.pending_tasks.pop(0)
+                    await self._task_queue.put({
+                        'id': self._generate_task_id(),
+                        'source_agent': agent_id,
+                        'task': task,
+                        'priority': task.get('priority', 5),
+                        'created_at': time.time()
+                    })
+        
+        # Process task queue and assign to agents
+        tasks_to_assign = []
+        while not self._task_queue.empty():
+            try:
+                task_info = self._task_queue.get_nowait()
+                tasks_to_assign.append(task_info)
+            except asyncio.QueueEmpty:
+                break
+        
+        # Sort tasks by priority (higher priority first)
+        tasks_to_assign.sort(key=lambda x: (-x['priority'], x['created_at']))
+        
+        # Assign tasks to agents
+        for task_info in tasks_to_assign:
+            assigned_agent = await self._select_agent_for_task(task_info)
+            if assigned_agent:
+                await self._assign_task_to_agent(task_info, assigned_agent)
+            else:
+                # Put back in queue if no agent available
+                await self._task_queue.put(task_info)
+        
+        # Check task progress and handle completions
+        await self._check_task_progress()
+        
+        # Rebalance tasks if needed
+        await self._rebalance_tasks()
+        
+        # Clean up old completed tasks
+        self._cleanup_completed_tasks()
+    
+    def _generate_task_id(self) -> str:
+        """Generate unique task ID."""
+        self._task_id_counter += 1
+        return f"task_{self._task_id_counter}_{int(time.time() * 1000000)}"
+    
+    async def _select_agent_for_task(self, task_info: Dict) -> Optional[str]:
+        """Select best agent for task based on load and capabilities."""
+        task = task_info['task']
+        source_agent = task_info['source_agent']
+        
+        # Get available agents (excluding source)
+        available_agents = [
+            agent_id for agent_id in self.agents
+            if agent_id != source_agent and self.agents[agent_id].state == AgentState.IDLE
+        ]
+        
+        if not available_agents:
+            return None
+        
+        # Score agents based on various factors
+        agent_scores = {}
+        for agent_id in available_agents:
+            agent = self.agents[agent_id]
+            score = 0
+            
+            # Factor 1: Current load (lower is better)
+            load = self._agent_loads.get(agent_id, 0)
+            score -= load * 10
+            
+            # Factor 2: Agent capabilities match
+            if hasattr(agent, 'capabilities'):
+                task_type = task.get('type', 'general')
+                if task_type in agent.capabilities:
+                    score += 20
+            
+            # Factor 3: Recent success rate
+            success_rate = self._calculate_agent_success_rate(agent_id)
+            score += success_rate * 15
+            
+            # Factor 4: Agent specialization
+            if hasattr(agent, 'specialization'):
+                if task.get('domain') == agent.specialization:
+                    score += 25
+            
+            agent_scores[agent_id] = score
+        
+        # Select agent with highest score
+        best_agent = max(agent_scores.items(), key=lambda x: x[1])[0]
+        return best_agent
+    
+    async def _assign_task_to_agent(self, task_info: Dict, agent_id: str):
+        """Assign task to specific agent."""
+        agent = self.agents[agent_id]
+        
+        # Create task artifact
+        task_artifact = MAIFArtifact(
+            name=f"task_{task_info['id']}",
+            client=agent.maif_client,
+            security_level=SecurityLevel.SENSITIVE
+        )
+        
+        task_artifact.add_data(
+            json.dumps(task_info['task']).encode(),
+            title=f"Task from {task_info['source_agent']}",
+            data_type="consortium_task"
+        )
+        
+        # Store in agent's working memory
+        agent.memory.store_working(f"assigned_task_{task_info['id']}", task_artifact)
+        
+        # Update tracking
+        self._task_assignments[task_info['id']] = {
+            'agent_id': agent_id,
+            'assigned_at': time.time(),
+            'status': 'assigned',
+            'task_info': task_info
+        }
+        
+        self._agent_loads[agent_id] += 1
+        
+        # Notify agent if it has a task handler
+        if hasattr(agent, 'handle_consortium_task'):
+            asyncio.create_task(agent.handle_consortium_task(task_artifact))
+        
+        logger.info(f"Assigned task {task_info['id']} to agent {agent_id}")
+    
+    async def _check_task_progress(self):
+        """Check progress of assigned tasks."""
+        for task_id, assignment in list(self._task_assignments.items()):
+            if assignment['status'] == 'assigned':
+                agent_id = assignment['agent_id']
+                agent = self.agents[agent_id]
+                
+                # Check if task is completed
+                if hasattr(agent, 'completed_tasks') and task_id in agent.completed_tasks:
+                    assignment['status'] = 'completed'
+                    assignment['completed_at'] = time.time()
+                    self._completed_tasks.append(assignment)
+                    self._agent_loads[agent_id] -= 1
+                    
+                    # Remove from assignments
+                    del self._task_assignments[task_id]
+                    
+                    logger.info(f"Task {task_id} completed by agent {agent_id}")
+                
+                # Check for timeout
+                elif time.time() - assignment['assigned_at'] > 300:  # 5 minute timeout
+                    assignment['status'] = 'timeout'
+                    self._failed_tasks.append(assignment)
+                    self._agent_loads[agent_id] -= 1
+                    
+                    # Requeue task
+                    await self._task_queue.put(assignment['task_info'])
+                    
+                    # Remove from assignments
+                    del self._task_assignments[task_id]
+                    
+                    logger.warning(f"Task {task_id} timed out on agent {agent_id}")
+    
+    async def _rebalance_tasks(self):
+        """Rebalance tasks if some agents are overloaded."""
+        # Calculate average load
+        total_load = sum(self._agent_loads.values())
+        num_agents = len(self._agent_loads)
+        
+        if num_agents == 0:
+            return
+        
+        avg_load = total_load / num_agents
+        
+        # Find overloaded and underloaded agents
+        overloaded = [
+            agent_id for agent_id, load in self._agent_loads.items()
+            if load > avg_load * 1.5
+        ]
+        underloaded = [
+            agent_id for agent_id, load in self._agent_loads.items()
+            if load < avg_load * 0.5
+        ]
+        
+        # Rebalance if needed
+        if overloaded and underloaded:
+            # Move tasks from overloaded to underloaded agents
+            for overloaded_agent in overloaded:
+                # Find tasks to move
+                tasks_to_move = [
+                    task_id for task_id, assignment in self._task_assignments.items()
+                    if assignment['agent_id'] == overloaded_agent
+                    and assignment['status'] == 'assigned'
+                    and time.time() - assignment['assigned_at'] < 60  # Only recent tasks
+                ]
+                
+                # Move some tasks
+                for task_id in tasks_to_move[:1]:  # Move one task at a time
+                    if underloaded:
+                        new_agent = underloaded.pop(0)
+                        assignment = self._task_assignments[task_id]
+                        
+                        # Reassign task
+                        await self._assign_task_to_agent(
+                            assignment['task_info'],
+                            new_agent
+                        )
+                        
+                        # Update loads
+                        self._agent_loads[overloaded_agent] -= 1
+                        
+                        # Remove old assignment
+                        del self._task_assignments[task_id]
+                        
+                        logger.info(f"Rebalanced task {task_id} from {overloaded_agent} to {new_agent}")
+    
+    def _calculate_agent_success_rate(self, agent_id: str) -> float:
+        """Calculate success rate for an agent."""
+        completed = sum(
+            1 for task in self._completed_tasks
+            if task['agent_id'] == agent_id
+        )
+        failed = sum(
+            1 for task in self._failed_tasks
+            if task['agent_id'] == agent_id
+        )
+        
+        total = completed + failed
+        if total == 0:
+            return 0.8  # Default success rate for new agents
+        
+        return completed / total
+    
+    def _cleanup_completed_tasks(self):
+        """Clean up old completed tasks to prevent memory buildup."""
+        current_time = time.time()
+        
+        # Keep only recent completed tasks (last hour)
+        self._completed_tasks = [
+            task for task in self._completed_tasks
+            if current_time - task.get('completed_at', 0) < 3600
+        ]
+        
+        # Keep only recent failed tasks (last 2 hours)
+        self._failed_tasks = [
+            task for task in self._failed_tasks
+            if current_time - task.get('assigned_at', 0) < 7200
+        ]
 
 # Helper function to create and run an agent
 async def create_and_run_agent(agent_id: str, workspace_path: str, config: Optional[Dict] = None):
