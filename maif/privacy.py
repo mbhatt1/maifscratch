@@ -8,6 +8,8 @@ import json
 import time
 import secrets
 import base64
+import threading
+import logging
 from typing import Dict, List, Optional, Any, Tuple, Union
 from dataclasses import dataclass, asdict
 from cryptography.hazmat.primitives import hashes, serialization, kdf
@@ -20,6 +22,8 @@ from cryptography.hazmat.backends import default_backend
 import os
 import uuid
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 class PrivacyLevel(Enum):
     """Privacy protection levels."""
@@ -110,6 +114,7 @@ class PrivacyEngine:
         self.encryption_keys: Dict[str, bytes] = {}
         self.anonymization_maps: Dict[str, Dict[str, str]] = {}
         self.retention_policies: Dict[str, int] = {}
+        self._lock = threading.RLock()
         
         # Performance optimizations
         self.key_cache: Dict[str, bytes] = {}  # Cache derived keys
@@ -122,52 +127,67 @@ class PrivacyEngine:
     
     def derive_key(self, context: str, salt: Optional[bytes] = None) -> bytes:
         """Derive encryption key for specific context using fast HKDF with caching."""
-        # Check cache first
-        cache_key = f"{context}:{salt.hex() if salt else 'default'}"
-        if cache_key in self.key_cache:
-            return self.key_cache[cache_key]
-        
-        if salt is None:
-            # Use a deterministic salt based on context for consistency
-            salt = hashlib.sha256(context.encode()).digest()[:16]
-        
-        # Use HKDF for much faster key derivation (no iterations needed)
-        hkdf = HKDF(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            info=context.encode(),
-            backend=default_backend()
-        )
-        derived_key = hkdf.derive(self.master_key)
-        
-        # Cache the derived key for future use
-        self.key_cache[cache_key] = derived_key
-        return derived_key
+        if not context:
+            raise ValueError("Context is required for key derivation")
+            
+        with self._lock:
+            # Check cache first
+            cache_key = f"{context}:{salt.hex() if salt else 'default'}"
+            if cache_key in self.key_cache:
+                return self.key_cache[cache_key]
+            
+            if salt is None:
+                # Use a deterministic salt based on context for consistency
+                salt = hashlib.sha256(context.encode()).digest()[:16]
+            
+            try:
+                # Use HKDF for much faster key derivation (no iterations needed)
+                hkdf = HKDF(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=salt,
+                    info=context.encode(),
+                    backend=default_backend()
+                )
+                derived_key = hkdf.derive(self.master_key)
+                
+                # Cache the derived key for future use
+                self.key_cache[cache_key] = derived_key
+                return derived_key
+            except Exception as e:
+                logger.error(f"Error deriving key: {e}")
+                raise ValueError(f"Failed to derive key: {e}")
     
     def get_batch_key(self, context_prefix: str = "batch") -> bytes:
         """Get or create a batch key for multiple operations."""
-        if self.batch_key is None or self.batch_key_context != context_prefix:
-            # Create a batch key that rotates hourly for security
-            time_slot = int(time.time() // 3600)  # Hour-based rotation
-            self.batch_key = self.derive_key(f"{context_prefix}:{time_slot}")
-            self.batch_key_context = context_prefix
-        return self.batch_key
+        with self._lock:
+            if self.batch_key is None or self.batch_key_context != context_prefix:
+                # Create a batch key that rotates hourly for security
+                time_slot = int(time.time() // 3600)  # Hour-based rotation
+                self.batch_key = self.derive_key(f"{context_prefix}:{time_slot}")
+                self.batch_key_context = context_prefix
+            return self.batch_key
     
     def encrypt_data(self, data: bytes, block_id: str,
                     encryption_mode: EncryptionMode = EncryptionMode.AES_GCM,
                     use_batch_key: bool = True) -> Tuple[bytes, Dict[str, Any]]:
         """Encrypt data with specified mode using optimized key management."""
+        if not data:
+            raise ValueError("Cannot encrypt empty data")
+        if not block_id:
+            raise ValueError("Block ID is required")
+            
         if encryption_mode == EncryptionMode.NONE:
             return data, {}
         
-        # Use batch key for better performance, or unique key for higher security
-        if use_batch_key:
-            key = self.get_batch_key("encrypt")
-        else:
-            key = self.derive_key(f"block:{block_id}")
-        
-        self.encryption_keys[block_id] = key
+        with self._lock:
+            # Use batch key for better performance, or unique key for higher security
+            if use_batch_key:
+                key = self.get_batch_key("encrypt")
+            else:
+                key = self.derive_key(f"block:{block_id}")
+            
+            self.encryption_keys[block_id] = key
         
         if encryption_mode == EncryptionMode.AES_GCM:
             return self._encrypt_aes_gcm(data, key)
@@ -255,38 +275,42 @@ class PrivacyEngine:
     
     def _encrypt_aes_gcm(self, data: bytes, key: bytes) -> Tuple[bytes, Dict[str, Any]]:
         """Encrypt using AES-GCM with optimized performance."""
-        iv = secrets.token_bytes(12)
-        
-        # Use hardware acceleration if available
         try:
-            from cryptography.hazmat.backends.openssl.backend import backend as openssl_backend
-            backend = openssl_backend
-        except ImportError:
-            backend = default_backend()
-        
-        cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=backend)
-        encryptor = cipher.encryptor()
-        
-        # Process data in large chunks for better performance
-        chunk_size = 1024 * 1024  # 1MB chunks
-        ciphertext_chunks = []
-        
-        if len(data) <= chunk_size:
-            # Small data, process directly
-            ciphertext = encryptor.update(data) + encryptor.finalize()
-        else:
-            # Large data, process in chunks
-            for i in range(0, len(data), chunk_size):
-                chunk = data[i:i + chunk_size]
-                ciphertext_chunks.append(encryptor.update(chunk))
-            ciphertext_chunks.append(encryptor.finalize())
-            ciphertext = b''.join(ciphertext_chunks)
-        
-        return ciphertext, {
-            'iv': base64.b64encode(iv).decode(),
-            'tag': base64.b64encode(encryptor.tag).decode(),
-            'algorithm': 'AES-GCM'
-        }
+            iv = secrets.token_bytes(12)
+            
+            # Use hardware acceleration if available
+            try:
+                from cryptography.hazmat.backends.openssl.backend import backend as openssl_backend
+                backend = openssl_backend
+            except ImportError:
+                backend = default_backend()
+            
+            cipher = Cipher(algorithms.AES(key), modes.GCM(iv), backend=backend)
+            encryptor = cipher.encryptor()
+            
+            # Process data in large chunks for better performance
+            chunk_size = 1024 * 1024  # 1MB chunks
+            ciphertext_chunks = []
+            
+            if len(data) <= chunk_size:
+                # Small data, process directly
+                ciphertext = encryptor.update(data) + encryptor.finalize()
+            else:
+                # Large data, process in chunks
+                for i in range(0, len(data), chunk_size):
+                    chunk = data[i:i + chunk_size]
+                    ciphertext_chunks.append(encryptor.update(chunk))
+                ciphertext_chunks.append(encryptor.finalize())
+                ciphertext = b''.join(ciphertext_chunks)
+            
+            return ciphertext, {
+                'iv': base64.b64encode(iv).decode(),
+                'tag': base64.b64encode(encryptor.tag).decode(),
+                'algorithm': 'AES-GCM'
+            }
+        except Exception as e:
+            logger.error(f"Error encrypting with AES-GCM: {e}")
+            raise ValueError(f"AES-GCM encryption failed: {e}")
     
     def _encrypt_chacha20(self, data: bytes, key: bytes) -> Tuple[bytes, Dict[str, Any]]:
         """Encrypt using ChaCha20-Poly1305."""
@@ -609,13 +633,20 @@ class PrivacyEngine:
                     metadata: Dict[str, Any] = None,
                     encryption_metadata: Dict[str, Any] = None) -> bytes:
         """Decrypt data using stored key and metadata."""
+        if not encrypted_data:
+            raise ValueError("Cannot decrypt empty data")
+        if not block_id:
+            raise ValueError("Block ID is required")
+            
         # Handle both parameter names for backward compatibility
         actual_metadata = encryption_metadata or metadata or {}
         
-        if block_id not in self.encryption_keys:
-            raise ValueError(f"No encryption key found for block {block_id}")
+        with self._lock:
+            if block_id not in self.encryption_keys:
+                raise ValueError(f"No encryption key found for block {block_id}")
+            
+            key = self.encryption_keys[block_id]
         
-        key = self.encryption_keys[block_id]
         algorithm = actual_metadata.get('algorithm', 'AES_GCM')
         
         if algorithm in ['AES-GCM', 'AES_GCM']:
@@ -629,33 +660,37 @@ class PrivacyEngine:
     
     def _decrypt_aes_gcm(self, ciphertext: bytes, key: bytes, metadata: Dict[str, Any]) -> bytes:
         """Decrypt AES-GCM encrypted data with optimized performance."""
-        iv = base64.b64decode(metadata['iv'])
-        tag = base64.b64decode(metadata['tag'])
-        
-        # Use hardware acceleration if available
         try:
-            from cryptography.hazmat.backends.openssl.backend import backend as openssl_backend
-            backend = openssl_backend
-        except ImportError:
-            backend = default_backend()
-        
-        cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=backend)
-        decryptor = cipher.decryptor()
-        
-        # Process data in large chunks for better performance
-        chunk_size = 1024 * 1024  # 1MB chunks
-        
-        if len(ciphertext) <= chunk_size:
-            # Small data, process directly
-            return decryptor.update(ciphertext) + decryptor.finalize()
-        else:
-            # Large data, process in chunks
-            plaintext_chunks = []
-            for i in range(0, len(ciphertext), chunk_size):
-                chunk = ciphertext[i:i + chunk_size]
-                plaintext_chunks.append(decryptor.update(chunk))
-            plaintext_chunks.append(decryptor.finalize())
-            return b''.join(plaintext_chunks)
+            iv = base64.b64decode(metadata['iv'])
+            tag = base64.b64decode(metadata['tag'])
+            
+            # Use hardware acceleration if available
+            try:
+                from cryptography.hazmat.backends.openssl.backend import backend as openssl_backend
+                backend = openssl_backend
+            except ImportError:
+                backend = default_backend()
+            
+            cipher = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=backend)
+            decryptor = cipher.decryptor()
+            
+            # Process data in large chunks for better performance
+            chunk_size = 1024 * 1024  # 1MB chunks
+            
+            if len(ciphertext) <= chunk_size:
+                # Small data, process directly
+                return decryptor.update(ciphertext) + decryptor.finalize()
+            else:
+                # Large data, process in chunks
+                plaintext_chunks = []
+                for i in range(0, len(ciphertext), chunk_size):
+                    chunk = ciphertext[i:i + chunk_size]
+                    plaintext_chunks.append(decryptor.update(chunk))
+                plaintext_chunks.append(decryptor.finalize())
+                return b''.join(plaintext_chunks)
+        except Exception as e:
+            logger.error(f"Error decrypting with AES-GCM: {e}")
+            raise ValueError(f"AES-GCM decryption failed: {e}")
     
     def _decrypt_chacha20(self, ciphertext: bytes, key: bytes, metadata: Dict[str, Any]) -> bytes:
         """Decrypt ChaCha20-Poly1305 encrypted data."""
@@ -732,26 +767,34 @@ class PrivacyEngine:
     
     def add_access_rule(self, rule: AccessRule):
         """Add an access control rule."""
-        self.access_rules.append(rule)
+        if not rule:
+            raise ValueError("Access rule is required")
+            
+        with self._lock:
+            self.access_rules.append(rule)
     
     def check_access(self, subject: str, resource: str, permission: str) -> bool:
         """Check if subject has permission to access resource."""
+        if not subject or not resource or not permission:
+            raise ValueError("Subject, resource, and permission are required")
+            
         current_time = time.time()
         
-        for rule in self.access_rules:
-            # Check if rule applies to this subject and resource
-            if (rule.subject == subject or rule.subject == "*") and \
-               (rule.resource == resource or self._matches_pattern(resource, rule.resource)):
-                
-                # Check if rule has expired
-                if rule.expiry and current_time > rule.expiry:
-                    continue
-                
-                # Check if permission is granted
-                if permission in rule.permissions or "*" in rule.permissions:
-                    # Check additional conditions
-                    if self._check_conditions(rule.conditions):
-                        return True
+        with self._lock:
+            for rule in self.access_rules:
+                # Check if rule applies to this subject and resource
+                if (rule.subject == subject or rule.subject == "*") and \
+                   (rule.resource == resource or self._matches_pattern(resource, rule.resource)):
+                    
+                    # Check if rule has expired
+                    if rule.expiry and current_time > rule.expiry:
+                        continue
+                    
+                    # Check if permission is granted
+                    if permission in rule.permissions or "*" in rule.permissions:
+                        # Check additional conditions
+                        if self._check_conditions(rule.conditions):
+                            return True
         
         return False
     
@@ -771,53 +814,64 @@ class PrivacyEngine:
     
     def set_privacy_policy(self, block_id: str, policy: PrivacyPolicy):
         """Set privacy policy for a block."""
-        self.privacy_policies[block_id] = policy
+        if not block_id:
+            raise ValueError("Block ID is required")
+        if not policy:
+            raise ValueError("Privacy policy is required")
+            
+        with self._lock:
+            self.privacy_policies[block_id] = policy
     
     def get_privacy_policy(self, block_id: str) -> Optional[PrivacyPolicy]:
         """Get privacy policy for a block."""
-        return self.privacy_policies.get(block_id)
+        with self._lock:
+            return self.privacy_policies.get(block_id)
     
     def enforce_retention_policy(self):
         """Enforce data retention policies."""
         current_time = time.time()
         expired_blocks = []
         
-        # Check retention policies dict for expired blocks
-        for block_id, retention_info in self.retention_policies.items():
-            if isinstance(retention_info, dict):
-                created_at = retention_info.get('created_at', 0)
-                retention_days = retention_info.get('retention_days', 30)
-                
-                # Check if block has expired
-                expiry_time = created_at + (retention_days * 24 * 3600)
-                if current_time > expiry_time:
-                    expired_blocks.append(block_id)
-                    # Actually delete the expired block
-                    self._delete_expired_block(block_id)
+        with self._lock:
+            # Check retention policies dict for expired blocks
+            retention_items = list(self.retention_policies.items())  # Create a copy to avoid runtime modification
+            
+            for block_id, retention_info in retention_items:
+                if isinstance(retention_info, dict):
+                    created_at = retention_info.get('created_at', 0)
+                    retention_days = retention_info.get('retention_days', 30)
+                    
+                    # Check if block has expired
+                    expiry_time = created_at + (retention_days * 24 * 3600)
+                    if current_time > expiry_time:
+                        expired_blocks.append(block_id)
+                        # Actually delete the expired block
+                        self._delete_expired_block(block_id)
         
         return expired_blocks
     
     def generate_privacy_report(self) -> Dict[str, Any]:
         """Generate privacy compliance report."""
-        return {
-            'total_blocks': len(self.privacy_policies),
-            'encryption_enabled': len(self.encryption_keys) > 0 or len(self.access_rules) > 0,  # Consider access rules as indication of encryption usage
-            'encryption_modes': {
-                mode.value: sum(1 for p in self.privacy_policies.values()
-                              if p.encryption_mode == mode)
-                for mode in EncryptionMode
-            },
-            'privacy_levels': {
-                level.value: sum(1 for p in self.privacy_policies.values()
-                               if p.privacy_level == level)
-                for level in PrivacyLevel
-            },
-            'access_rules': len(self.access_rules),
-            'access_rules_count': len(self.access_rules),  # Test compatibility
-            'retention_policies_count': len(self.retention_policies),  # Test compatibility
-            'anonymization_contexts': len(self.anonymization_maps),
-            'encrypted_blocks': len(self.encryption_keys)
-        }
+        with self._lock:
+            return {
+                'total_blocks': len(self.privacy_policies),
+                'encryption_enabled': len(self.encryption_keys) > 0 or len(self.access_rules) > 0,  # Consider access rules as indication of encryption usage
+                'encryption_modes': {
+                    mode.value: sum(1 for p in self.privacy_policies.values()
+                                  if p.encryption_mode == mode)
+                    for mode in EncryptionMode
+                },
+                'privacy_levels': {
+                    level.value: sum(1 for p in self.privacy_policies.values()
+                                   if p.privacy_level == level)
+                    for level in PrivacyLevel
+                },
+                'access_rules': len(self.access_rules),
+                'access_rules_count': len(self.access_rules),  # Test compatibility
+                'retention_policies_count': len(self.retention_policies),  # Test compatibility
+                'anonymization_contexts': len(self.anonymization_maps),
+                'encrypted_blocks': len(self.encryption_keys)
+            }
     
     def _delete_expired_block(self, block_id: str):
         """Delete expired block (placeholder for retention policy enforcement)."""
@@ -837,6 +891,8 @@ class DifferentialPrivacy:
     """Differential privacy implementation for MAIF."""
     
     def __init__(self, epsilon: float = 1.0):
+        if epsilon <= 0:
+            raise ValueError("Epsilon must be positive")
         self.epsilon = epsilon  # Privacy budget
     
     def add_noise(self, value: float, sensitivity: float = 1.0) -> float:
@@ -854,13 +910,18 @@ class SecureMultipartyComputation:
     
     def __init__(self):
         self.shares: Dict[str, List[int]] = {}
+        self._lock = threading.RLock()
     
     def secret_share(self, value: int, num_parties: int = 3) -> List[int]:
         """Create secret shares of a value."""
-        shares = [secrets.randbelow(2**32) for _ in range(num_parties - 1)]
-        last_share = value - sum(shares)
-        shares.append(last_share)
-        return shares
+        if num_parties < 2:
+            raise ValueError("Number of parties must be at least 2")
+            
+        with self._lock:
+            shares = [secrets.randbelow(2**32) for _ in range(num_parties - 1)]
+            last_share = value - sum(shares)
+            shares.append(last_share)
+            return shares
     
     def reconstruct_secret(self, shares: List[int]) -> int:
         """Reconstruct secret from shares."""
@@ -871,17 +932,22 @@ class ZeroKnowledgeProof:
     
     def __init__(self):
         self.commitments: Dict[str, bytes] = {}
+        self._lock = threading.RLock()
     
     def commit(self, value: bytes, nonce: Optional[bytes] = None) -> bytes:
         """Create a commitment to a value."""
-        if nonce is None:
-            nonce = secrets.token_bytes(32)
-        
-        commitment = hashlib.sha256(value + nonce).digest()
-        commitment_id = base64.b64encode(commitment).decode()
-        self.commitments[commitment_id] = nonce
-        
-        return commitment
+        if not value:
+            raise ValueError("Value is required for commitment")
+            
+        with self._lock:
+            if nonce is None:
+                nonce = secrets.token_bytes(32)
+            
+            commitment = hashlib.sha256(value + nonce).digest()
+            commitment_id = base64.b64encode(commitment).decode()
+            self.commitments[commitment_id] = nonce
+            
+            return commitment
     
     def verify_commitment(self, commitment: bytes, value: bytes, nonce: bytes) -> bool:
         """Verify a commitment."""

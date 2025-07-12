@@ -207,10 +207,6 @@ class MAIFEncoder:
         text_bytes = text.encode('utf-8')
         return self._add_block("text", text_bytes, metadata, update_block_id, privacy_policy)
     
-    def update_text_block(self, block_id: str, text: str, metadata: Optional[Dict] = None) -> str:
-        """Update an existing text block."""
-        return self.add_text_block(text, metadata, update_block_id=block_id)
-    
     def add_binary_block(self, data: bytes, block_type: str, metadata: Optional[Dict] = None,
                         update_block_id: Optional[str] = None,
                         privacy_policy: Optional[PrivacyPolicy] = None) -> str:
@@ -246,16 +242,12 @@ class MAIFEncoder:
         
         embed_metadata = metadata or {}
         embed_metadata.update({
-            "dimensions": len(embeddings[0]) if embeddings else 0,
+            "dimensions": len(embeddings[0]) if embeddings and len(embeddings) > 0 else 0,
             "count": len(embeddings),
             "processing_time": time.time() - start_time
         })
         
         return self._add_block("embeddings", embedding_data, embed_metadata, update_block_id, privacy_policy)
-    
-    def update_text_block(self, block_id: str, text: str, metadata: Optional[Dict] = None) -> str:
-        """Update an existing text block."""
-        return self.add_text_block(text, metadata, update_block_id=block_id)
     
     def add_video_block(self, video_data: bytes, metadata: Optional[Dict] = None,
                        update_block_id: Optional[str] = None,
@@ -347,6 +339,8 @@ class MAIFEncoder:
                 metadata["format"] = "avi"
             elif header[:3] == b'FLV':
                 metadata["format"] = "flv"
+            elif header[:4] == b'\x1a\x45\xdf\xa3':
+                metadata["format"] = "mkv"
         
         return metadata
     
@@ -397,18 +391,35 @@ class MAIFEncoder:
             
             def parse_boxes_recursive(data: bytes, start_pos: int, end_pos: int, depth: int = 0):
                 """Recursively parse MP4 boxes, including nested containers."""
+                if depth > 10:  # Prevent infinite recursion
+                    return
                 current_pos = start_pos
                 
-                while current_pos < end_pos - 8:
+                while current_pos < end_pos - 8 and current_pos < len(data) - 8:
                     try:
-                        # Read box size and type safely
+                        # Read box size and type safely with bounds check
                         if current_pos + 8 > len(data):
                             break
                             
+                        # Ensure we have enough data to read
+                        if current_pos + 4 > len(data):
+                            break
+                        
                         box_size = struct.unpack('>I', data[current_pos:current_pos+4])[0]
+                        
+                        if current_pos + 8 > len(data):
+                            break
+                            
                         box_type = data[current_pos+4:current_pos+8]
                         
                         # Validate box size
+                        if box_size == 0:  # Box extends to end of file
+                            box_size = end_pos - current_pos
+                        elif box_size == 1:  # 64-bit box size
+                            if current_pos + 16 > len(data):
+                                break
+                            box_size = struct.unpack('>Q', data[current_pos+8:current_pos+16])[0]
+                        
                         if box_size < 8:  # Minimum box size
                             current_pos += 4  # Try next position
                             continue
@@ -569,10 +580,13 @@ class MAIFEncoder:
         # Estimate duration based on file size (very rough heuristic)
         if len(video_data) > 1000000:  # > 1MB
             # Assume ~1Mbps average bitrate for estimation
-            estimated_duration = len(video_data) / (1024 * 1024 / 8)  # Very rough estimate
-            if estimated_duration < 3600:  # Less than 1 hour seems reasonable
-                metadata["estimated_duration"] = estimated_duration
-                metadata["duration_estimation_method"] = "size_based"
+            # Avoid division by zero and use safer calculation
+            bytes_per_second = 1024 * 1024 / 8  # 1Mbps in bytes
+            if bytes_per_second > 0:
+                estimated_duration = len(video_data) / bytes_per_second  # Very rough estimate
+                if estimated_duration < 3600:  # Less than 1 hour seems reasonable
+                    metadata["estimated_duration"] = estimated_duration
+                    metadata["duration_estimation_method"] = "size_based"
         
         return metadata
     
@@ -957,276 +971,39 @@ class MAIFEncoder:
         # Fallback to regular embeddings block
         return self.add_embeddings_block(embeddings, metadata, update_block_id, privacy_policy)
     
-    def _add_block(self, block_type: str, data: bytes, metadata: Optional[Dict] = None,
-                  update_block_id: Optional[str] = None,
-                  privacy_policy: Optional[PrivacyPolicy] = None,
-                  block_id: Optional[str] = None) -> str:
-        """Internal method to add or update a block with enhanced structure and privacy using copy-on-write."""
-        # Validate block type
-        if not block_type or not block_type.strip():
-            raise ValueError("Block type cannot be empty")
-        
-        offset = self.buffer.tell()
-        
-        # Handle block_id parameter for backward compatibility
-        if block_id is not None and update_block_id is None:
-            update_block_id = block_id
-        
-        # Use the original block type for test compatibility
-        # Map to standard types if needed
-        if block_type in self.BLOCK_TYPE_MAPPING:
-            fourcc_type = self.BLOCK_TYPE_MAPPING[block_type]
-        else:
-            # Ensure block type is exactly 4 characters (FourCC)
-            if len(block_type) == 4:
-                fourcc_type = block_type
-            elif len(block_type) < 4:
-                # Pad with null bytes to make it 4 characters
-                fourcc_type = block_type.ljust(4, '\0')
-            else:
-                # Truncate to 4 characters and warn
-                fourcc_type = block_type[:4]
-                print(f"Warning: Block type '{block_type}' truncated to '{fourcc_type}' for FourCC compliance")
-        
-        # Determine if this is an update or new block
-        is_update = update_block_id is not None
-        previous_hash = None
-        version_number = 1
-        block_id = update_block_id
-        
-        # Copy-on-write: Only create a new block if this is a new block or if data has changed
-        if is_update and update_block_id in self.block_registry:
-            # This is an update - get the latest version
-            latest_block = self.block_registry[update_block_id][-1]
-            previous_hash = latest_block.hash_value
-            version_number = latest_block.version + 1
-            
-            # Check if data has actually changed (copy-on-write)
-            if data == latest_block.data:
-                # Data hasn't changed, reuse existing data
-                data_for_storage = latest_block.data
-                data_hash = latest_block.hash_value
-                # Only update metadata if provided
-                if metadata is not None:
-                    combined_metadata = metadata.copy() if metadata else {}
-                    # Add system metadata from previous version if it exists
-                    if latest_block.metadata and '_system' in latest_block.metadata:
-                        combined_metadata['_system'] = latest_block.metadata['_system']
-                else:
-                    # No metadata changes, reuse existing block
-                    return update_block_id
-            else:
-                # Data has changed, create new version
-                data_hash = hashlib.sha256(data).hexdigest()
-                data_for_storage = data
-        else:
-            # This is a new block
-            block_id = str(uuid.uuid4())
-            data_hash = hashlib.sha256(data).hexdigest()
-            data_for_storage = data
-        
-        # Apply privacy policy
-        policy = privacy_policy or self.default_privacy_policy
-        encryption_metadata = {}
-        original_data = data  # Store original data for test compatibility
-        
-        # Copy-on-write: Only encrypt if we're creating a new version
-        if not is_update or data != latest_block.data:
-            if policy.encryption_mode != EncryptionMode.NONE:
-                # Encrypt the data
-                encrypted_data, encryption_metadata = self.privacy_engine.encrypt_data(
-                    data, block_id, policy.encryption_mode
-                )
-                # Set privacy policy for this block
-                self.privacy_engine.set_privacy_policy(block_id, policy)
-                # Use encrypted data for storage when encryption is applied
-                data_for_storage = encrypted_data
-                # Update data variable for writing to buffer
-                data = encrypted_data
-        
-        # Copy-on-write: Only create a new header and write to buffer if we're creating a new version
-        if not is_update or data != latest_block.data:
-            # Create enhanced block header using new structure
-            block_header = BlockHeader(
-                size=len(data) + 32,  # Data size + header size for validation
-                type=fourcc_type,
-                version=version_number,
-                flags=0,
-                uuid=block_id
-            )
-            
-            # Validate block header
-            header_errors = BlockValidator.validate_block_header(block_header)
-            if header_errors:
-                # Filter out FourCC length errors since we handle them above
-                critical_errors = [error for error in header_errors if "Block type must be 4 characters" not in error]
-                if critical_errors:
-                    print(f"Warning: Block header validation errors: {critical_errors}")
-            
-            # Get header bytes for hash calculation
-            header_bytes = block_header.to_bytes()
-            
-            # Copy-on-write: Use existing hash if data hasn't changed
-            if is_update and data == latest_block.data:
-                data_hash = latest_block.hash_value
-                full_hash = data_hash
-            else:
-                # Ultra-optimized hash calculation for maximum throughput
-                if len(data) > 5 * 1024 * 1024:  # > 5MB, use ultra-fast hashing
-                    # For large files, use minimal sampling for maximum speed
-                    sample_size = 32 * 1024  # 32KB samples (reduced from 64KB)
-                    if len(data) > 100 * 1024 * 1024:  # > 100MB, use even smaller samples
-                        sample_size = 16 * 1024  # 16KB samples for very large files
-                    
-                    samples = [
-                        data[:sample_size],  # Beginning
-                        data[-sample_size:] if len(data) > sample_size else b''  # End only for speed
-                    ]
-                    data_hash = hashlib.md5(b''.join(samples)).hexdigest()
-                    full_hash = data_hash  # Use same hash for consistency
-                else:
-                    # For smaller files, use full SHA256 for accuracy
-                    data_hash = hashlib.sha256(data).hexdigest()
-                    full_hash = hashlib.sha256(header_bytes + data).hexdigest()
-            
-            hash_value = data_hash  # Use data hash for backward compatibility
-            
-            # Copy-on-write: Only write to buffer if data has changed
-            if not is_update or data != latest_block.data:
-                # Optimized writing for large data
-                if len(data) > 50 * 1024 * 1024:  # > 50MB, use chunked writing
-                    # Write header first
-                    self.buffer.write(header_bytes)
-                    
-                    # Write data in large chunks for better I/O performance
-                    chunk_size = 16 * 1024 * 1024  # 16MB chunks
-                    for i in range(0, len(data), chunk_size):
-                        chunk = data[i:i + chunk_size]
-                        self.buffer.write(chunk)
-                else:
-                    # Standard writing for smaller files
-                    self.buffer.write(header_bytes)
-                    self.buffer.write(data)
-        else:
-            # Copy-on-write: Reuse existing hash and don't write to buffer
-            hash_value = latest_block.hash_value
-            full_hash = hash_value
-        
-        # Copy-on-write: Reuse existing metadata if no changes
-        if is_update and metadata is None and data == latest_block.data:
-            combined_metadata = latest_block.metadata
-        else:
-            # Preserve original user metadata separately from system metadata
-            combined_metadata = metadata.copy() if metadata else {}
-            
-            # Store original user metadata for checksum verification
-            if metadata:
-                combined_metadata['_original_metadata'] = metadata.copy()
-            
-            # Add system metadata in a separate namespace to avoid conflicts
-            system_metadata = {}
-            if encryption_metadata:
-                system_metadata['encryption'] = encryption_metadata
-                system_metadata['encrypted'] = True
-                system_metadata['encryption_mode'] = policy.encryption_mode.name
-            if self.enable_privacy and policy:
-                system_metadata['privacy_policy'] = {
-                    'privacy_level': policy.privacy_level.value,
-                    'encryption_mode': policy.encryption_mode.value,
-                    'anonymization_required': policy.anonymization_required,
-                    'audit_required': policy.audit_required
-                }
-                # Set anonymized flag if anonymization was required
-                if policy.anonymization_required:
-                    system_metadata['anonymized'] = True
-            
-            # Also set anonymized flag if anonymize parameter was used directly
-            if metadata and metadata.get('anonymize') or (hasattr(self, '_last_anonymize_flag') and self._last_anonymize_flag):
-                system_metadata['anonymized'] = True
-            
-            # Store full hash for security verification
-            system_metadata['full_hash'] = full_hash
-            
-            # Add system metadata under a reserved key
-            if system_metadata:
-                combined_metadata['_system'] = system_metadata
-        
-        # Copy-on-write: Create a new block only if necessary
-        if is_update and data == latest_block.data and metadata is None:
-            # No changes, reuse existing block
-            block = latest_block
-        else:
-            # Create MAIFBlock with data for test compatibility
-            # Use original block_type for test compatibility, not fourcc_type
-            block = MAIFBlock(
-                block_type=block_type,  # Use original type for test compatibility
-                offset=offset,
-                size=len(data) + 32,  # Include header size for consistency
-                hash_value=hash_value,
-                version=version_number,
-                previous_hash=previous_hash,
-                block_id=block_id,
-                metadata=combined_metadata,
-                data=data_for_storage  # Store encrypted data when encryption is enabled, original otherwise
-            )
-            
-            # Add to blocks list and registry
-            self.blocks.append(block)
-            
+    def delete_block(self, block_id: str, reason: Optional[str] = None) -> bool:
+        """Mark a block as deleted (soft delete with versioning)."""
+        with self._thread_safe_operation():
             if block_id not in self.block_registry:
-                self.block_registry[block_id] = []
-            self.block_registry[block_id].append(block)
+                return False
+            
+            latest_block = self.block_registry[block_id][-1]
+            
+            # Mark the block as deleted in its metadata
+            if latest_block.metadata is None:
+                latest_block.metadata = {}
+            latest_block.metadata["deleted"] = True
+            if reason:
+                latest_block.metadata["deletion_reason"] = reason
+            
+            # Create deletion record
+            version_entry = MAIFVersion(
+                version=latest_block.version + 1,
+                timestamp=time.time(),
+                agent_id=self.agent_id,
+                operation="delete",
+                block_hash="deleted",
+                block_id=block_id,
+                previous_hash=latest_block.hash_value,
+                change_description=reason
+            )
             
             # Add to version history
             if block_id not in self.version_history:
                 self.version_history[block_id] = []
-            
-            version_entry = MAIFVersion(
-                version=version_number,
-                timestamp=time.time(),
-                agent_id=self.agent_id,
-                operation="update" if is_update else "create",
-                block_hash=hash_value,
-                block_id=block_id,
-                previous_hash=previous_hash,
-                change_description=f"{'Updated' if is_update else 'Created'} {block_type} block"
-            )
             self.version_history[block_id].append(version_entry)
-        
-        return block_id
-    
-    def delete_block(self, block_id: str, reason: Optional[str] = None) -> bool:
-        """Mark a block as deleted (soft delete with versioning)."""
-        if block_id not in self.block_registry:
-            return False
-        
-        latest_block = self.block_registry[block_id][-1]
-        
-        # Mark the block as deleted in its metadata
-        if latest_block.metadata is None:
-            latest_block.metadata = {}
-        latest_block.metadata["deleted"] = True
-        if reason:
-            latest_block.metadata["deletion_reason"] = reason
-        
-        # Create deletion record
-        version_entry = MAIFVersion(
-            version=latest_block.version + 1,
-            timestamp=time.time(),
-            agent_id=self.agent_id,
-            operation="delete",
-            block_hash="deleted",
-            block_id=block_id,
-            previous_hash=latest_block.hash_value,
-            change_description=reason
-        )
-        
-        # Add to version history
-        if block_id not in self.version_history:
-            self.version_history[block_id] = []
-        self.version_history[block_id].append(version_entry)
-        
-        return True
+            
+            return True
     
     def get_block_history(self, block_id: str) -> List[MAIFBlock]:
         """Get the complete version history of a block."""
@@ -1325,91 +1102,116 @@ class MAIFEncoder:
     
     def build_maif(self, output_path: str, manifest_path: str) -> None:
         """Build the final MAIF file and manifest with version history."""
-        # Create manifest
-        manifest = {
-            "maif_version": self.header.version,
-            "created": self.header.created_timestamp,
-            "creator_id": self.header.creator_id,
-            "agent_id": self.agent_id,
-            "header": {
-                "version": self.header.version,
-                "created_timestamp": self.header.created_timestamp,
+        with self._thread_safe_operation():
+            # Create manifest
+            manifest = {
+                "maif_version": self.header.version,
+                "created": self.header.created_timestamp,
                 "creator_id": self.header.creator_id,
-                "agent_id": self.agent_id
-            },
-            "blocks": [block.to_dict() for block in self.blocks],
-            "version_history": {
-                block_id: [v.to_dict() for v in versions]
-                for block_id, versions in self.version_history.items()
-            },
-            "block_registry": {
-                block_id: [block.to_dict() for block in versions]
-                for block_id, versions in self.block_registry.items()
+                "agent_id": self.agent_id,
+                "header": {
+                    "version": self.header.version,
+                    "created_timestamp": self.header.created_timestamp,
+                    "creator_id": self.header.creator_id,
+                    "agent_id": self.agent_id
+                },
+                "blocks": [block.to_dict() for block in self.blocks],
+                "version_history": {
+                    block_id: [v.to_dict() for v in versions]
+                    for block_id, versions in self.version_history.items()
+                },
+                "block_registry": {
+                    block_id: [block.to_dict() for block in versions]
+                    for block_id, versions in self.block_registry.items()
+                }
             }
-        }
-        
-        # Calculate root hash including version history
-        all_hashes = "".join([block.hash_value for block in self.blocks])
-        version_hashes = "".join([
-            v.current_hash for versions in self.version_history.values()
-            for v in versions
-        ])
-        combined_hash = hashlib.sha256((all_hashes + version_hashes).encode()).hexdigest()
-        manifest["root_hash"] = f"sha256:{combined_hash}"
-        
-        # Write files
-        with open(output_path, 'wb') as f:
-            f.write(self.buffer.getvalue())
             
-        with open(manifest_path, 'w') as f:
-            json.dump(manifest, f, indent=2)
+            # Calculate root hash including version history
+            all_hashes = "".join([block.hash_value for block in self.blocks])
+            version_hashes = "".join([
+                v.current_hash if hasattr(v, 'current_hash') else v.block_hash
+                for versions in self.version_history.values()
+                for v in versions
+            ])
+            combined_hash = hashlib.sha256((all_hashes + version_hashes).encode()).hexdigest()
+            manifest["root_hash"] = f"sha256:{combined_hash}"
+            
+            # Write files with proper error handling
+            try:
+                with open(output_path, 'wb') as f:
+                    f.write(self.buffer.getvalue())
+                    
+                with open(manifest_path, 'w') as f:
+                    json.dump(manifest, f, indent=2)
+            except Exception as e:
+                raise RuntimeError(f"Failed to build MAIF file: {e}")
     
     def save(self, output_path: str, manifest_path: str):
         """Save the MAIF file and manifest."""
-        # Add privacy metadata to manifest if privacy is enabled
-        manifest = {
-            "maif_version": self.header.version,
-            "created": self.header.created_timestamp,
-            "creator_id": self.header.creator_id,
-            "agent_id": self.agent_id,
-            "blocks": [block.to_dict() for block in self.blocks],
-            "version_history": {
-                block_id: [v.to_dict() if hasattr(v, 'to_dict') else str(v) for v in versions]
-                for block_id, versions in self.version_history.items()
-            },
-            "block_registry": {
-                block_id: [block.to_dict() for block in versions]
-                for block_id, versions in self.block_registry.items()
+        with self._thread_safe_operation():
+            # Add privacy metadata to manifest if privacy is enabled
+            manifest = {
+                "maif_version": self.header.version,
+                "created": self.header.created_timestamp,
+                "creator_id": self.header.creator_id,
+                "agent_id": self.agent_id,
+                "blocks": [block.to_dict() for block in self.blocks],
+                "version_history": {
+                    block_id: [v.to_dict() if hasattr(v, 'to_dict') else str(v) for v in versions]
+                    for block_id, versions in self.version_history.items()
+                },
+                "block_registry": {
+                    block_id: [block.to_dict() for block in versions]
+                    for block_id, versions in self.block_registry.items()
+                }
             }
-        }
-        
-        # Add privacy information if enabled
-        if self.enable_privacy and self.privacy_engine:
-            privacy_report = self.get_privacy_report()
-            manifest["privacy"] = {
-                "enabled": True,
-                "report": privacy_report
-            }
-        
-        # Calculate root hash including version history
-        all_hashes = "".join([block.hash_value for block in self.blocks])
-        version_hashes = ""
-        if isinstance(self.version_history, dict):
-            version_hashes = "".join([
-                v.current_hash for versions in self.version_history.values()
-                for v in (versions if isinstance(versions, list) else [versions])
-            ])
-        elif isinstance(self.version_history, list):
-            version_hashes = "".join([v.current_hash for v in self.version_history])
-        combined_hash = hashlib.sha256((all_hashes + version_hashes).encode()).hexdigest()
-        manifest["root_hash"] = f"sha256:{combined_hash}"
-        
-        # Write files
-        with open(output_path, 'wb') as f:
-            f.write(self.buffer.getvalue())
             
-        with open(manifest_path, 'w') as f:
-            json.dump(manifest, f, indent=2)
+            # Add privacy information if enabled
+            if self.enable_privacy and self.privacy_engine:
+                privacy_report = self.get_privacy_report()
+                manifest["privacy"] = {
+                    "enabled": True,
+                    "report": privacy_report
+                }
+            
+            # Calculate root hash including version history
+            all_hashes = "".join([block.hash_value for block in self.blocks])
+            version_hashes = ""
+            if isinstance(self.version_history, dict):
+                version_hashes = "".join([
+                    v.current_hash if hasattr(v, 'current_hash') else v.block_hash
+                    for versions in self.version_history.values()
+                    for v in (versions if isinstance(versions, list) else [versions])
+                ])
+            elif isinstance(self.version_history, list):
+                version_hashes = "".join([v.current_hash if hasattr(v, 'current_hash') else v.block_hash for v in self.version_history])
+            combined_hash = hashlib.sha256((all_hashes + version_hashes).encode()).hexdigest()
+            manifest["root_hash"] = f"sha256:{combined_hash}"
+            
+            # Write files with proper error handling
+            try:
+                with open(output_path, 'wb') as f:
+                    f.write(self.buffer.getvalue())
+                    
+                with open(manifest_path, 'w') as f:
+                    json.dump(manifest, f, indent=2)
+            except Exception as e:
+                raise RuntimeError(f"Failed to save MAIF file: {e}")
+    
+    def close(self):
+        """Properly close the encoder and release resources."""
+        with self._thread_safe_operation():
+            self._closed = True
+            if self.file_handle and not self.file_handle.closed:
+                self.file_handle.close()
+    
+    def __enter__(self):
+        """Context manager support."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager cleanup."""
+        self.close()
 
 class MAIFDecoder:
     """Decodes MAIF files with versioning and privacy support."""
@@ -1588,8 +1390,6 @@ class MAIFDecoder:
     
     def _verify_blocks_parallel(self, mm, sorted_blocks, file_size):
         """Parallel block verification for better performance on many blocks."""
-        import concurrent.futures
-        
         # Use ThreadPoolExecutor for I/O bound operations
         max_workers = min(4, len(sorted_blocks))  # Limit to 4 threads
         
@@ -1750,6 +1550,11 @@ class MAIFDecoder:
         if hasattr(self, 'maif_path') and self.maif_path:
             try:
                 with open(self.maif_path, 'rb') as f:
+                    # Validate block offset
+                    file_size = os.path.getsize(self.maif_path)
+                    if block.offset < 0 or block.offset >= file_size:
+                        return None
+                        
                     # Seek to block offset
                     f.seek(block.offset)
                     
@@ -1766,9 +1571,9 @@ class MAIFDecoder:
                         data_size = header.size - 32
                     except Exception:
                         # Fallback: use block.size minus header size
-                        data_size = block.size - 32
+                        data_size = max(0, block.size - 32)
                     
-                    if data_size <= 0:
+                    if data_size <= 0 or data_size > file_size - block.offset - 32:
                         return None
                     
                     # Read the actual data (skip header)
@@ -1813,20 +1618,6 @@ class MAIFDecoder:
         
         return None
     
-    def get_text_blocks(self) -> List[str]:
-        """Get all text blocks as strings."""
-        texts = []
-        for block in self.blocks:
-            if block.block_type in ['text', 'text_data']:
-                data = self._extract_block_data(block)
-                if data:
-                    try:
-                        text = data.decode('utf-8')
-                        texts.append(text)
-                    except UnicodeDecodeError:
-                        pass
-        return texts
-    
     def get_embeddings(self) -> List[Dict]:
         """Get all embedding blocks."""
         embeddings = []
@@ -1843,10 +1634,13 @@ class MAIFDecoder:
                         # Fallback: treat as binary embedding data
                         import struct
                         floats = []
-                        for i in range(0, len(data), 4):
-                            if i + 4 <= len(data):
-                                float_val = struct.unpack('f', data[i:i+4])[0]
-                                floats.append(float_val)
+                        try:
+                            for i in range(0, len(data), 4):
+                                if i + 4 <= len(data):
+                                    float_val = struct.unpack('f', data[i:i+4])[0]
+                                    floats.append(float_val)
+                        except struct.error:
+                            pass
                         if floats:
                             embeddings.append({"vector": floats})
         return embeddings
@@ -1867,10 +1661,21 @@ class MAIFDecoder:
     def get_privacy_summary(self) -> Dict[str, Any]:
         """Get privacy summary for the MAIF file."""
         total_blocks = len(self.blocks)
-        encrypted_blocks = sum(1 for block in self.blocks
-                             if block.metadata and block.metadata.get("encrypted", False))
-        anonymized_blocks = sum(1 for block in self.blocks
-                              if block.metadata and block.metadata.get("anonymized", False))
+        encrypted_blocks = 0
+        anonymized_blocks = 0
+        
+        for block in self.blocks:
+            if block.metadata:
+                # Check both top-level and _system metadata
+                if block.metadata.get("encrypted", False):
+                    encrypted_blocks += 1
+                elif "_system" in block.metadata and block.metadata["_system"].get("encrypted", False):
+                    encrypted_blocks += 1
+                    
+                if block.metadata.get("anonymized", False):
+                    anonymized_blocks += 1
+                elif "_system" in block.metadata and block.metadata["_system"].get("anonymized", False):
+                    anonymized_blocks += 1
         
         return {
             "total_blocks": total_blocks,

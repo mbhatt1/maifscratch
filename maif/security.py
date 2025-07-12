@@ -5,6 +5,8 @@ Security and cryptographic functionality for MAIF.
 import hashlib
 import json
 import time
+import threading
+import logging
 from typing import Dict, List, Optional, Tuple
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
@@ -12,6 +14,8 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key, l
 from cryptography.exceptions import InvalidSignature
 from dataclasses import dataclass, field
 import uuid
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class ProvenanceEntry:
@@ -39,21 +43,25 @@ class ProvenanceEntry:
     
     def calculate_entry_hash(self) -> str:
         """Calculate cryptographic hash of this entry."""
-        # Create a dictionary of all fields except entry_hash and signature
-        hash_dict = {
-            "timestamp": self.timestamp,
-            "agent_id": self.agent_id,
-            "agent_did": self.agent_did,
-            "action": self.action,
-            "block_hash": self.block_hash,
-            "previous_hash": self.previous_hash,
-            "metadata": self.metadata
-        }
-        
-        # Convert to canonical JSON and hash
-        canonical_json = json.dumps(hash_dict, sort_keys=True).encode()
-        self.entry_hash = hashlib.sha256(canonical_json).hexdigest()
-        return self.entry_hash
+        try:
+            # Create a dictionary of all fields except entry_hash and signature
+            hash_dict = {
+                "timestamp": self.timestamp,
+                "agent_id": self.agent_id,
+                "agent_did": self.agent_did,
+                "action": self.action,
+                "block_hash": self.block_hash,
+                "previous_hash": self.previous_hash,
+                "metadata": self.metadata
+            }
+            
+            # Convert to canonical JSON and hash
+            canonical_json = json.dumps(hash_dict, sort_keys=True).encode()
+            self.entry_hash = hashlib.sha256(canonical_json).hexdigest()
+            return self.entry_hash
+        except Exception as e:
+            logger.error(f"Error calculating entry hash: {e}")
+            raise ValueError(f"Failed to calculate entry hash: {e}")
     
     def to_dict(self) -> Dict:
         """Convert to dictionary representation."""
@@ -122,8 +130,12 @@ class ProvenanceEntry:
                 
                 self.verification_status = "verified"
                 return True
-            except Exception:
+            except InvalidSignature:
                 self.verification_status = "signature_invalid"
+                return False
+            except Exception as e:
+                logger.error(f"Error verifying signature: {e}")
+                self.verification_status = "verification_error"
                 return False
         
         self.verification_status = "unverified"
@@ -137,16 +149,24 @@ class MAIFSigner:
         self.provenance_chain: List[ProvenanceEntry] = []
         self.chain_root_hash: Optional[str] = None
         self.agent_did = f"did:maif:{self.agent_id}"
+        self._lock = threading.RLock()
         
-        if private_key_path:
-            with open(private_key_path, 'rb') as f:
-                self.private_key = load_pem_private_key(f.read(), password=None)
-        else:
-            # Generate new key pair
-            self.private_key = rsa.generate_private_key(
-                public_exponent=65537,
-                key_size=2048
-            )
+        try:
+            if private_key_path:
+                with open(private_key_path, 'rb') as f:
+                    self.private_key = load_pem_private_key(f.read(), password=None)
+            else:
+                # Generate new key pair
+                self.private_key = rsa.generate_private_key(
+                    public_exponent=65537,
+                    key_size=2048
+                )
+        except FileNotFoundError:
+            logger.error(f"Private key file not found: {private_key_path}")
+            raise
+        except Exception as e:
+            logger.error(f"Error loading private key: {e}")
+            raise ValueError(f"Failed to load private key: {e}")
         
         # Initialize the chain with a genesis entry
         self._create_genesis_entry()
@@ -161,16 +181,23 @@ class MAIFSigner:
     
     def sign_data(self, data: bytes) -> str:
         """Sign data and return base64 encoded signature."""
-        signature = self.private_key.sign(
-            data,
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        import base64
-        return base64.b64encode(signature).decode('ascii')
+        if not data:
+            raise ValueError("Cannot sign empty data")
+            
+        try:
+            signature = self.private_key.sign(
+                data,
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.DIGEST_LENGTH
+                ),
+                hashes.SHA256()
+            )
+            import base64
+            return base64.b64encode(signature).decode('ascii')
+        except Exception as e:
+            logger.error(f"Error signing data: {e}")
+            raise ValueError(f"Failed to sign data: {e}")
     
     def _create_genesis_entry(self) -> ProvenanceEntry:
         """Create the genesis entry for the provenance chain."""
@@ -236,43 +263,47 @@ class MAIFSigner:
         Returns:
             ProvenanceEntry: The newly created and signed entry
         """
-        timestamp = time.time()
-        
-        # Get previous hash from the last entry
-        previous_hash = None
-        previous_entry_hash = None
-        if self.provenance_chain:
-            last_entry = self.provenance_chain[-1]
-            previous_hash = last_entry.block_hash
-            previous_entry_hash = last_entry.entry_hash
-        
-        # Create the entry
-        entry = ProvenanceEntry(
-            timestamp=timestamp,
-            agent_id=self.agent_id,
-            agent_did=self.agent_did,
-            action=action,
-            block_hash=block_hash,
-            previous_hash=previous_hash,
-            metadata=metadata or {}
-        )
-        
-        # Add chain linking metadata
-        entry.metadata.update({
-            "previous_entry_hash": previous_entry_hash,
-            "chain_position": len(self.provenance_chain),
-            "root_hash": self.chain_root_hash
-        })
-        
-        # Calculate entry hash
-        entry.calculate_entry_hash()
-        
-        # Sign the entry
-        entry = self._sign_entry(entry)
-        
-        # Add to chain
-        self.provenance_chain.append(entry)
-        return entry
+        if not action or not block_hash:
+            raise ValueError("Action and block_hash are required")
+            
+        with self._lock:
+            timestamp = time.time()
+            
+            # Get previous hash from the last entry
+            previous_hash = None
+            previous_entry_hash = None
+            if self.provenance_chain:
+                last_entry = self.provenance_chain[-1]
+                previous_hash = last_entry.block_hash
+                previous_entry_hash = last_entry.entry_hash
+            
+            # Create the entry
+            entry = ProvenanceEntry(
+                timestamp=timestamp,
+                agent_id=self.agent_id,
+                agent_did=self.agent_did,
+                action=action,
+                block_hash=block_hash,
+                previous_hash=previous_hash,
+                metadata=metadata or {}
+            )
+            
+            # Add chain linking metadata
+            entry.metadata.update({
+                "previous_entry_hash": previous_entry_hash,
+                "chain_position": len(self.provenance_chain),
+                "root_hash": self.chain_root_hash
+            })
+            
+            # Calculate entry hash
+            entry.calculate_entry_hash()
+            
+            # Sign the entry
+            entry = self._sign_entry(entry)
+            
+            # Add to chain
+            self.provenance_chain.append(entry)
+            return entry
     
     def get_provenance_chain(self) -> List[Dict]:
         """Get the complete provenance chain."""
@@ -304,7 +335,7 @@ class MAIFVerifier:
     """Handles verification of MAIF signatures and provenance."""
     
     def __init__(self):
-        pass
+        self._lock = threading.RLock()
     
     def verify_signature(self, data: bytes, signature: str, public_key_pem: str) -> bool:
         """Verify a signature against data using a public key."""
@@ -318,7 +349,7 @@ class MAIFVerifier:
                 data,
                 padding.PSS(
                     mgf=padding.MGF1(hashes.SHA256()),
-                    salt_length=padding.PSS.MAX_LENGTH
+                    salt_length=padding.PSS.DIGEST_LENGTH
                 ),
                 hashes.SHA256()
             )
@@ -348,8 +379,10 @@ class MAIFVerifier:
             manifest_bytes = json.dumps(manifest_copy, sort_keys=True).encode()
             return self.verify_signature(manifest_bytes, signature, public_key_pem)
             
-        except (InvalidSignature, Exception):
-            # Return False on verification errors
+        except InvalidSignature:
+            return False
+        except Exception as e:
+            logger.error(f"Error verifying manifest signature: {e}")
             return False
     
     def verify_maif_manifest(self, manifest: Dict) -> Tuple[bool, List[str]]:
@@ -493,20 +526,26 @@ class AccessController:
     
     def __init__(self):
         self.permissions: Dict[str, Dict[str, List[str]]] = {}
+        self._lock = threading.RLock()
     
     def set_block_permissions(self, block_hash: str, agent_id: str, permissions: List[str]):
         """Set permissions for a specific block and agent."""
-        if block_hash not in self.permissions:
-            self.permissions[block_hash] = {}
-        self.permissions[block_hash][agent_id] = permissions
+        if not block_hash or not agent_id:
+            raise ValueError("block_hash and agent_id are required")
+            
+        with self._lock:
+            if block_hash not in self.permissions:
+                self.permissions[block_hash] = {}
+            self.permissions[block_hash][agent_id] = permissions
     
     def check_permission(self, block_hash: str, agent_id: str, action: str) -> bool:
         """Check if an agent has permission to perform an action on a block."""
-        if block_hash not in self.permissions:
-            return False
-        
-        agent_perms = self.permissions[block_hash].get(agent_id, [])
-        return action in agent_perms or "admin" in agent_perms
+        with self._lock:
+            if block_hash not in self.permissions:
+                return False
+            
+            agent_perms = self.permissions[block_hash].get(agent_id, [])
+            return action in agent_perms or "admin" in agent_perms
     
     def get_permissions_manifest(self) -> Dict:
         """Get the permissions as a manifest for inclusion in MAIF."""
@@ -528,6 +567,7 @@ class AccessControlManager:
     def __init__(self):
         self.permissions = {}
         self.access_logs = []
+        self._lock = threading.RLock()
     
     def check_access(self, user_id: str, resource: str, permission: str) -> bool:
         """
@@ -541,58 +581,67 @@ class AccessControlManager:
         Returns:
             bool: True if access is granted, False otherwise
         """
-        # Log the access attempt
-        self.access_logs.append({
-            'timestamp': time.time(),
-            'user_id': user_id,
-            'resource': resource,
-            'permission': permission,
-            'result': None  # Will be updated
-        })
-        
-        # Check if user has any permissions
-        if user_id not in self.permissions:
-            self.access_logs[-1]['result'] = False
-            self.access_logs[-1]['reason'] = 'user_not_found'
-            return False
+        if not user_id or not resource or not permission:
+            raise ValueError("user_id, resource, and permission are required")
             
-        # Check if user has permissions for this resource
-        if resource not in self.permissions[user_id]:
-            self.access_logs[-1]['result'] = False
-            self.access_logs[-1]['reason'] = 'resource_not_found'
-            return False
+        with self._lock:
+            # Log the access attempt
+            self.access_logs.append({
+                'timestamp': time.time(),
+                'user_id': user_id,
+                'resource': resource,
+                'permission': permission,
+                'result': None  # Will be updated
+            })
             
-        # Check if user has the requested permission
-        if permission not in self.permissions[user_id][resource]:
-            # Check for admin permission which grants all access
-            if 'admin' in self.permissions[user_id][resource]:
-                self.access_logs[-1]['result'] = True
-                self.access_logs[-1]['reason'] = 'admin_override'
-                return True
+            # Check if user has any permissions
+            if user_id not in self.permissions:
+                self.access_logs[-1]['result'] = False
+                self.access_logs[-1]['reason'] = 'user_not_found'
+                return False
                 
-            self.access_logs[-1]['result'] = False
-            self.access_logs[-1]['reason'] = 'permission_denied'
-            return False
-            
-        # Access granted
-        self.access_logs[-1]['result'] = True
-        self.access_logs[-1]['reason'] = 'permission_granted'
-        return True
+            # Check if user has permissions for this resource
+            if resource not in self.permissions[user_id]:
+                self.access_logs[-1]['result'] = False
+                self.access_logs[-1]['reason'] = 'resource_not_found'
+                return False
+                
+            # Check if user has the requested permission
+            if permission not in self.permissions[user_id][resource]:
+                # Check for admin permission which grants all access
+                if 'admin' in self.permissions[user_id][resource]:
+                    self.access_logs[-1]['result'] = True
+                    self.access_logs[-1]['reason'] = 'admin_override'
+                    return True
+                    
+                self.access_logs[-1]['result'] = False
+                self.access_logs[-1]['reason'] = 'permission_denied'
+                return False
+                
+            # Access granted
+            self.access_logs[-1]['result'] = True
+            self.access_logs[-1]['reason'] = 'permission_granted'
+            return True
     
     def grant_permission(self, user_id: str, resource: str, permission: str):
         """Grant permission to user for resource."""
-        if user_id not in self.permissions:
-            self.permissions[user_id] = {}
-        if resource not in self.permissions[user_id]:
-            self.permissions[user_id][resource] = set()
-        self.permissions[user_id][resource].add(permission)
+        if not user_id or not resource or not permission:
+            raise ValueError("user_id, resource, and permission are required")
+            
+        with self._lock:
+            if user_id not in self.permissions:
+                self.permissions[user_id] = {}
+            if resource not in self.permissions[user_id]:
+                self.permissions[user_id][resource] = set()
+            self.permissions[user_id][resource].add(permission)
     
     def revoke_permission(self, user_id: str, resource: str, permission: str):
         """Revoke permission from user for resource."""
-        if (user_id in self.permissions and
-            resource in self.permissions[user_id] and
-            permission in self.permissions[user_id][resource]):
-            self.permissions[user_id][resource].remove(permission)
+        with self._lock:
+            if (user_id in self.permissions and
+                resource in self.permissions[user_id] and
+                permission in self.permissions[user_id][resource]):
+                self.permissions[user_id][resource].remove(permission)
 
 
 class SecurityManager:
@@ -602,6 +651,8 @@ class SecurityManager:
         self.signer = MAIFSigner()
         self.access_control = AccessControlManager()
         self.security_events = []
+        self._lock = threading.RLock()
+        self.security_enabled = True
     
     def enable_security(self, enable: bool = True):
         """Enable or disable security features."""
@@ -622,12 +673,13 @@ class SecurityManager:
     
     def log_security_event(self, event_type: str, details: dict):
         """Log security event."""
-        event = {
-            'timestamp': time.time(),
-            'type': event_type,
-            'details': details
-        }
-        self.security_events.append(event)
+        with self._lock:
+            event = {
+                'timestamp': time.time(),
+                'type': event_type,
+                'details': details
+            }
+            self.security_events.append(event)
     
     def get_security_status(self) -> dict:
         """Get security status."""
@@ -655,6 +707,7 @@ class SecurityManager:
             
             # Generate a random key if not already available
             if not hasattr(self, 'encryption_key'):
+                import os
                 self.encryption_key = os.urandom(32)  # 256-bit key for AES-256
             
             # Generate a random IV (Initialization Vector)
@@ -740,6 +793,12 @@ class SecurityManager:
             
             return plaintext
             
+        except ImportError as e:
+            # Fallback if cryptography library is not available
+            self.log_security_event('decrypt_fallback', {'reason': 'cryptography library not available'})
+            if data.startswith(b'ENCRYPTED:'):
+                return data[len(b'ENCRYPTED:'):]
+            return data
         except Exception as e:
             # Log the error and fall back to returning the data as-is
             self.log_security_event('decrypt_error', {'error': str(e)})

@@ -50,8 +50,14 @@ class SimpleWALEntry:
     @classmethod
     def from_bytes(cls, data: bytes) -> 'SimpleWALEntry':
         """Ultra-fast deserialization."""
-        parts = data.decode('utf-8').strip().split('|')
-        return cls(parts[0], parts[1], parts[2], int(parts[3]), parts[4])
+        try:
+            text = data.decode('utf-8').strip()
+            parts = text.split('|')
+            if len(parts) != 5:
+                raise ValueError(f"Invalid WAL entry format: expected 5 parts, got {len(parts)}")
+            return cls(parts[0], parts[1], parts[2], int(parts[3]), parts[4])
+        except (UnicodeDecodeError, ValueError, IndexError) as e:
+            raise ValueError(f"Failed to parse WAL entry: {e}")
 
 
 class FastWAL:
@@ -63,29 +69,50 @@ class FastWAL:
         self.buffer_size = 0
         self.max_buffer_size = 1024 * 1024  # 1MB buffer
         self.entries_written = 0
+        self._lock = threading.Lock()  # Thread safety for buffer
+        self._closed = False
+        
+        # Ensure WAL directory exists
+        wal_dir = os.path.dirname(wal_path)
+        if wal_dir and not os.path.exists(wal_dir):
+            os.makedirs(wal_dir, exist_ok=True)
     
     def write_entry(self, entry: SimpleWALEntry):
         """Write entry to buffer."""
-        entry_bytes = entry.to_bytes()
-        self.buffer.append(entry_bytes)
-        self.buffer_size += len(entry_bytes)
-        
-        # Flush when buffer gets large
-        if self.buffer_size >= self.max_buffer_size:
-            self.flush()
+        with self._lock:
+            if self._closed:
+                raise RuntimeError("WAL is closed")
+                
+            entry_bytes = entry.to_bytes()
+            self.buffer.append(entry_bytes)
+            self.buffer_size += len(entry_bytes)
+            
+            # Flush when buffer gets large
+            if self.buffer_size >= self.max_buffer_size:
+                self._flush_locked()
     
-    def flush(self):
-        """Flush buffer to disk."""
+    def _flush_locked(self):
+        """Flush buffer to disk (must be called with lock held)."""
         if not self.buffer:
             return
         
-        with open(self.wal_path, 'ab') as f:
-            for entry_bytes in self.buffer:
-                f.write(entry_bytes)
-        
-        self.entries_written += len(self.buffer)
-        self.buffer.clear()
-        self.buffer_size = 0
+        try:
+            with open(self.wal_path, 'ab') as f:
+                for entry_bytes in self.buffer:
+                    f.write(entry_bytes)
+                f.flush()
+                os.fsync(f.fileno())  # Ensure durability
+            
+            self.entries_written += len(self.buffer)
+            self.buffer.clear()
+            self.buffer_size = 0
+        except Exception as e:
+            raise RuntimeError(f"Failed to flush WAL: {e}")
+    
+    def flush(self):
+        """Flush buffer to disk."""
+        with self._lock:
+            self._flush_locked()
     
     def read_entries(self) -> List[SimpleWALEntry]:
         """Read all WAL entries."""
@@ -93,16 +120,29 @@ class FastWAL:
         if not os.path.exists(self.wal_path):
             return entries
         
-        with open(self.wal_path, 'rb') as f:
-            for line in f:
-                if line.strip():
-                    entries.append(SimpleWALEntry.from_bytes(line))
+        try:
+            with open(self.wal_path, 'rb') as f:
+                for line in f:
+                    if line.strip():
+                        try:
+                            entries.append(SimpleWALEntry.from_bytes(line))
+                        except ValueError:
+                            # Skip corrupted entries
+                            continue
+        except Exception as e:
+            raise RuntimeError(f"Failed to read WAL entries: {e}")
         
         return entries
     
     def close(self):
         """Close WAL."""
-        self.flush()
+        with self._lock:
+            if not self._closed:
+                self._closed = True
+                try:
+                    self._flush_locked()
+                except:
+                    pass
 
 
 class SimpleMVCC:
@@ -113,47 +153,55 @@ class SimpleMVCC:
         self.versions: Dict[str, List[Tuple[int, bytes, Dict[str, Any], float]]] = defaultdict(list)
         self.next_version = 1
         self.snapshots: Dict[str, float] = {}  # transaction_id -> timestamp
+        self._lock = threading.Lock()  # Thread safety
     
     def create_snapshot(self, transaction_id: str) -> float:
         """Create snapshot for transaction."""
-        timestamp = time.time()
-        self.snapshots[transaction_id] = timestamp
-        return timestamp
+        with self._lock:
+            timestamp = time.time()
+            self.snapshots[transaction_id] = timestamp
+            return timestamp
     
     def write_version(self, block_id: str, data: bytes, metadata: Dict[str, Any]) -> int:
         """Write new version."""
-        version_id = self.next_version
-        self.next_version += 1
-        timestamp = time.time()
-        
-        self.versions[block_id].append((version_id, data, metadata, timestamp))
-        
-        # Keep only last 10 versions to prevent memory bloat
-        if len(self.versions[block_id]) > 10:
-            self.versions[block_id] = self.versions[block_id][-10:]
-        
-        return version_id
+        with self._lock:
+            version_id = self.next_version
+            self.next_version += 1
+            timestamp = time.time()
+            
+            # Create a copy of metadata to avoid mutations
+            metadata_copy = metadata.copy() if metadata else {}
+            self.versions[block_id].append((version_id, data, metadata_copy, timestamp))
+            
+            # Keep only last 10 versions to prevent memory bloat
+            if len(self.versions[block_id]) > 10:
+                self.versions[block_id] = list(self.versions[block_id][-10:])
+            
+            return version_id
     
     def read_version(self, transaction_id: str, block_id: str) -> Optional[Tuple[bytes, Dict[str, Any]]]:
         """Read version visible to transaction."""
-        snapshot_time = self.snapshots.get(transaction_id)
-        if snapshot_time is None:
+        with self._lock:
+            snapshot_time = self.snapshots.get(transaction_id)
+            if snapshot_time is None:
+                return None
+            
+            versions = self.versions.get(block_id, [])
+            if not versions:
+                return None
+            
+            # Find latest version before snapshot
+            for version_id, data, metadata, timestamp in reversed(versions):
+                if timestamp <= snapshot_time:
+                    # Return copies to avoid mutations
+                    return data, metadata.copy() if metadata else {}
+            
             return None
-        
-        versions = self.versions.get(block_id, [])
-        if not versions:
-            return None
-        
-        # Find latest version before snapshot
-        for version_id, data, metadata, timestamp in reversed(versions):
-            if timestamp <= snapshot_time:
-                return data, metadata
-        
-        return None
     
     def release_snapshot(self, transaction_id: str):
         """Release snapshot."""
-        self.snapshots.pop(transaction_id, None)
+        with self._lock:
+            self.snapshots.pop(transaction_id, None)
 
 
 class TrulyOptimizedTransactionManager:
@@ -293,8 +341,27 @@ class TrulyOptimizedTransactionManager:
     
     def close(self):
         """Close manager."""
+        # Clean up any active transactions
+        for txn_id in list(self.active_transactions.keys()):
+            try:
+                self.rollback_transaction(txn_id)
+            except:
+                pass
+        
         if self.wal:
             self.wal.close()
+            self.wal = None
+        
+        if self.mvcc:
+            self.mvcc = None
+    
+    def __enter__(self):
+        """Context manager support."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager cleanup."""
+        self.close()
 
 
 class TrulyOptimizedTransaction:

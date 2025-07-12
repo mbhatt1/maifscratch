@@ -92,12 +92,28 @@ class WALEntry:
     @classmethod
     def from_bytes(cls, data: bytes, offset: int = 0) -> Tuple['WALEntry', int]:
         """Deserialize WAL entry from bytes."""
+        # Validate we have enough data for header
+        if len(data) - offset < 8:
+            raise ValueError("Insufficient data for WAL entry header")
+            
         header_size, data_size = struct.unpack('>II', data[offset:offset+8])
         offset += 8
         
+        # Validate sizes
+        if header_size < 0 or data_size < 0:
+            raise ValueError("Invalid header or data size")
+            
+        # Check if we have enough data
+        if len(data) - offset < header_size + data_size:
+            raise ValueError("Insufficient data for WAL entry content")
+        
         # Read header
-        header_json = data[offset:offset+header_size].decode('utf-8')
-        entry_dict = json.loads(header_json)
+        try:
+            header_json = data[offset:offset+header_size].decode('utf-8')
+            entry_dict = json.loads(header_json)
+        except (UnicodeDecodeError, json.JSONDecodeError) as e:
+            raise ValueError(f"Invalid WAL entry header: {e}")
+        
         offset += header_size
         
         # Read data if present
@@ -105,6 +121,12 @@ class WALEntry:
         if data_size > 0:
             block_data = data[offset:offset+data_size]
             offset += data_size
+        
+        # Validate required fields
+        required_fields = ["transaction_id", "sequence_number", "operation_type", "timestamp", "checksum"]
+        for field in required_fields:
+            if field not in entry_dict:
+                raise ValueError(f"Missing required field: {field}")
         
         entry = cls(
             transaction_id=entry_dict["transaction_id"],
@@ -148,53 +170,87 @@ class WriteAheadLog:
         self.wal_file = None
         self._lock = threading.RLock()
         self._sequence_counter = 0
+        self._closed = False
         self._ensure_wal_file()
     
     def _ensure_wal_file(self):
         """Ensure WAL file exists and is properly initialized."""
-        if not os.path.exists(self.wal_path):
-            with open(self.wal_path, 'wb') as f:
-                # Write WAL header
-                header = b'MAIF_WAL_V1\x00\x00\x00\x00'
-                f.write(header)
-        
-        self.wal_file = open(self.wal_path, 'ab')
+        try:
+            if not os.path.exists(self.wal_path):
+                # Create directory if needed
+                wal_dir = os.path.dirname(self.wal_path)
+                if wal_dir and not os.path.exists(wal_dir):
+                    os.makedirs(wal_dir, exist_ok=True)
+                    
+                with open(self.wal_path, 'wb') as f:
+                    # Write WAL header
+                    header = b'MAIF_WAL_V1\x00\x00\x00\x00'
+                    f.write(header)
+            
+            self.wal_file = open(self.wal_path, 'ab')
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize WAL file: {e}")
     
     def write_entry(self, entry: WALEntry) -> None:
         """Write entry to WAL with fsync for durability."""
         with self._lock:
+            if self._closed:
+                raise RuntimeError("WAL is closed")
+                
             entry.sequence_number = self._sequence_counter
             self._sequence_counter += 1
             
-            entry_bytes = entry.to_bytes()
-            self.wal_file.write(entry_bytes)
-            self.wal_file.flush()
-            os.fsync(self.wal_file.fileno())  # Ensure durability
+            try:
+                entry_bytes = entry.to_bytes()
+                self.wal_file.write(entry_bytes)
+                self.wal_file.flush()
+                os.fsync(self.wal_file.fileno())  # Ensure durability
+            except Exception as e:
+                raise RuntimeError(f"Failed to write WAL entry: {e}")
     
     def read_entries(self, transaction_id: Optional[str] = None) -> List[WALEntry]:
         """Read WAL entries, optionally filtered by transaction ID."""
         entries = []
         
-        with open(self.wal_path, 'rb') as f:
-            # Skip header
-            f.seek(16)
-            
-            while True:
-                try:
-                    data = f.read(8)
-                    if len(data) < 8:
-                        break
-                    
-                    header_size, data_size = struct.unpack('>II', data)
-                    entry_data = data + f.read(header_size + data_size)
-                    
-                    entry, _ = WALEntry.from_bytes(entry_data)
-                    
-                    if transaction_id is None or entry.transaction_id == transaction_id:
-                        entries.append(entry)
+        try:
+            with open(self.wal_path, 'rb') as f:
+                # Check header
+                header = f.read(16)
+                if len(header) < 16 or not header.startswith(b'MAIF_WAL'):
+                    raise ValueError("Invalid WAL file header")
+                
+                while True:
+                    try:
+                        # Read entry header
+                        header_data = f.read(8)
+                        if len(header_data) < 8:
+                            break
                         
-                except Exception:
-                    break
+                        header_size, data_size = struct.unpack('>II', header_data)
+                        
+                        # Validate sizes
+                        if header_size < 0 or data_size < 0 or header_size > 1024*1024 or data_size > 100*1024*1024:
+                            # Skip corrupted entry
+                            break
+                        
+                        # Read the rest of the entry
+                        remaining_data = f.read(header_size + data_size)
+                        if len(remaining_data) < header_size + data_size:
+                            # Incomplete entry, stop reading
+                            break
+                        
+                        entry_data = header_data + remaining_data
+                        entry, _ = WALEntry.from_bytes(entry_data)
+                        
+                        if transaction_id is None or entry.transaction_id == transaction_id:
+                            entries.append(entry)
+                            
+                    except (struct.error, ValueError):
+                        # Skip corrupted entries
+                        break
+                        
+        except Exception as e:
+            raise RuntimeError(f"Failed to read WAL entries: {e}")
         
         return entries
     
@@ -206,8 +262,25 @@ class WriteAheadLog:
     
     def close(self):
         """Close WAL file."""
-        if self.wal_file:
-            self.wal_file.close()
+        with self._lock:
+            self._closed = True
+            if self.wal_file and not self.wal_file.closed:
+                try:
+                    self.wal_file.flush()
+                    os.fsync(self.wal_file.fileno())
+                except:
+                    pass
+                finally:
+                    self.wal_file.close()
+                    self.wal_file = None
+    
+    def __enter__(self):
+        """Context manager support."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager cleanup."""
+        self.close()
 
 
 class MVCCVersionManager:
@@ -225,11 +298,14 @@ class MVCCVersionManager:
             self._current_version += 1
             version = self._current_version
             
-            self._versions[block_id].append((version, data, metadata))
+            # Create a copy of metadata to avoid mutations
+            metadata_copy = metadata.copy() if metadata else {}
+            self._versions[block_id].append((version, data, metadata_copy))
             
             # Keep only last 10 versions for performance
             if len(self._versions[block_id]) > 10:
-                self._versions[block_id] = self._versions[block_id][-10:]
+                # Create new list to avoid issues with concurrent access
+                self._versions[block_id] = list(self._versions[block_id][-10:])
             
             return version
     
@@ -273,6 +349,8 @@ class ACIDTransactionManager:
         self.mvcc = None
         self._lock = threading.RLock()
         self._active_transactions: Dict[str, Transaction] = {}
+        self._closed = False
+        self._block_storage = None  # Reuse BlockStorage instance
         
         if acid_level == ACIDLevel.FULL_ACID:
             self._initialize_acid_components()
@@ -285,6 +363,7 @@ class ACIDTransactionManager:
     
     def begin_transaction(self) -> str:
         """Begin a new transaction."""
+        # Validate transaction ID format
         transaction_id = str(uuid.uuid4())
         
         if self.acid_level == ACIDLevel.PERFORMANCE:
@@ -292,6 +371,9 @@ class ACIDTransactionManager:
             return transaction_id
         
         with self._lock:
+            if self._closed:
+                raise RuntimeError("Transaction manager is closed")
+                
             transaction = Transaction(
                 transaction_id=transaction_id,
                 state=TransactionState.ACTIVE,
@@ -431,6 +513,14 @@ class ACIDTransactionManager:
     def _write_block_direct(self, block_id: str, data: bytes, metadata: Dict) -> bool:
         """Direct block write without transaction overhead."""
         try:
+            # Validate inputs
+            if not isinstance(block_id, str) or not block_id:
+                raise ValueError("Invalid block_id")
+            if not isinstance(data, bytes):
+                raise TypeError("Data must be bytes")
+            if metadata is not None and not isinstance(metadata, dict):
+                raise TypeError("Metadata must be a dictionary")
+                
             # Create or get block storage
             storage_path = self.maif_path + '.blocks'
             
@@ -443,67 +533,73 @@ class ACIDTransactionManager:
             if not os.path.exists(storage_path):
                 Path(storage_path).touch()
             
-            storage = BlockStorage(storage_path)
+            # Reuse BlockStorage instance for efficiency
+            if self._block_storage is None:
+                self._block_storage = BlockStorage(storage_path)
             
-            with storage:
-                # Check if block already exists
-                if block_id in storage.block_index:
-                    # Update existing block
-                    # In a real implementation, we would update the block
-                    # For now, we'll add a new block with the same ID
-                    storage.add_block(
-                        block_type=metadata.get('block_type', 'BDAT'),
-                        data=data,
-                        metadata=metadata
-                    )
-                else:
-                    # Add new block
-                    storage.add_block(
-                        block_type=metadata.get('block_type', 'BDAT'),
-                        data=data,
-                        metadata=metadata
-                    )
-                
-                return True
+            # Ensure metadata includes block_id
+            if metadata is None:
+                metadata = {}
+            metadata['block_id'] = block_id
+            
+            # Add block with proper context management
+            self._block_storage.add_block(
+                block_type=metadata.get('block_type', 'BDAT'),
+                data=data,
+                metadata=metadata
+            )
+            
+            return True
+            
         except Exception as e:
-            print(f"Error writing block: {e}")
-            return False
+            # Log error properly instead of printing
+            import logging
+            logging.error(f"Error writing block {block_id}: {e}")
+            raise
     
     def _read_block_direct(self, block_id: str) -> Optional[Tuple[bytes, Dict]]:
         """Direct block read without transaction overhead."""
         try:
+            # Validate input
+            if not isinstance(block_id, str) or not block_id:
+                raise ValueError("Invalid block_id")
+                
             # Open block storage
             storage_path = self.maif_path + '.blocks'
             
             # Check if blocks file exists
             if not os.path.exists(storage_path):
                 return None
-                
-            storage = BlockStorage(storage_path)
             
-            with storage:
-                # Get block by ID
-                result = storage.get_block(block_id)
-                
-                if result is None:
-                    return None
-                
-                header, data = result
-                
-                # Convert header to metadata
-                metadata = {
-                    'block_id': block_id,
-                    'block_type': header.block_type,
-                    'version': header.version,
-                    'timestamp': header.timestamp,
-                    'size': header.size,
-                    'uuid': header.uuid
-                }
-                
-                return data, metadata
+            # Reuse BlockStorage instance for efficiency
+            if self._block_storage is None:
+                self._block_storage = BlockStorage(storage_path)
+            
+            # Get block by ID
+            result = self._block_storage.get_block(block_id)
+            
+            if result is None:
+                return None
+            
+            header, data = result
+            
+            # Convert header to metadata
+            metadata = {
+                'block_id': block_id,
+                'block_type': header.block_type,
+                'version': header.version,
+                'timestamp': header.timestamp,
+                'size': header.size,
+                'uuid': header.uuid
+            }
+            
+            return data, metadata
+            
         except Exception as e:
-            print(f"Error reading block: {e}")
-            return None
+            # Log error properly instead of printing
+            import logging
+            logging.error(f"Error reading block {block_id}: {e}")
+            raise
     
     def get_performance_stats(self) -> Dict[str, Any]:
         """Get transaction performance statistics."""
@@ -518,8 +614,44 @@ class ACIDTransactionManager:
     
     def close(self):
         """Close transaction manager and cleanup resources."""
-        if self.wal:
-            self.wal.close()
+        with self._lock:
+            self._closed = True
+            
+            # Abort any active transactions
+            active_txns = list(self._active_transactions.keys())
+            for txn_id in active_txns:
+                try:
+                    self.abort_transaction(txn_id)
+                except:
+                    pass
+            
+            # Close WAL
+            if self.wal:
+                self.wal.close()
+                self.wal = None
+            
+            # Close block storage
+            if self._block_storage:
+                try:
+                    self._block_storage.close()
+                except:
+                    pass
+                self._block_storage = None
+    
+    def __enter__(self):
+        """Context manager support."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager cleanup."""
+        self.close()
+    
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        try:
+            self.close()
+        except:
+            pass
 
 
 # Context manager for easy transaction usage
@@ -552,20 +684,10 @@ class MAIFTransaction:
 
 
 # Integration with existing MAIF core
-def create_acid_enabled_encoder(maif_path: str, acid_level: ACIDLevel = ACIDLevel.PERFORMANCE):
+def create_acid_enabled_encoder(maif_path: str, acid_level: ACIDLevel = ACIDLevel.PERFORMANCE,
+                               agent_id: str = None) -> 'AcidMAIFEncoder':
     """Create MAIF encoder with ACID transaction support."""
-    from .core import MAIFEncoder
-    
-    # Create base encoder
-    encoder = MAIFEncoder()
-    
-    # Add transaction manager
-    encoder._transaction_manager = ACIDTransactionManager(maif_path, acid_level)
-    encoder._acid_level = acid_level
-    
-    # Override methods to use transactions
-    
-    return encoder
+    return AcidMAIFEncoder(maif_path, acid_level, agent_id)
 
 
 class AcidMAIFEncoder:
@@ -593,13 +715,18 @@ class AcidMAIFEncoder:
         self.agent_id = agent_id
         
         # Create base encoder
-        self._encoder = MAIFEncoder(agent_id=agent_id)
+        try:
+            self._encoder = MAIFEncoder(agent_id=agent_id)
+        except Exception as e:
+            raise RuntimeError(f"Failed to create MAIFEncoder: {e}")
         
         # Add transaction manager
         self._transaction_manager = ACIDTransactionManager(self.maif_path, acid_level)
         
         # Current transaction context
         self._current_transaction = None
+        self._auto_commit = True  # Auto-commit by default
+        self._closed = False
     
     def begin_transaction(self) -> str:
         """Begin a new transaction."""
@@ -610,6 +737,102 @@ class AcidMAIFEncoder:
         return self._current_transaction
     
     def commit_transaction(self) -> bool:
+        """Commit current transaction."""
+        if not self._current_transaction:
+            return True
+            
+        result = self._transaction_manager.commit_transaction(self._current_transaction)
+        self._current_transaction = None
+        return result
+    
+    def abort_transaction(self) -> bool:
+        """Abort current transaction."""
+        if not self._current_transaction:
+            return True
+            
+        result = self._transaction_manager.abort_transaction(self._current_transaction)
+        self._current_transaction = None
+        return result
+    
+    def add_text_block(self, text: str, metadata: Optional[Dict] = None) -> str:
+        """Add text block with transaction support."""
+        if self._closed:
+            raise RuntimeError("Encoder is closed")
+            
+        # Start transaction if needed
+        if self.acid_level == ACIDLevel.FULL_ACID and not self._current_transaction:
+            self.begin_transaction()
+        
+        # Create block
+        block_id = str(uuid.uuid4())
+        data = text.encode('utf-8')
+        
+        if metadata is None:
+            metadata = {}
+        metadata['block_type'] = 'TEXT'
+        
+        # Write through transaction manager
+        if self._current_transaction:
+            success = self._transaction_manager.write_block(
+                self._current_transaction, block_id, data, metadata
+            )
+            
+            # Auto-commit if enabled
+            if self._auto_commit and success:
+                self.commit_transaction()
+        else:
+            # Direct write in performance mode
+            success = self._transaction_manager._write_block_direct(block_id, data, metadata)
+        
+        if success:
+            # Also add to base encoder for compatibility
+            self._encoder.add_text_block(text, metadata)
+            return block_id
+        else:
+            raise RuntimeError("Failed to add text block")
+    
+    def close(self):
+        """Close encoder and cleanup resources."""
+        if self._closed:
+            return
+            
+        self._closed = True
+        
+        # Commit any pending transaction
+        if self._current_transaction:
+            try:
+                self.commit_transaction()
+            except:
+                self.abort_transaction()
+        
+        # Close transaction manager
+        if self._transaction_manager:
+            self._transaction_manager.close()
+        
+        # Close base encoder
+        if self._encoder:
+            try:
+                self._encoder.close()
+            except:
+                pass
+    
+    def __enter__(self):
+        """Context manager support."""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager cleanup."""
+        if exc_type is not None and self._current_transaction:
+            # Abort on exception
+            self.abort_transaction()
+        self.close()
+    
+    def __del__(self):
+        """Destructor to ensure cleanup."""
+        try:
+            self.close()
+        except:
+            pass
         """Commit the current transaction."""
         if not self._current_transaction:
             return False

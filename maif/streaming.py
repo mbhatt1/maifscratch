@@ -6,12 +6,15 @@ import os
 import mmap
 import threading
 import time
+import logging
 from typing import Iterator, Tuple, Optional, Dict, Any, List
 from dataclasses import dataclass, field
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from .core import MAIFDecoder, MAIFBlock, MAIFEncoder
+
+logger = logging.getLogger(__name__)
 
 @dataclass
 class StreamingConfig:
@@ -56,29 +59,47 @@ class MAIFStreamReader:
         
     def __enter__(self):
         """Context manager entry."""
-        self.file_handle = open(self.maif_path, 'rb')
-        
-        if self.config.use_memory_mapping:
-            try:
-                self.memory_map = mmap.mmap(
-                    self.file_handle.fileno(), 
-                    0, 
-                    access=mmap.ACCESS_READ
-                )
-            except (OSError, ValueError):
-                # Fallback to regular file I/O
-                self.memory_map = None
-        
-        return self
+        try:
+            self.file_handle = open(self.maif_path, 'rb')
+            
+            if self.config.use_memory_mapping:
+                try:
+                    # Get file size to ensure it's not empty
+                    file_size = os.path.getsize(self.maif_path)
+                    if file_size > 0:
+                        self.memory_map = mmap.mmap(
+                            self.file_handle.fileno(),
+                            0,
+                            access=mmap.ACCESS_READ
+                        )
+                    else:
+                        self.memory_map = None
+                except (OSError, ValueError) as e:
+                    # Fallback to regular file I/O
+                    logger.debug(f"Memory mapping failed, using regular I/O: {e}")
+                    self.memory_map = None
+            
+            return self
+        except Exception as e:
+            if self.file_handle:
+                self.file_handle.close()
+            raise
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
-        if self.memory_map:
-            self.memory_map.close()
-            self.memory_map = None
-        if self.file_handle:
-            self.file_handle.close()
-            self.file_handle = None
+        try:
+            if self.memory_map:
+                self.memory_map.close()
+                self.memory_map = None
+        except Exception as e:
+            logger.error(f"Error closing memory map: {e}")
+        
+        try:
+            if self.file_handle:
+                self.file_handle.close()
+                self.file_handle = None
+        except Exception as e:
+            logger.error(f"Error closing file handle: {e}")
     
     def stream_blocks(self) -> Iterator[Tuple[str, bytes]]:
         """Stream blocks using ultra-fast zero-copy method by default."""
@@ -99,11 +120,15 @@ class MAIFStreamReader:
         
         try:
             with mmap.mmap(self.file_handle.fileno(), 0, access=mmap.ACCESS_READ) as mm:
-                # Optimize memory access pattern
-                if hasattr(mmap, 'MADV_SEQUENTIAL'):
-                    mm.madvise(mmap.MADV_SEQUENTIAL)
-                if hasattr(mmap, 'MADV_WILLNEED'):
-                    mm.madvise(mmap.MADV_WILLNEED)
+                # Optimize memory access pattern - check platform support
+                try:
+                    if hasattr(mmap, 'MADV_SEQUENTIAL'):
+                        mm.madvise(mmap.MADV_SEQUENTIAL)
+                    if hasattr(mmap, 'MADV_WILLNEED'):
+                        mm.madvise(mmap.MADV_WILLNEED)
+                except AttributeError:
+                    # madvise not available on this platform
+                    pass
                 
                 # Sort blocks by offset for sequential access
                 sorted_blocks = sorted(self.decoder.blocks, key=lambda b: b.offset)
@@ -117,7 +142,10 @@ class MAIFStreamReader:
                             start_pos = block.offset + header_size
                             end_pos = start_pos + data_size
                             
-                            if end_pos <= len(mm):
+                            # Validate bounds
+                            if start_pos < 0 or data_size < 0:
+                                yield block.block_type or "unknown", b"invalid_bounds"
+                            elif end_pos <= len(mm):
                                 # Zero-copy slice
                                 data = mm[start_pos:end_pos]
                                 self._total_bytes_read += len(data)
@@ -128,9 +156,11 @@ class MAIFStreamReader:
                             yield block.block_type or "unknown", b"empty"
                             
                     except Exception as e:
+                        logger.error(f"Error reading block: {e}")
                         yield "error", f"fast_read_error: {str(e)}".encode()
                         
-        except Exception:
+        except Exception as e:
+            logger.error(f"Error in zero-copy streaming: {e}")
             # Fallback to regular streaming
             yield from self._stream_blocks_optimized()
     
@@ -156,15 +186,27 @@ class MAIFStreamReader:
                 block_start = block.offset + header_size
                 block_end = block_start + data_size
                 
+                # Validate bounds
+                if start_pos < 0 or data_size < 0:
+                    yield block.block_type or "unknown", b"invalid_bounds"
+                    continue
+                    
                 # Check if we need to read more data
                 if (block_end > current_buffer_start + len(current_buffer) or
                     block_start < current_buffer_start):
                     
                     # Read large chunk
                     self.file_handle.seek(block_start)
-                    read_size = min(buffer_size, os.path.getsize(self.maif_path) - block_start)
-                    current_buffer = self.file_handle.read(read_size)
-                    current_buffer_start = block_start
+                    file_size = os.path.getsize(self.maif_path)
+                    remaining = file_size - block_start
+                    read_size = min(buffer_size, remaining) if remaining > 0 else 0
+                    
+                    if read_size > 0:
+                        current_buffer = self.file_handle.read(read_size)
+                        current_buffer_start = block_start
+                    else:
+                        yield block.block_type or "unknown", b"no_data"
+                        continue
                 
                 # Extract block data
                 buffer_offset = block_start - current_buffer_start
@@ -178,6 +220,7 @@ class MAIFStreamReader:
                     yield block.block_type or "unknown", b"buffer_miss"
                     
             except Exception as e:
+                logger.error(f"Error reading block in optimized mode: {e}")
                 yield "error", f"optimized_read_error: {str(e)}".encode()
     
     def _initialize_decoder_fast(self):
@@ -244,6 +287,9 @@ class MAIFStreamReader:
     def _read_batch_ultra_fast(self, blocks) -> list:
         """Read a batch of blocks with maximum performance."""
         results = []
+        if not blocks:
+            return results
+            
         try:
             # Use very large buffer for this thread
             with open(self.maif_path, 'rb', buffering=128*1024*1024) as f:  # 128MB buffer
@@ -253,16 +299,22 @@ class MAIFStreamReader:
                         data_size = max(0, block.size - header_size)
                         
                         if data_size > 0:
-                            f.seek(block.offset + header_size)
-                            data = f.read(data_size)
-                            results.append((block.block_type or "unknown", data))
+                            seek_pos = block.offset + header_size
+                            if seek_pos >= 0:
+                                f.seek(seek_pos)
+                                data = f.read(data_size)
+                                results.append((block.block_type or "unknown", data))
+                            else:
+                                results.append((block.block_type or "unknown", b"invalid_offset"))
                         else:
                             results.append((block.block_type or "unknown", b"empty"))
                             
                     except Exception as e:
+                        logger.error(f"Error reading block in batch: {e}")
                         results.append(("error", f"batch_block_error: {str(e)}".encode()))
                         
         except Exception as e:
+            logger.error(f"Error reading batch: {e}")
             results.append(("error", f"batch_error: {str(e)}".encode()))
         
         return results
@@ -282,7 +334,11 @@ class MAIFStreamReader:
                 # Use memory mapping for faster access
                 start_pos = block.offset + header_size
                 end_pos = start_pos + data_size
-                if end_pos <= len(self.memory_map):
+                
+                # Validate bounds
+                if start_pos < 0 or data_size < 0:
+                    return b"invalid_bounds"
+                elif end_pos <= len(self.memory_map):
                     return self.memory_map[start_pos:end_pos]
                 else:
                     # Fallback if memory map access fails
@@ -290,12 +346,17 @@ class MAIFStreamReader:
             else:
                 # Use regular file I/O
                 if self.file_handle:
-                    self.file_handle.seek(block.offset + header_size)
-                    data = self.file_handle.read(data_size)
-                    return data if data else b"empty_block_data"
+                    seek_pos = block.offset + header_size
+                    if seek_pos >= 0:
+                        self.file_handle.seek(seek_pos)
+                        data = self.file_handle.read(data_size)
+                        return data if data else b"empty_block_data"
+                    else:
+                        return b"invalid_offset"
                 else:
                     return b"no_file_handle"
         except Exception as e:
+            logger.error(f"Error reading block data: {e}")
             # Return dummy data if reading fails
             return f"error_reading_block: {str(e)}".encode()
     
@@ -310,10 +371,15 @@ class MAIFStreamReader:
                 if data_size == 0:
                     return b"dummy_block_data"
                 
-                f.seek(block.offset + header_size)
-                data = f.read(data_size)
-                return data if data else b"empty_block_data"
+                seek_pos = block.offset + header_size
+                if seek_pos >= 0:
+                    f.seek(seek_pos)
+                    data = f.read(data_size)
+                    return data if data else b"empty_block_data"
+                else:
+                    return b"invalid_offset"
         except Exception as e:
+            logger.error(f"Error in safe block reading: {e}")
             return f"error_reading_block_safe: {str(e)}".encode()
     
     def get_block_by_id(self, block_id: str) -> Optional[bytes]:
@@ -361,43 +427,60 @@ class MAIFStreamWriter:
         self.file_handle = None
         self._buffer = b""
         self.buffer = b""  # Add for test compatibility
+        self._lock = threading.RLock()
     
     def __enter__(self):
         """Context manager entry."""
-        self.file_handle = open(self.output_path, 'wb')
-        return self
+        try:
+            self.file_handle = open(self.output_path, 'wb')
+            return self
+        except Exception as e:
+            logger.error(f"Error opening file for writing: {e}")
+            raise
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager exit."""
-        # Finalize the MAIF file before closing
-        if self.encoder and self.encoder.blocks:
-            manifest_path = str(self.output_path).replace('.maif', '_manifest.json')
-            self.encoder.build_maif(str(self.output_path), manifest_path)
+        try:
+            # Finalize the MAIF file before closing
+            if self.encoder and self.encoder.blocks:
+                manifest_path = str(self.output_path).replace('.maif', '_manifest.json')
+                self.encoder.build_maif(str(self.output_path), manifest_path)
+        except Exception as e:
+            logger.error(f"Error finalizing MAIF file: {e}")
         
-        if self.file_handle:
-            self.file_handle.close()
-            self.file_handle = None
+        try:
+            if self.file_handle:
+                self.file_handle.close()
+                self.file_handle = None
+        except Exception as e:
+            logger.error(f"Error closing file handle: {e}")
     
     def write_block(self, block_data: bytes, block_type: str, metadata: Optional[Dict] = None) -> str:
         """Write a block to the stream."""
+        if not block_data:
+            raise ValueError("Cannot write empty block data")
+        if not block_type:
+            raise ValueError("Block type is required")
+            
         start_time = time.time()
         
-        if block_type == "text":
-            # Try to decode as UTF-8, but handle cases where it's already binary
-            try:
-                if isinstance(block_data, str):
-                    text_data = block_data
-                else:
-                    text_data = block_data.decode('utf-8')
-                block_id = self.encoder.add_text_block(text_data, metadata=metadata)
-            except UnicodeDecodeError:
-                # If decode fails, treat as binary
-                block_id = self.encoder.add_binary_block(block_data, "binary_data", metadata=metadata)
-        else:
-            block_id = self.encoder.add_binary_block(block_data, block_type, metadata=metadata)
-        
-        self._blocks_written += 1
-        self._bytes_written += len(block_data)
+        with self._lock:
+            if block_type == "text":
+                # Try to decode as UTF-8, but handle cases where it's already binary
+                try:
+                    if isinstance(block_data, str):
+                        text_data = block_data
+                    else:
+                        text_data = block_data.decode('utf-8')
+                    block_id = self.encoder.add_text_block(text_data, metadata=metadata)
+                except UnicodeDecodeError:
+                    # If decode fails, treat as binary
+                    block_id = self.encoder.add_binary_block(block_data, "binary_data", metadata=metadata)
+            else:
+                block_id = self.encoder.add_binary_block(block_data, block_type, metadata=metadata)
+            
+            self._blocks_written += 1
+            self._bytes_written += len(block_data)
         self._write_times.append(time.time() - start_time)
         
         return block_id
@@ -809,13 +892,15 @@ class UltraHighThroughputReader(MAIFStreamReader):
                 try:
                     self.decoder = MAIFDecoder(str(self.maif_path), manifest_path)
                     return
-                except Exception:
+                except Exception as e:
+                    logger.debug(f"Failed to load decoder from {manifest_path}: {e}")
                     continue
         
         # Try without manifest
         try:
             self.decoder = MAIFDecoder(str(self.maif_path), None)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to initialize decoder: {e}")
             pass
 
 
