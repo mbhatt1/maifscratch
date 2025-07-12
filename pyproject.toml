@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "maif"
 version = "2.0.0"
-description = "Multimodal Artifact File Format - AI-native container with trustworthy AI capabilities"
+description = "Multimodal Artifact File Format - Production-ready AI-native container with trustworthy AI capabilities"
 readme = "README.md"
 license = {text = "MIT"}
 authors = [
@@ -17,10 +17,11 @@ maintainers = [
 keywords = [
     "ai", "multimodal", "security", "provenance", "forensics", 
     "trustworthy-ai", "file-format", "compression", "streaming",
-    "cross-modal", "attention", "semantic", "cryptography"
+    "cross-modal", "attention", "semantic", "cryptography",
+    "aws", "cloud", "production", "enterprise"
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
@@ -36,16 +37,22 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Archiving",
     "Topic :: Software Development :: Version Control",
+    "Topic :: System :: Distributed Computing",
 ]
 requires-python = ">=3.8"
 dependencies = [
     "numpy>=1.21.0",
     "cryptography>=3.4.8",
     "scikit-learn>=1.0.0",
+    "pydantic>=2.0.0",
+    "structlog>=23.0.0",
+    "tenacity>=8.0.0",
 ]
 
 [project.optional-dependencies]
 full = [
+    "boto3>=1.26.0",
+    "botocore>=1.29.0",
     "sentence-transformers>=2.2.0",
     "faiss-cpu>=1.7.0",
     "opencv-python>=4.5.0",
@@ -61,22 +68,44 @@ full = [
     "networkx>=2.6.0",
     "matplotlib>=3.4.0",
     "pillow>=8.3.0",
+    "scipy>=1.7.0",
+    "lz4>=4.0.0",
+    "numba>=0.56.0",
+    "prometheus-client>=0.16.0",
+]
+production = [
+    "boto3>=1.26.0",
+    "botocore>=1.29.0",
+    "prometheus-client>=0.16.0",
+    "aiofiles>=0.8.0",
+    "jsonschema>=4.0.0",
+    "psutil>=5.8.0",
+    "tenacity>=8.0.0",
+    "structlog>=23.0.0",
+]
+aws = [
+    "boto3>=1.26.0",
+    "botocore>=1.29.0",
 ]
 dev = [
     "pytest>=6.0.0",
     "pytest-cov>=2.12.0",
+    "pytest-asyncio>=0.21.0",
     "black>=21.0.0",
     "flake8>=3.9.0",
-    "mypy>=0.910",
+    "mypy>=1.0.0",
     "pre-commit>=2.15.0",
+    "moto>=4.0.0",  # For AWS mocking in tests
+    "pytest-mock>=3.10.0",
 ]
-compression = ["brotli>=1.0.9", "zstandard>=0.18.0"]
+compression = ["brotli>=1.0.9", "zstandard>=0.18.0", "lz4>=4.0.0"]
 async = ["aiofiles>=0.8.0"]
 cli = ["click>=8.0.0", "tqdm>=4.64.0"]
-validation = ["jsonschema>=4.0.0"]
-performance = ["xxhash>=3.0.0", "msgpack>=1.0.4", "psutil>=5.8.0"]
-ml = ["sentence-transformers>=2.2.0", "faiss-cpu>=1.7.0"]
+validation = ["jsonschema>=4.0.0", "pydantic>=2.0.0"]
+performance = ["xxhash>=3.0.0", "msgpack>=1.0.4", "psutil>=5.8.0", "numba>=0.56.0"]
+ml = ["sentence-transformers>=2.2.0", "faiss-cpu>=1.7.0", "scipy>=1.7.0"]
 vision = ["opencv-python>=4.5.0", "pillow>=8.3.0"]
+monitoring = ["prometheus-client>=0.16.0"]
 
 [project.scripts]
 maif = "maif.cli:main"
@@ -84,6 +113,7 @@ maif-create = "maif.cli:create_maif"
 maif-verify = "maif.cli:verify_maif"
 maif-analyze = "maif.cli:analyze_maif"
 maif-extract = "maif.cli:extract_content"
+maif-deploy = "maif.aws_deployment:deploy_cli"
 
 [project.urls]
 Homepage = "https://github.com/maif-ai/maif"
@@ -93,14 +123,15 @@ Repository = "https://github.com/maif-ai/maif"
 Changelog = "https://github.com/maif-ai/maif/blob/main/CHANGELOG.md"
 
 [tool.setuptools]
-packages = ["maif"]
+packages = ["maif", "maif_sdk"]
 py-modules = ["maif_api"]
 
 [tool.setuptools.package-data]
-maif = ["*.json", "*.yaml", "schemas/*.json"]
+maif = ["*.json", "*.yaml", "schemas/*.json", "templates/*.yaml", "templates/*.json"]
+maif_sdk = ["*.json", "*.yaml"]
 
 [tool.black]
-line-length = 88
+line-length = 120
 target-version = ['py38']
 include = '\.pyi?$'
 extend-exclude = '''
@@ -119,14 +150,43 @@ extend-exclude = '''
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --strict-markers"
+addopts = "-ra -q --strict-markers --cov=maif --cov-report=term-missing:skip-covered"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "aws: marks tests that require AWS services",
+]
 
 [tool.mypy]
 python_version = "3.8"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+check_untyped_defs = true
+strict_equality = true
+
+[tool.coverage.run]
+source = ["maif", "maif_sdk"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/virtualenv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
