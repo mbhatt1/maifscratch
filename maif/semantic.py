@@ -23,7 +23,17 @@ try:
     from sentence_transformers import SentenceTransformer
     SENTENCE_TRANSFORMERS_AVAILABLE = True
 except ImportError:
-    SENTENCE_TRANSFORMERS_AVAILABLE = False
+    logger.warning("sentence-transformers not installed. Attempting to install...")
+    try:
+        import subprocess
+        import sys
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
+        from sentence_transformers import SentenceTransformer
+        SENTENCE_TRANSFORMERS_AVAILABLE = True
+        logger.info("Successfully installed sentence-transformers")
+    except Exception as e:
+        logger.warning(f"Failed to install sentence-transformers: {e}. Semantic features will use fallback methods.")
+        SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 try:
     import faiss

@@ -22,6 +22,26 @@ class RateLimitConfig:
     burst_size: int = 20
     window_seconds: int = 60
     
+    @classmethod
+    def from_production_config(cls):
+        """Create RateLimitConfig from production configuration."""
+        from .config import get_config
+        config = get_config()
+        
+        if config.rate_limit_enabled:
+            return cls(
+                requests_per_second=config.requests_per_second,
+                burst_size=config.burst_size,
+                window_seconds=60  # Default window
+            )
+        else:
+            # Effectively unlimited when disabled
+            return cls(
+                requests_per_second=float('inf'),
+                burst_size=float('inf'),
+                window_seconds=60
+            )
+    
 
 class TokenBucket:
     """Token bucket implementation for rate limiting."""
@@ -192,7 +212,67 @@ def rate_limit(limiter: RateLimiter, key_func: Optional[Callable] = None, cost: 
 
 
 # Global rate limiter instance
+_global_rate_limiter: Optional[RateLimiter] = None
+
+
+def get_rate_limiter() -> RateLimiter:
+    """Get global rate limiter configured from production config."""
+    global _global_rate_limiter
+    if _global_rate_limiter is None:
+        config = RateLimitConfig.from_production_config()
+        _global_rate_limiter = CostBasedRateLimiter(config)
+    return _global_rate_limiter
+
+
+def reset_rate_limiter():
+    """Reset rate limiter (mainly for testing)."""
+    global _global_rate_limiter
+    _global_rate_limiter = None
+
+
+# Default rate limiter for backward compatibility
 default_rate_limiter = RateLimiter(RateLimitConfig())
+
+
+# Rate limit exception
+class RateLimitExceeded(Exception):
+    """Raised when rate limit is exceeded."""
+    pass
+
+
+# Production-ready decorator
+def rate_limited(operation: str = "default", key_func: Optional[Callable] = None):
+    """Decorator for rate limiting using production configuration."""
+    def decorator(func):
+        async def async_wrapper(*args, **kwargs):
+            limiter = get_rate_limiter()
+            
+            # Determine key
+            if key_func:
+                key = key_func(*args, **kwargs)
+            else:
+                key = "default"
+                
+            # Check rate limit
+            if isinstance(limiter, CostBasedRateLimiter):
+                allowed = await limiter.check_operation(operation, key)
+            else:
+                allowed = await limiter.check_rate_limit(key)
+                
+            if not allowed:
+                raise RateLimitExceeded(f"Rate limit exceeded for {operation}")
+                
+            return await func(*args, **kwargs)
+            
+        def sync_wrapper(*args, **kwargs):
+            raise NotImplementedError("Sync rate limiting not supported. Use async functions.")
+            
+        if asyncio.iscoroutinefunction(func):
+            return async_wrapper
+        else:
+            return sync_wrapper
+            
+    return decorator
 
 
 # Usage example:

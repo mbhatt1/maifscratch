@@ -2188,12 +2188,80 @@ class MAIFDecoder:
             List of frame data as bytes
             
         Raises:
-            NotImplementedError: Video frame extraction requires optional dependencies
+            ImportError: If OpenCV is not installed
+            ValueError: If block_id is invalid or video cannot be processed
         """
-        raise NotImplementedError(
-            "Video frame extraction requires FFmpeg or OpenCV libraries. "
-            "Please install required video processing dependencies to use this feature."
-        )
+        try:
+            import cv2
+        except ImportError:
+            logger.warning("OpenCV not installed. Attempting to install...")
+            try:
+                import subprocess
+                import sys
+                subprocess.check_call([sys.executable, "-m", "pip", "install", "opencv-python"])
+                import cv2
+                logger.info("Successfully installed OpenCV")
+            except Exception as e:
+                raise ImportError(
+                    "Failed to install OpenCV. Please install manually with: pip install opencv-python"
+                ) from e
+        
+        # Get the video block
+        block = self.get_block(block_id)
+        if not block:
+            raise ValueError(f"Block {block_id} not found")
+        
+        # Verify it's a video block
+        if block.metadata.get("content_type") != "video":
+            raise ValueError(f"Block {block_id} is not a video block")
+        
+        # Save video data to temporary file
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+            tmp_file.write(block.data)
+            tmp_file_path = tmp_file.name
+        
+        frames = []
+        try:
+            # Open video capture
+            cap = cv2.VideoCapture(tmp_file_path)
+            if not cap.isOpened():
+                raise ValueError(f"Failed to open video from block {block_id}")
+            
+            # Get video properties
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            if fps <= 0:
+                fps = 30.0  # Default fallback
+            
+            # Extract frames at specified timestamps
+            for timestamp in timestamps:
+                # Calculate frame number
+                frame_number = int(timestamp * fps)
+                
+                # Seek to frame
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
+                
+                # Read frame
+                ret, frame = cap.read()
+                if ret:
+                    # Encode frame as JPEG
+                    _, encoded = cv2.imencode('.jpg', frame)
+                    frames.append(encoded.tobytes())
+                else:
+                    logger.warning(f"Failed to extract frame at timestamp {timestamp}")
+                    frames.append(b'')  # Add empty bytes for failed frames
+            
+            cap.release()
+            
+        finally:
+            # Clean up temporary file
+            import os
+            try:
+                os.unlink(tmp_file_path)
+            except:
+                pass
+        
+        return frames
     
     def get_video_summary(self) -> Dict[str, Any]:
         """Get summary statistics of all videos in the MAIF."""

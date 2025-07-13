@@ -55,6 +55,50 @@ class ProductionConfig(BaseSettings):
     enable_signing: bool = Field(default=True, env="MAIF_ENABLE_SIGNING")
     enable_access_control: bool = Field(default=True, env="MAIF_ENABLE_ACCESS_CONTROL")
     
+    # PKI Configuration
+    pki_ca_cert_path: Optional[str] = Field(default=None, env="MAIF_PKI_CA_CERT_PATH")
+    pki_crl_url: Optional[str] = Field(default=None, env="MAIF_PKI_CRL_URL")
+    pki_ocsp_url: Optional[str] = Field(default=None, env="MAIF_PKI_OCSP_URL")
+    pki_verify_chain: bool = Field(default=True, env="MAIF_PKI_VERIFY_CHAIN")
+    
+    # HSM Configuration
+    hsm_enabled: bool = Field(default=False, env="MAIF_HSM_ENABLED")
+    hsm_type: str = Field(default="pkcs11", env="MAIF_HSM_TYPE")  # pkcs11, yubihsm, cloudhsm
+    hsm_library_path: Optional[str] = Field(default=None, env="MAIF_HSM_LIBRARY_PATH")
+    hsm_slot: Optional[int] = Field(default=None, env="MAIF_HSM_SLOT")
+    hsm_pin: Optional[str] = Field(default=None, env="MAIF_HSM_PIN")
+    cloudhsm_cluster_id: Optional[str] = Field(default=None, env="MAIF_CLOUDHSM_CLUSTER_ID")
+    
+    # Alerting Services
+    pagerduty_enabled: bool = Field(default=False, env="MAIF_PAGERDUTY_ENABLED")
+    pagerduty_api_key: Optional[str] = Field(default=None, env="MAIF_PAGERDUTY_API_KEY")
+    pagerduty_service_id: Optional[str] = Field(default=None, env="MAIF_PAGERDUTY_SERVICE_ID")
+    
+    sns_enabled: bool = Field(default=True, env="MAIF_SNS_ENABLED")
+    sns_topic_arn: Optional[str] = Field(default=None, env="MAIF_SNS_TOPIC_ARN")
+    
+    slack_enabled: bool = Field(default=False, env="MAIF_SLACK_ENABLED")
+    slack_webhook_url: Optional[str] = Field(default=None, env="MAIF_SLACK_WEBHOOK_URL")
+    slack_channel: Optional[str] = Field(default="#alerts", env="MAIF_SLACK_CHANNEL")
+    
+    # Authentication Services
+    auth_provider: str = Field(default="internal", env="MAIF_AUTH_PROVIDER")  # internal, oauth, saml, pki
+    oauth_issuer_url: Optional[str] = Field(default=None, env="MAIF_OAUTH_ISSUER_URL")
+    oauth_client_id: Optional[str] = Field(default=None, env="MAIF_OAUTH_CLIENT_ID")
+    oauth_client_secret: Optional[str] = Field(default=None, env="MAIF_OAUTH_CLIENT_SECRET")
+    saml_idp_url: Optional[str] = Field(default=None, env="MAIF_SAML_IDP_URL")
+    saml_sp_entity_id: Optional[str] = Field(default=None, env="MAIF_SAML_SP_ENTITY_ID")
+    
+    # Monitoring Services
+    xray_enabled: bool = Field(default=True, env="MAIF_XRAY_ENABLED")
+    xray_daemon_address: Optional[str] = Field(default="127.0.0.1:2000", env="MAIF_XRAY_DAEMON_ADDRESS")
+    
+    cloudwatch_enabled: bool = Field(default=True, env="MAIF_CLOUDWATCH_ENABLED")
+    cloudwatch_log_group: Optional[str] = Field(default="/aws/maif/production", env="MAIF_CLOUDWATCH_LOG_GROUP")
+    
+    macie_enabled: bool = Field(default=False, env="MAIF_MACIE_ENABLED")
+    macie_finding_publishing_frequency: str = Field(default="ONE_HOUR", env="MAIF_MACIE_FREQUENCY")
+    
     # Retry configuration
     max_retries: int = Field(default=3, env="MAIF_MAX_RETRIES")
     retry_base_delay: float = Field(default=1.0, env="MAIF_RETRY_BASE_DELAY")
@@ -95,7 +139,11 @@ class ProductionConfig(BaseSettings):
         
         if redact_sensitive:
             # Redact sensitive values
-            sensitive_keys = ["aws_profile", "kms_key_id"]
+            sensitive_keys = [
+                "aws_profile", "kms_key_id", "hsm_pin",
+                "pagerduty_api_key", "oauth_client_secret",
+                "slack_webhook_url"
+            ]
             for key in sensitive_keys:
                 if key in config_dict and config_dict[key]:
                     config_dict[key] = "***REDACTED***"
