@@ -21,6 +21,9 @@ import os
 import boto3
 from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError
 
+# Import centralized credential and config management
+from .aws_config import get_aws_config, AWSConfig
+
 from .streaming import (
     StreamingConfig, MAIFStreamReader, MAIFStreamWriter, 
     PerformanceProfiler, StreamingMAIFProcessor

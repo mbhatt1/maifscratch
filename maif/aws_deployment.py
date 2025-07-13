@@ -15,6 +15,9 @@ from typing import Dict, List, Optional, Any
 import yaml
 import boto3
 from dataclasses import dataclass, field
+
+# Import centralized credential and config management
+from .aws_config import get_aws_config, AWSConfig
 import logging
 
 logger = logging.getLogger(__name__)
@@ -659,19 +662,19 @@ class DeploymentManager:
         
         # Upload to S3 if bucket specified
         if self.config.s3_bucket:
-            s3_client = boto3.client('s3', region_name=self.config.aws_region)
+            s3_client = self.aws_config.get_client('s3')
             s3_key = f"{self.config.agent_name}/lambda.zip"
-            
+
             s3_client.upload_file(
                 str(zip_path),
                 self.config.s3_bucket,
                 s3_key
             )
-            
+
             logger.info(f"Lambda package uploaded to s3://{self.config.s3_bucket}/{s3_key}")
-        
+
         # Deploy CloudFormation stack
-        cf_client = boto3.client('cloudformation', region_name=self.config.aws_region)
+        cf_client = self.aws_config.get_client('cloudformation')
         
         try:
             cf_client.create_stack(
@@ -723,7 +726,7 @@ class DeploymentManager:
             os.system(f"docker build -t {self.config.agent_name} {output_dir}")
             
             # Tag and push to ECR
-            ecr_client = boto3.client('ecr', region_name=self.config.aws_region)
+            ecr_client = self.aws_config.get_client('ecr')
             
             # Get login token
             token = ecr_client.get_authorization_token()

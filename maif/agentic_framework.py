@@ -22,7 +22,6 @@ import os
 from maif_sdk.artifact import Artifact as MAIFArtifact
 from maif_sdk.client import MAIFClient
 from maif_sdk.types import ContentType, SecurityLevel, CompressionLevel
-from maif_sdk.aws_backend import AWSConfig, create_aws_backends
 
 # Import MAIF advanced features
 from .semantic_optimized import (
@@ -55,6 +54,8 @@ try:
     from .aws_xray_integration import MAIFXRayIntegration
     from .aws_bedrock_integration import BedrockClient, MAIFBedrockIntegration
     from .aws_cloudwatch_compliance import CloudWatchComplianceLogger
+    from .aws_config import get_aws_config, AWSConfig
+    from .bedrock_swarm import BedrockAgentSwarm
     AWS_AVAILABLE = True
 except ImportError:
     AWS_AVAILABLE = False
@@ -92,6 +93,7 @@ class MAIFAgent(ABC):
         self.xray_integration = None
         self.bedrock_integration = None
         self.cloudwatch_logger = None
+        self.bedrock_swarm = None
         
         # Core components
         self.perception = PerceptionSystem(self)
@@ -299,7 +301,7 @@ class MAIFAgent(ABC):
         if self.use_aws:
             aws_data = {
                 "aws_enabled": True,
-                "region": self.aws_config.region_name,
+                "region": self.aws_config.credential_manager.region_name,
                 "services_used": []
             }
             

@@ -30,6 +30,8 @@ logger = get_logger(__name__)
 # Try to import AWS SDK
 try:
     import boto3
+    from .aws_config import get_aws_config
+    from .compliance_logging import EnhancedComplianceLogger
     AWS_AVAILABLE = True
 except ImportError:
     AWS_AVAILABLE = False
@@ -296,8 +298,17 @@ def _send_critical_alert(error: MAIFError):
     # AWS SNS Integration
     if AWS_AVAILABLE and os.environ.get('AWS_SNS_ALERT_TOPIC_ARN'):
         try:
-            sns_client = boto3.client('sns')
-            topic_arn = os.environ['AWS_SNS_ALERT_TOPIC_ARN']
+            # Use centralized AWS config if available
+            if hasattr(boto3, 'get_aws_config'):
+                aws_config = get_aws_config()
+                sns_client = aws_config.get_client('sns')
+            else:
+                sns_client = boto3.client('sns')
+                
+            topic_arn = os.environ.get('AWS_SNS_ALERT_TOPIC_ARN')
+            if not topic_arn:
+                logger.warning("AWS_SNS_ALERT_TOPIC_ARN not set")
+                return
             
             sns_client.publish(
                 TopicArn=topic_arn,

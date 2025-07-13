@@ -12,6 +12,9 @@ from typing import Dict, Any, Optional, List, Callable
 from dataclasses import dataclass
 import boto3
 from botocore.exceptions import ClientError
+
+# Import centralized credential management
+from .aws_config import get_aws_config, AWSConfig
 import uuid
 from datetime import datetime
 
@@ -43,9 +46,12 @@ class APIGatewayIntegration:
         self.stage_name = stage_name
         self.region = region
         
+        # Use centralized AWS configuration
+        self.aws_config = get_aws_config()
+        
         # AWS clients
-        self.apigateway = boto3.client('apigateway', region_name=region)
-        self.lambda_client = boto3.client('lambda', region_name=region)
+        self.apigateway = self.aws_config.get_client('apigateway')
+        self.lambda_client = self.aws_config.get_client('lambda')
         
         # Endpoints registry
         self.endpoints: List[APIEndpoint] = []

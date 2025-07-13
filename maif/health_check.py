@@ -140,7 +140,11 @@ class HealthChecker:
     async def _check_aws_s3(self) -> HealthCheckResult:
         """Check S3 connectivity."""
         try:
-            s3_client = boto3.client('s3')
+            if AWS_CONFIG_AVAILABLE:
+                aws_config = get_aws_config()
+                s3_client = aws_config.get_client('s3')
+            else:
+                s3_client = boto3.client('s3')
             # List buckets to verify connectivity
             s3_client.list_buckets()
             
@@ -182,7 +186,11 @@ class HealthChecker:
     async def _check_aws_kms(self) -> HealthCheckResult:
         """Check KMS connectivity."""
         try:
-            kms_client = boto3.client('kms')
+            if AWS_CONFIG_AVAILABLE:
+                aws_config = get_aws_config()
+                kms_client = aws_config.get_client('kms')
+            else:
+                kms_client = boto3.client('kms')
             # List keys to verify connectivity
             kms_client.list_keys(Limit=1)
             

@@ -18,6 +18,9 @@ import boto3
 from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError
 import numpy as np
 
+# Import centralized credential and config management
+from .aws_config import get_aws_config, AWSConfig
+
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -75,39 +78,56 @@ class BedrockClient:
         'ServiceFailure'
     }
     
-    def __init__(self, region_name: str = "us-east-1", profile_name: Optional[str] = None,
-                max_retries: int = 3, base_delay: float = 0.5, max_delay: float = 5.0):
+    def __init__(self, region_name: Optional[str] = None, profile_name: Optional[str] = None,
+                max_retries: int = 3, base_delay: float = 0.5, max_delay: float = 5.0,
+                aws_config: Optional[AWSConfig] = None):
         """
         Initialize Bedrock client.
         
         Args:
-            region_name: AWS region name
-            profile_name: AWS profile name (optional)
+            region_name: AWS region name (deprecated, use aws_config)
+            profile_name: AWS profile name (deprecated, use aws_config)
             max_retries: Maximum number of retries for transient errors
             base_delay: Base delay for exponential backoff (seconds)
             max_delay: Maximum delay for exponential backoff (seconds)
+            aws_config: Centralized AWS configuration (preferred)
         
         Raises:
             BedrockConnectionError: If unable to initialize the Bedrock client
         """
         # Validate inputs
-        if not region_name:
-            raise BedrockValidationError("region_name cannot be empty")
-        
         if max_retries < 0:
             raise BedrockValidationError("max_retries must be non-negative")
         
         if base_delay <= 0 or max_delay <= 0:
             raise BedrockValidationError("base_delay and max_delay must be positive")
         
-        # Initialize AWS session
+        # Use provided config or get global config
+        self.aws_config = aws_config or get_aws_config()
+        
+        # Handle deprecated parameters for backward compatibility
+        if region_name or profile_name:
+            logger.warning("region_name and profile_name parameters are deprecated. Use aws_config instead.")
+            if not aws_config:
+                # Create a temporary config if using deprecated params
+                from .aws_credentials import configure_aws_credentials
+                cred_manager = configure_aws_credentials(
+                    profile_name=profile_name,
+                    region_name=region_name
+                )
+                self.aws_config = AWSConfig(credential_manager=cred_manager)
+        
+        # Initialize AWS clients using centralized config
         try:
-            logger.info(f"Initializing Bedrock client in region {region_name}")
-            session = boto3.Session(profile_name=profile_name, region_name=region_name)
+            logger.info(f"Initializing Bedrock client in region {self.aws_config.credential_manager.region_name}")
+            
+            # Get bedrock-specific configuration
+            bedrock_runtime_config = self.aws_config.get_service_config('bedrock-runtime')
+            bedrock_config = self.aws_config.get_service_config('bedrock')
             
             # Initialize both bedrock and bedrock-runtime clients
-            self.bedrock_client = session.client('bedrock-runtime')
-            self.bedrock_management_client = session.client('bedrock')
+            self.bedrock_client = self.aws_config.get_client('bedrock-runtime', config=bedrock_runtime_config)
+            self.bedrock_management_client = self.aws_config.get_client('bedrock', config=bedrock_config)
             
             # Retry configuration
             self.max_retries = max_retries

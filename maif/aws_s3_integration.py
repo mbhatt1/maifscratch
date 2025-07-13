@@ -3,6 +3,7 @@ AWS S3 Integration for MAIF
 ==========================
 
 Provides integration with AWS S3 for secure and efficient object storage operations.
+Uses centralized credential management for consistent authentication across services.
 """
 
 import json
@@ -17,6 +18,9 @@ from typing import Dict, List, Optional, Any, Union, Tuple, BinaryIO
 import boto3
 from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError
 import concurrent.futures
+
+# Import centralized credential manager
+from .aws_credentials import get_credential_manager, AWSCredentialManager
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -64,15 +68,19 @@ class S3Client:
         'RequestTimeout'
     }
     
-    def __init__(self, region_name: str = "us-east-1", profile_name: Optional[str] = None,
-                max_retries: int = 3, base_delay: float = 0.5, max_delay: float = 5.0,
-                max_pool_connections: int = 10):
+    def __init__(self,
+                 credential_manager: Optional[AWSCredentialManager] = None,
+                 region_name: Optional[str] = None,
+                 max_retries: int = 3,
+                 base_delay: float = 0.5,
+                 max_delay: float = 5.0,
+                 max_pool_connections: int = 10):
         """
-        Initialize S3 client.
+        Initialize S3 client with centralized credential management.
         
         Args:
-            region_name: AWS region name
-            profile_name: AWS profile name (optional)
+            credential_manager: Optional credential manager instance (uses global if not provided)
+            region_name: AWS region name (overrides credential manager's region if provided)
             max_retries: Maximum number of retries for transient errors
             base_delay: Base delay for exponential backoff (seconds)
             max_delay: Maximum delay for exponential backoff (seconds)
@@ -81,10 +89,13 @@ class S3Client:
         Raises:
             S3ConnectionError: If unable to initialize the S3 client
         """
-        # Validate inputs
-        if not region_name:
-            raise S3ValidationError("region_name cannot be empty")
+        # Use provided credential manager or get global instance
+        self.credential_manager = credential_manager or get_credential_manager()
         
+        # Use provided region or get from credential manager
+        self.region_name = region_name or self.credential_manager.region_name
+        
+        # Validate inputs
         if max_retries < 0:
             raise S3ValidationError("max_retries must be non-negative")
         
@@ -94,13 +105,16 @@ class S3Client:
         if max_pool_connections <= 0:
             raise S3ValidationError("max_pool_connections must be positive")
         
-        # Initialize AWS session
+        # Initialize AWS clients using credential manager
         try:
-            logger.info(f"Initializing S3 client in region {region_name}")
-            session = boto3.Session(profile_name=profile_name, region_name=region_name)
+            logger.info(f"Initializing S3 client in region {self.region_name}")
+            
+            # Get credentials info for logging
+            cred_info = self.credential_manager.get_credential_info()
+            logger.info(f"Using credentials from source: {cred_info['source']}")
             
             # Configure S3 client with connection pooling
-            self.s3_client = session.client(
+            self.s3_client = self.credential_manager.get_client(
                 's3',
                 config=boto3.session.Config(
                     max_pool_connections=max_pool_connections,
@@ -109,7 +123,7 @@ class S3Client:
             )
             
             # For resource-based operations
-            self.s3_resource = session.resource('s3')
+            self.s3_resource = self.credential_manager.get_resource('s3')
             
             # Retry configuration
             self.max_retries = max_retries

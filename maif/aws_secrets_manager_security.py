@@ -17,6 +17,9 @@ from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError, ConnectionError, EndpointConnectionError
 
+# Import centralized credential and config management
+from .aws_config import get_aws_config, AWSConfig
+
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key

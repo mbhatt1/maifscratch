@@ -64,8 +64,13 @@ class BatchProcessor(Generic[T, R]):
         
         # AWS clients
         if use_aws_batch:
-            self.batch_client = boto3.client('batch')
-            self.s3_client = boto3.client('s3')
+            if AWS_CONFIG_AVAILABLE:
+                aws_config = get_aws_config()
+                self.batch_client = aws_config.get_client('batch')
+                self.s3_client = aws_config.get_client('s3')
+            else:
+                self.batch_client = boto3.client('batch')
+                self.s3_client = boto3.client('s3')
             
         # Metrics
         self.total_processed = 0
@@ -310,9 +315,15 @@ class DistributedBatchProcessor:
         self.bucket_name = bucket_name
         
         # AWS clients
-        self.batch_client = boto3.client('batch')
-        self.s3_client = boto3.client('s3')
-        self.sqs_client = boto3.client('sqs')
+        if AWS_CONFIG_AVAILABLE:
+            aws_config = get_aws_config()
+            self.batch_client = aws_config.get_client('batch')
+            self.s3_client = aws_config.get_client('s3')
+            self.sqs_client = aws_config.get_client('sqs')
+        else:
+            self.batch_client = boto3.client('batch')
+            self.s3_client = boto3.client('s3')
+            self.sqs_client = boto3.client('sqs')
         
     async def submit_batch(
         self,

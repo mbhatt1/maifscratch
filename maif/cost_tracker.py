@@ -322,7 +322,11 @@ class AWSCostExplorer:
     """Integration with AWS Cost Explorer API."""
     
     def __init__(self):
-        self.ce_client = boto3.client('ce')
+        if AWS_CONFIG_AVAILABLE:
+            aws_config = get_aws_config()
+            self.ce_client = aws_config.get_client('ce')
+        else:
+            self.ce_client = boto3.client('ce')
         
     async def get_actual_costs(
         self,

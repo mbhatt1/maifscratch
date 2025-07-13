@@ -134,11 +134,11 @@ class AWSExecutionSystem(ExecutionSystem):
             "generate_image": self._generate_image_with_bedrock
         })
         
-        # Initialize AWS clients
-        session = boto3.Session(region_name=region_name)
-        self.lambda_client = session.client('lambda')
-        self.s3_client = session.client('s3')
-        self.dynamodb = session.resource('dynamodb')
+        # Initialize AWS clients using centralized config
+        self.aws_config = get_aws_config()
+        self.lambda_client = self.aws_config.get_client('lambda')
+        self.s3_client = self.aws_config.get_client('s3')
+        self.dynamodb = self.aws_config.get_resource('dynamodb')
         
         # Initialize Bedrock
         bedrock_client = BedrockClient(region_name=region_name)
@@ -521,9 +521,9 @@ class StepFunctionsWorkflowSystem:
         """Initialize Step Functions workflow system."""
         self.agent = agent
         
-        # Initialize AWS Step Functions client
-        session = boto3.Session(region_name=region_name)
-        self.sfn_client = session.client('stepfunctions')
+        # Initialize AWS Step Functions client using centralized config
+        self.aws_config = get_aws_config()
+        self.sfn_client = self.aws_config.get_client('stepfunctions')
         
         # Store workflow definitions and executions
         self.workflows = {}

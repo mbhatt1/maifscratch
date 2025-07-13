@@ -197,12 +197,95 @@ blocks = storage.query_blocks(
 
 ## AWS Integration
 
+### Tightly Integrated AWS Credential Management
+
+MAIF features a revolutionary centralized credential system - configure AWS once and ALL services automatically use those credentials:
+
+```python
+from maif.aws_config import configure_aws
+
+# ONE-TIME SETUP: Configure globally for ALL services
+configure_aws(
+    environment="production",
+    profile="my-aws-profile",  # Or use IAM role, env vars, etc.
+    region="us-east-1"
+)
+
+# THAT'S IT! Every AWS service now uses these credentials automatically
+```
+
+#### Zero-Configuration Service Integration
+
+Once configured, ALL AWS services in MAIF automatically use the centralized credentials:
+
+```python
+# No credentials needed - they're already configured globally!
+from maif.aws_bedrock_integration import BedrockClient
+from maif.aws_s3_integration import S3Client
+from maif.aws_dynamodb_integration import DynamoDBClient
+from maif.aws_kms_integration import KMSClient
+from maif.aws_lambda_integration import LambdaClient
+
+bedrock = BedrockClient()      # ✓ Automatically uses global config
+s3 = S3Client()                # ✓ Automatically uses global config
+dynamodb = DynamoDBClient()    # ✓ Automatically uses global config
+kms = KMSClient()              # ✓ Automatically uses global config
+lambda_client = LambdaClient() # ✓ Automatically uses global config
+
+# Even security features automatically use the global KMS config!
+from maif.security import SecurityManager
+security = SecurityManager(use_kms=True)  # ✓ Uses global KMS automatically
+```
+
+The credential manager supports:
+- **Environment variables** - Auto-detected from AWS_* vars
+- **IAM roles** - EC2, ECS, Lambda instance roles
+- **AWS profiles** - From ~/.aws/credentials
+- **Explicit credentials** - For CI/CD pipelines
+- **Role assumption** - Cross-account access
+- **Container credentials** - ECS task roles
+- **Instance metadata** - EC2 IMDS v2
+- **Automatic refresh** - Temporary credentials refresh before expiry
+
+Benefits of tight integration:
+- **Zero redundancy** - Configure once, use everywhere
+- **Thread-safe** - Safe for concurrent operations
+- **Auto-refresh** - Credentials never expire
+- **Environment-aware** - Different settings per environment
+- **Service-optimized** - Each service gets ideal retry/timeout config
+
+### S3 Integration
+
+```python
+from maif.aws_s3_integration import S3Client
+from maif.aws_config import get_aws_config
+
+# S3 client automatically uses configured credentials
+s3_client = S3Client()  # Uses global AWS configuration
+
+# Or provide custom configuration
+from maif.aws_credentials import AWSCredentialManager
+custom_creds = AWSCredentialManager.from_profile("custom-profile")
+s3_client = S3Client(credential_manager=custom_creds)
+
+# Upload MAIF file
+s3_client.upload_file(
+    local_path="agent_data.maif",
+    bucket="my-bucket",
+    key="data/agent_data.maif"
+)
+
+# Stream blocks from S3
+for block in s3_client.stream_blocks("my-bucket", "data/agent_data.maif"):
+    process_block(block)
+```
+
 ### Lambda Deployment
 
 ```python
 from maif.aws_lambda_integration import deploy_maif_handler
 
-# Deploy MAIF processing to Lambda
+# Deploy MAIF processing to Lambda (uses configured credentials)
 deploy_maif_handler(
     function_name="maif-processor",
     handler="process_maif_file",
@@ -211,31 +294,39 @@ deploy_maif_handler(
 )
 ```
 
-### S3 Streaming
-
-```python
-from maif.aws_s3_integration import S3BlockStorage
-
-# Stream from S3
-s3_storage = S3BlockStorage(
-    bucket="my-maif-bucket",
-    key="agent-data/conversation.maif"
-)
-
-# Process blocks without downloading entire file
-for block in s3_storage.stream_blocks():
-    process_block(block)
-```
-
 ### CloudWatch Integration
 
 ```python
-# Automatic metrics collection
 from maif.aws_cloudwatch_compliance import CloudWatchLogger
 
+# CloudWatch logger uses configured credentials
 cw_logger = CloudWatchLogger(namespace="MAIF/Production")
 cw_logger.log_metric("BlocksProcessed", count=100)
 cw_logger.log_metric("ProcessingTime", value=30, unit="Milliseconds")
+```
+
+### Environment-Specific Configuration
+
+```python
+from maif.aws_config import configure_aws, AWSEnvironment
+
+# Development environment
+configure_aws(
+    environment="development",
+    enable_debug=True,
+    enable_monitoring=False
+)
+
+# Production environment with strict settings
+configure_aws(
+    environment="production",
+    enable_monitoring=True,
+    enable_debug=False
+)
+
+# GovCloud environment
+from maif.aws_config import AWSConfig
+config = AWSConfig.for_govcloud()
 ```
 
 ## Security Considerations

@@ -297,7 +297,7 @@ class MacieClient:
             's3JobDefinition': {
                 'bucketDefinitions': [
                     {
-                        'accountId': boto3.client('sts').get_caller_identity()['Account'],
+                        'accountId': self.aws_config.get_client('sts').get_caller_identity()['Account'],
                         'buckets': [bucket_name]
                     }
                 ]

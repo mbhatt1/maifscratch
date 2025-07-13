@@ -25,6 +25,8 @@ try:
     import boto3
     from botocore.exceptions import ClientError
     AWS_AVAILABLE = True
+    # Import centralized credential and config management
+    from .aws_config import get_aws_config, AWSConfig
 except ImportError:
     AWS_AVAILABLE = False
 

@@ -23,6 +23,8 @@ from .signature_verification import (
     verify_block_signature, SignatureInfo
 )
 from .aws_s3_integration import S3Client
+from .security import SecurityManager
+from .compliance_logging import EnhancedComplianceLogger
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -303,6 +305,20 @@ class S3BlockStorage(BlockStorage):
             if key != 'signature' and isinstance(value, (str, int, float, bool)):
                 s3_metadata[f'user_{key}'] = str(value)
         
+        # Encrypt data if security is enabled
+        encrypted_data = data
+        if self.security_manager and self.enable_encryption:
+            try:
+                encrypted_result = self.security_manager.encrypt_data(data)
+                encrypted_data = encrypted_result.get('ciphertext', data)
+                s3_metadata['encrypted'] = 'true'
+                s3_metadata['encryption_method'] = encrypted_result.get('method', 'unknown')
+                logger.debug(f"Block {block_uuid} encrypted with KMS")
+            except Exception as e:
+                logger.error(f"Failed to encrypt block {block_uuid}: {e}")
+                if self.security_manager.require_encryption:
+                    raise
+        
         # Store in S3
         s3_key = f"{self.prefix}data/{block_uuid}"
         
@@ -310,9 +326,24 @@ class S3BlockStorage(BlockStorage):
             self.s3_client.put_object(
                 bucket_name=self.bucket_name,
                 key=s3_key,
-                data=data,
+                data=encrypted_data,
                 metadata=s3_metadata
             )
+            
+            # Log compliance event
+            if self.compliance_logger:
+                self.compliance_logger.log_event(
+                    event_type="BLOCK_STORED",
+                    resource=f"s3://{self.bucket_name}/{s3_key}",
+                    action="WRITE",
+                    details={
+                        "block_uuid": block_uuid,
+                        "block_type": block_type,
+                        "encrypted": s3_metadata.get('encrypted', 'false'),
+                        "size": len(encrypted_data)
+                    },
+                    compliance_frameworks=["HIPAA", "FISMA"]
+                )
             
             logger.info(f"Stored block {block_uuid} in S3")
             
