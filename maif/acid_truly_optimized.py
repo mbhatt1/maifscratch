@@ -345,8 +345,8 @@ class TrulyOptimizedTransactionManager:
         for txn_id in list(self.active_transactions.keys()):
             try:
                 self.rollback_transaction(txn_id)
-            except:
-                pass
+            except (OSError, IOError):
+                pass  # Best effort - may already be closed
         
         if self.wal:
             self.wal.close()

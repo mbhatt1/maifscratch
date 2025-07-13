@@ -168,8 +168,8 @@ class CertificatePathBuilder:
             basic_constraints = cert.extensions.get_extension_for_oid(ExtensionOID.BASIC_CONSTRAINTS)
             is_ca = basic_constraints.value.ca
             path_length = basic_constraints.value.path_length
-        except:
-            pass
+        except x509.ExtensionNotFound:
+            pass  # Authority information access extension not present
         
         # Extract key usage
         key_usage = []
@@ -182,8 +182,8 @@ class CertificatePathBuilder:
                 key_usage.append("key_cert_sign")
             if ku.crl_sign:
                 key_usage.append("crl_sign")
-        except:
-            pass
+        except x509.ExtensionNotFound:
+            pass  # CRL distribution points extension not present
         
         # Extract revocation info
         revocation_info = {}
@@ -193,8 +193,8 @@ class CertificatePathBuilder:
                 point.full_name[0].value for point in crl_ext.value 
                 if point.full_name
             ]
-        except:
-            pass
+        except x509.ExtensionNotFound:
+            pass  # Key usage extension not present
         
         try:
             aia_ext = cert.extensions.get_extension_for_oid(ExtensionOID.AUTHORITY_INFORMATION_ACCESS)
@@ -204,8 +204,8 @@ class CertificatePathBuilder:
                     ocsp_urls.append(desc.access_location.value)
             if ocsp_urls:
                 revocation_info["ocsp_urls"] = ocsp_urls
-        except:
-            pass
+        except x509.ExtensionNotFound:
+            pass  # Basic constraints extension not present
         
         return CertificateInfo(
             certificate=cert,

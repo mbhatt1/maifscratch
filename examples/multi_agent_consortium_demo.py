@@ -2119,7 +2119,8 @@ class CoordinatorAgent(BaseAgent):
                         try:
                             content = maif_artifact.decoder.get_text_block(block.block_id)
                             block_summary["content_preview"] = content  # Show full content without truncation
-                        except:
+                        except (AttributeError, KeyError, Exception) as e:
+                            logger.debug(f"Could not access block content: {e}")
                             block_summary["content_preview"] = "[Content not accessible]"
                     
                     context["content_blocks"].append(block_summary)
@@ -2192,7 +2193,8 @@ class CoordinatorAgent(BaseAgent):
             if hasattr(agent.maif, 'decoder'):
                 embeddings_list = agent.maif.decoder.get_embeddings()
                 context["embeddings_available"] = len(embeddings_list) if embeddings_list else 0
-        except:
+        except (AttributeError, TypeError, Exception) as e:
+            logger.debug(f"Could not get embeddings info: {e}")
             context["embeddings_available"] = 0
         
         # Add cross-modal data info if available
@@ -2217,7 +2219,8 @@ class CoordinatorAgent(BaseAgent):
                         block.metadata and block.metadata.get("type") == "knowledge_triple"):
                         knowledge_triple_count += 1
             context["knowledge_triples_count"] = knowledge_triple_count
-        except:
+        except (AttributeError, TypeError, Exception) as e:
+            logger.debug(f"Could not count knowledge triples: {e}")
             context["knowledge_triples_count"] = 0
         
         return context
@@ -2835,7 +2838,8 @@ def generate_comprehensive_trace(agents: List[BaseAgent], coordinator_agent: Coo
                     "embeddings_available": len(agent.maif.decoder.get_embeddings()) if hasattr(agent.maif.decoder, 'get_embeddings') else 0,
                     "version_history": len(getattr(agent.maif.decoder, 'version_history', {}))
                 }
-            except:
+            except (AttributeError, TypeError, Exception) as e:
+                logger.debug(f"Could not access MAIF state for agent {agent.agent_id}: {e}")
                 agent_profile["maif_state"] = {"error": "Could not access MAIF state"}
         
         trace["agent_profiles"][agent.agent_id] = agent_profile

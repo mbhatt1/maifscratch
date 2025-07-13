@@ -492,8 +492,8 @@ class MAIFClient:
                             # Clean up
                             try:
                                 os.unlink(temp_file)
-                            except:
-                                pass
+                            except (OSError, IOError):
+                                pass  # File already deleted or inaccessible
                                 
                         flush_results['buffers_flushed'] += 1
                 except Exception as e:
@@ -587,8 +587,8 @@ class MAIFClient:
             for mm in self._mmaps.values():
                 try:
                     mm.close()
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to close memory map: {e}")
             self._mmaps.clear()
             
             # Close encoders
@@ -596,8 +596,8 @@ class MAIFClient:
                 try:
                     if hasattr(encoder, 'close'):
                         encoder.close()
-                except:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed to close encoder: {e}")
             self._encoders.clear()
             
             # Decoders don't need explicit closing

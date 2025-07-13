@@ -363,7 +363,7 @@ class DistributedCoordinator:
                 self.server_socket.listen(5)
                 logger.info(f"Distributed coordinator listening on port {port}")
                 break
-            except:
+            except (socket.error, OSError):
                 continue
         
         while self.running:
@@ -374,7 +374,8 @@ class DistributedCoordinator:
                     args=(conn,),
                     daemon=True
                 ).start()
-            except:
+            except Exception as e:
+                logger.debug(f"Heartbeat thread error: {e}")
                 break
     
     def _handle_connection(self, conn: socket.socket):
@@ -508,8 +509,8 @@ class DistributedCoordinator:
                 sock.connect((host, port))
                 sock.sendall(size + data)
                 sock.close()
-            except:
-                pass
+            except (socket.error, OSError):
+                pass  # Socket already closed
     
     def broadcast_lock_request(self, lock_id: str, timestamp: float):
         """Broadcast lock request."""

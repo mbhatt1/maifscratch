@@ -403,8 +403,8 @@ class WriteAheadLog:
                 try:
                     self.wal_file.flush()
                     os.fsync(self.wal_file.fileno())
-                except:
-                    pass
+                except (OSError, IOError):
+                    pass  # Best effort - file may already be closed
                 finally:
                     self.wal_file.close()
                     self.wal_file = None
@@ -937,7 +937,8 @@ class AcidMAIFEncoder:
         if self._current_transaction:
             try:
                 self.commit_transaction()
-            except:
+            except Exception as e:
+                logger.warning(f"Failed to commit transaction, aborting: {e}")
                 self.abort_transaction()
         
         # Close transaction manager
@@ -948,8 +949,8 @@ class AcidMAIFEncoder:
         if self._encoder:
             try:
                 self._encoder.close()
-            except:
-                pass
+            except Exception:
+                pass  # Best effort - encoder may already be closed
     
     def __enter__(self):
         """Context manager support."""
@@ -966,8 +967,8 @@ class AcidMAIFEncoder:
         """Destructor to ensure cleanup."""
         try:
             self.close()
-        except:
-            pass
+        except Exception:
+            pass  # Prevent exceptions in destructor
         """Commit the current transaction."""
         if not self._current_transaction:
             return False

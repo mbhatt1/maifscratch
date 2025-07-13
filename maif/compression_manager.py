@@ -241,6 +241,7 @@ class CompressionManager:
                     return self.decompress(data, CompressionAlgorithm.LZ4)
                 else:
                     return self.decompress(data, CompressionAlgorithm.ZLIB)
-            except:
+            except (CompressionError, ValueError, Exception) as e:
                 # Last resort: return data as-is
+                logger.debug(f"All decompression attempts failed: {e}")
                 return data

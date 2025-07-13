@@ -135,8 +135,8 @@ class BlockStorage:
                 try:
                     self.file_handle.flush()
                     self.file_handle.close()
-                except:
-                    pass
+                except (OSError, IOError):
+                    pass  # Best effort - file may already be closed
                 self.file_handle = None
     
     def add_block(self, block_type: str, data: bytes, metadata: Optional[Dict] = None) -> str:
@@ -568,7 +568,7 @@ class HighPerformanceBlockParser:
                 BlockHeader.from_bytes(self.buffer[:BlockStorage.HEADER_SIZE])
                 # If successful, we found a valid header
                 return
-            except:
+            except (ValueError, struct.error, Exception):
                 # Skip one byte and try again
                 self.buffer = self.buffer[1:]
         

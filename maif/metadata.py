@@ -592,8 +592,8 @@ class MAIFMetadataManager:
             # Timestamps
             try:
                 timestamps.append(datetime.fromisoformat(record.timestamp.replace('Z', '+00:00')))
-            except:
-                pass
+            except (ValueError, AttributeError):
+                pass  # Invalid timestamp format
         
         if timestamps:
             timestamps.sort()

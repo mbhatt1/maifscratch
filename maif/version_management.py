@@ -637,8 +637,8 @@ class VersionManager:
                         metadata = json.loads(metadata_bytes.decode('utf-8'))
                         if "schema_version" in metadata:
                             return metadata["schema_version"]
-                    except:
-                        pass
+                    except (KeyError, AttributeError):
+                        pass  # Metadata not available
             
             # Fall back to binary version
             return f"{version_major}.{version_minor}"

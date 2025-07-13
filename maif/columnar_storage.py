@@ -150,7 +150,7 @@ class ColumnChunk:
         
         try:
             return json.loads(value)
-        except:
+        except (json.JSONDecodeError, ValueError, TypeError):
             return value
 
 

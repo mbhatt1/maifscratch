@@ -383,10 +383,10 @@ class PrivacyEngine:
                     else:
                         # Fallback to AES-GCM for non-numeric data
                         return self._encrypt_aes_gcm(data, key)
-                except:
+                except (json.JSONDecodeError, ValueError):
                     # Fallback to AES-GCM for non-JSON data
                     return self._encrypt_aes_gcm(data, key)
-        except:
+        except (ValueError, TypeError):
             # Fallback to AES-GCM for data that can't be interpreted as a number
             return self._encrypt_aes_gcm(data, key)
         

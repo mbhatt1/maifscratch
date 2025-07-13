@@ -149,8 +149,8 @@ class PKIAuthenticator:
                 key_usage = cert.extensions.get_extension_for_oid(ExtensionOID.KEY_USAGE)
                 if not key_usage.value.digital_signature:
                     return False, {"error": "Certificate not valid for authentication", **cert_info}
-            except:
-                pass
+            except Exception as e:
+                logger.debug(f"Failed to set file permissions: {e}")
                 
             # Verify certificate chain against trusted CAs
             if self.trusted_cas:
@@ -257,7 +257,7 @@ class AWSClassifiedIntegration:
         try:
             self.cloudhsm_client = boto3.client('cloudhsmv2', **session_config)
             self.hsm_available = True
-        except:
+        except ImportError:
             self.hsm_available = False
             logger.warning("CloudHSM not available in this region")
     
@@ -608,8 +608,8 @@ class HardwareMFAAuthenticator:
                 # Would verify signature over authenticatorData + clientDataHash
                 return True
                 
-        except:
-            pass
+        except x509.ExtensionNotFound:
+            pass  # Key usage extension not present
         
         return False
     

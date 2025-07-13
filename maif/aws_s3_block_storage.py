@@ -173,8 +173,8 @@ class S3BlockStorage(BlockStorage):
                                 try:
                                     signature_data = json.loads(metadata['signature'])
                                     self.block_signatures[block_uuid] = signature_data
-                                except:
-                                    pass
+                                except (json.JSONDecodeError, TypeError):
+                                    pass  # Invalid signature format
                     
                     except Exception as e:
                         logger.warning(f"Error processing block {block_uuid}: {e}")

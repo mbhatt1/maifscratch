@@ -495,7 +495,7 @@ def verify_block_signature(verifier: SignatureVerifier, block_data: bytes,
                 # Try PEM format first
                 try:
                     return serialization.load_pem_private_key(key_data, password=None)
-                except:
+                except ValueError:
                     # Fallback to raw key derivation
                     return ec.derive_private_key(
                         int.from_bytes(key_data[:32], byteorder='big'),

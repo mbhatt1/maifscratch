@@ -122,7 +122,7 @@ def main():
                 try:
                     json_data = json.loads(data.decode('utf-8'))
                     logger.info(f"Read record: {json_data}")
-                except:
+                except (json.JSONDecodeError, UnicodeDecodeError):
                     logger.info(f"Read raw record: {data[:50]}...")
                 
                 if record_count >= max_records:
@@ -200,7 +200,8 @@ def main():
                 
                 logger.info(f"Processed record: {json_data.get('id', 'unknown')}")
                 return processed_data
-            except:
+            except (json.JSONDecodeError, KeyError, TypeError) as e:
+                logger.error(f"Failed to process record: {e}")
                 return {"error": "Failed to process record", "raw_data": data[:50]}
         
         # Process stream
