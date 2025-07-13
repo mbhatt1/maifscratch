@@ -2,10 +2,19 @@
 Basic usage example for MAIF library.
 """
 
+import sys
+import os
+# Add parent directory to path to import maif_sdk
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import json
+import logging
 from maif import MAIFEncoder, MAIFParser, MAIFSigner, MAIFVerifier
-from maif.semantic import SemanticEmbedder, KnowledgeGraphBuilder
+from maif.semantic import SemanticEmbedder, KnowledgeGraphBuilder, SemanticEmbedding
 from maif.forensics import ForensicAnalyzer
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 def create_sample_maif():
     """Create a sample MAIF file with multimodal content."""
@@ -58,7 +67,6 @@ def create_sample_maif():
     encoder.build_maif("sample.maif", "sample_manifest.json")
     
     # Sign the manifest
-    import json
     with open("sample_manifest.json", "r") as f:
         manifest = json.load(f)
     
@@ -144,7 +152,6 @@ def demonstrate_semantic_search():
     similarities = []
     for i, embedding_vector in enumerate(content['embeddings']):
         # Create embedding object for comparison
-        from maif.semantic import SemanticEmbedding
         doc_embedding = SemanticEmbedding(
             vector=embedding_vector,
             source_hash="",

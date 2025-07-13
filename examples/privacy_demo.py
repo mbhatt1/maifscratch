@@ -128,7 +128,14 @@ def demo_access_control():
         
         # Get privacy summary
         privacy_summary = decoder.get_privacy_summary()
-        print(f"Access ratio: {privacy_summary['access_ratio']:.2%}")
+        # Calculate access ratio from available data
+        total_blocks = privacy_summary.get('total_blocks', 0)
+        access_controlled = privacy_summary.get('access_controlled_blocks', 0)
+        if total_blocks > 0:
+            access_ratio = access_controlled / total_blocks
+            print(f"Access ratio: {access_ratio:.2%}")
+        else:
+            print("Access ratio: N/A (no blocks)")
 
 def demo_advanced_privacy():
     """Demonstrate advanced privacy features."""
