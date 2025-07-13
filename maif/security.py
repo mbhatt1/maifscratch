@@ -1,5 +1,11 @@
 """
 Security and cryptographic functionality for MAIF.
+
+This module provides comprehensive security features including:
+- AWS KMS integration for secure key management
+- Digital signatures and provenance tracking
+- FIPS 140-2 compliant encryption
+- Audit logging for security events
 """
 
 import hashlib
@@ -14,6 +20,16 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key, l
 from cryptography.exceptions import InvalidSignature
 from dataclasses import dataclass, field
 import uuid
+import os
+import base64
+
+# Import KMS integration
+try:
+    from .aws_kms_integration import KMSKeyStore, KMSSignatureVerifier, create_kms_verifier
+    KMS_AVAILABLE = True
+except ImportError:
+    KMS_AVAILABLE = False
+    logger.warning("AWS KMS integration not available. Security features will be limited.")
 
 logger = logging.getLogger(__name__)
 
@@ -645,14 +661,64 @@ class AccessControlManager:
 
 
 class SecurityManager:
-    """Security manager for MAIF operations."""
+    """Security manager for MAIF operations with KMS integration."""
     
-    def __init__(self):
+    def __init__(self, use_kms: bool = True, kms_key_id: Optional[str] = None,
+                 region_name: str = "us-east-1", require_encryption: bool = True):
+        """
+        Initialize SecurityManager with optional KMS integration.
+        
+        Args:
+            use_kms: Whether to use AWS KMS for encryption (default: True)
+            kms_key_id: KMS key ID for encryption operations
+            region_name: AWS region for KMS operations
+            require_encryption: If True, raises exception when encryption fails (default: True)
+        """
         self.signer = MAIFSigner()
         self.access_control = AccessControlManager()
         self.security_events = []
         self._lock = threading.RLock()
         self.security_enabled = True
+        self.require_encryption = require_encryption
+        
+        # Initialize KMS integration if available and requested
+        self.kms_enabled = use_kms and KMS_AVAILABLE
+        self.kms_key_id = kms_key_id
+        self.kms_verifier = None
+        
+        if self.kms_enabled:
+            try:
+                if not kms_key_id:
+                    raise ValueError("KMS key ID is required when use_kms=True")
+                    
+                # Create KMS verifier for encryption operations
+                self.kms_verifier = create_kms_verifier(region_name=region_name)
+                
+                # Validate KMS key exists and is accessible
+                key_metadata = self.kms_verifier.key_store.get_key_metadata(kms_key_id)
+                if not key_metadata:
+                    raise ValueError(f"KMS key {kms_key_id} not found or not accessible")
+                    
+                # Ensure key is enabled
+                if key_metadata.get('KeyState') != 'Enabled':
+                    raise ValueError(f"KMS key {kms_key_id} is not in Enabled state")
+                    
+                logger.info(f"Initialized SecurityManager with KMS key {kms_key_id}")
+                self.log_security_event('kms_initialized', {
+                    'key_id': kms_key_id,
+                    'region': region_name,
+                    'key_state': key_metadata.get('KeyState')
+                })
+                
+            except Exception as e:
+                logger.error(f"Failed to initialize KMS: {e}")
+                if self.require_encryption:
+                    raise RuntimeError(f"KMS initialization failed and encryption is required: {e}")
+                self.kms_enabled = False
+                self.log_security_event('kms_initialization_failed', {
+                    'error': str(e),
+                    'fallback': 'disabled'
+                })
     
     def enable_security(self, enable: bool = True):
         """Enable or disable security features."""
@@ -691,120 +757,312 @@ class SecurityManager:
     
     def encrypt_data(self, data: bytes) -> bytes:
         """
-        Encrypt data using AES-GCM for strong security.
+        Encrypt data using KMS or FIPS-compliant encryption.
         
-        This is a real implementation using industry-standard encryption.
+        Args:
+            data: Data to encrypt
+            
+        Returns:
+            Encrypted data with metadata
+            
+        Raises:
+            RuntimeError: If encryption fails and require_encryption is True
         """
+        if not data:
+            raise ValueError("Cannot encrypt empty data")
+            
         # Log the encryption event
-        self.log_security_event('encrypt', {'data_size': len(data)})
+        self.log_security_event('encrypt_request', {
+            'data_size': len(data),
+            'method': 'kms' if self.kms_enabled else 'local_fips'
+        })
         
         try:
-            from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-            from cryptography.hazmat.backends import default_backend
-            import os
-            import base64
-            import json
+            if self.kms_enabled and self.kms_verifier:
+                # Use KMS for encryption
+                import boto3
+                kms = boto3.client('kms', region_name=self.kms_verifier.key_store.kms_client.meta.region_name)
+                
+                # KMS has a 4KB limit for direct encryption, use envelope encryption for larger data
+                if len(data) <= 4096:
+                    # Direct KMS encryption
+                    response = kms.encrypt(
+                        KeyId=self.kms_key_id,
+                        Plaintext=data
+                    )
+                    
+                    encrypted_data = response['CiphertextBlob']
+                    
+                    # Create metadata for KMS-encrypted data
+                    metadata = {
+                        'encryption_method': 'kms_direct',
+                        'key_id': self.kms_key_id,
+                        'algorithm': 'SYMMETRIC_DEFAULT'
+                    }
+                else:
+                    # Envelope encryption for larger data
+                    # Generate data encryption key using KMS
+                    dek_response = kms.generate_data_key(
+                        KeyId=self.kms_key_id,
+                        KeySpec='AES_256'
+                    )
+                    
+                    plaintext_key = dek_response['Plaintext']
+                    encrypted_key = dek_response['CiphertextBlob']
+                    
+                    # Use the plaintext key to encrypt the data
+                    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+                    from cryptography.hazmat.backends import default_backend
+                    
+                    iv = os.urandom(12)  # 96 bits for GCM
+                    cipher = Cipher(
+                        algorithms.AES(plaintext_key),
+                        modes.GCM(iv),
+                        backend=default_backend()
+                    )
+                    encryptor = cipher.encryptor()
+                    ciphertext = encryptor.update(data) + encryptor.finalize()
+                    tag = encryptor.tag
+                    
+                    # Clear the plaintext key from memory
+                    plaintext_key = None
+                    
+                    # Create metadata for envelope encryption
+                    metadata = {
+                        'encryption_method': 'kms_envelope',
+                        'key_id': self.kms_key_id,
+                        'encrypted_dek': base64.b64encode(encrypted_key).decode('ascii'),
+                        'iv': base64.b64encode(iv).decode('ascii'),
+                        'tag': base64.b64encode(tag).decode('ascii')
+                    }
+                    
+                    encrypted_data = ciphertext
+                
+                # Package the encrypted data with metadata
+                metadata_bytes = json.dumps(metadata).encode('utf-8')
+                header_length = len(metadata_bytes).to_bytes(4, byteorder='big')
+                
+                result = header_length + metadata_bytes + encrypted_data
+                
+                self.log_security_event('encrypt_success', {
+                    'method': metadata['encryption_method'],
+                    'encrypted_size': len(result)
+                })
+                
+                return result
+                
+            else:
+                # Use local FIPS-compliant encryption
+                from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+                from cryptography.hazmat.backends import default_backend
+                from cryptography.hazmat.primitives import hashes
+                from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+                
+                # Generate a proper key using PBKDF2 (FIPS-compliant key derivation)
+                if not hasattr(self, '_master_key'):
+                    # Generate master key using system entropy
+                    self._master_key = os.urandom(32)
+                    
+                # Derive encryption key using PBKDF2
+                salt = os.urandom(16)
+                kdf = PBKDF2HMAC(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=salt,
+                    iterations=100000,  # NIST recommended minimum
+                    backend=default_backend()
+                )
+                key = kdf.derive(self._master_key)
+                
+                # Encrypt using AES-GCM (FIPS-approved)
+                iv = os.urandom(12)
+                cipher = Cipher(
+                    algorithms.AES(key),
+                    modes.GCM(iv),
+                    backend=default_backend()
+                )
+                encryptor = cipher.encryptor()
+                ciphertext = encryptor.update(data) + encryptor.finalize()
+                tag = encryptor.tag
+                
+                # Create metadata
+                metadata = {
+                    'encryption_method': 'local_fips',
+                    'algorithm': 'AES-256-GCM',
+                    'kdf': 'PBKDF2-HMAC-SHA256',
+                    'iterations': 100000,
+                    'salt': base64.b64encode(salt).decode('ascii'),
+                    'iv': base64.b64encode(iv).decode('ascii'),
+                    'tag': base64.b64encode(tag).decode('ascii')
+                }
+                
+                # Package the result
+                metadata_bytes = json.dumps(metadata).encode('utf-8')
+                header_length = len(metadata_bytes).to_bytes(4, byteorder='big')
+                
+                result = header_length + metadata_bytes + ciphertext
+                
+                self.log_security_event('encrypt_success', {
+                    'method': 'local_fips',
+                    'encrypted_size': len(result)
+                })
+                
+                return result
+                
+        except Exception as e:
+            self.log_security_event('encrypt_failure', {
+                'error': str(e),
+                'error_type': type(e).__name__
+            })
             
-            # Generate a random key if not already available
-            if not hasattr(self, 'encryption_key'):
-                import os
-                self.encryption_key = os.urandom(32)  # 256-bit key for AES-256
-            
-            # Generate a random IV (Initialization Vector)
-            iv = os.urandom(12)  # 96 bits as recommended for GCM
-            
-            # Create an encryptor
-            cipher = Cipher(
-                algorithms.AES(self.encryption_key),
-                modes.GCM(iv),
-                backend=default_backend()
-            )
-            encryptor = cipher.encryptor()
-            
-            # Encrypt the data
-            ciphertext = encryptor.update(data) + encryptor.finalize()
-            
-            # Get the authentication tag
-            tag = encryptor.tag
-            
-            # Create a metadata structure with encryption parameters
-            metadata = {
-                'algorithm': 'AES-GCM',
-                'iv': base64.b64encode(iv).decode('ascii'),
-                'tag': base64.b64encode(tag).decode('ascii')
-            }
-            
-            # Prepend metadata as a JSON header to the ciphertext
-            metadata_bytes = json.dumps(metadata).encode('utf-8')
-            header_length = len(metadata_bytes).to_bytes(4, byteorder='big')
-            
-            # Return the complete encrypted package
-            return header_length + metadata_bytes + ciphertext
-            
-        except ImportError:
-            # Fallback if cryptography library is not available
-            self.log_security_event('encrypt_fallback', {'reason': 'cryptography library not available'})
-            header = b'ENCRYPTED:'
-            return header + data
+            if self.require_encryption:
+                raise RuntimeError(f"Encryption failed: {e}")
+            else:
+                # This should never happen in production
+                raise RuntimeError("Encryption is required but failed")
     
     def decrypt_data(self, data: bytes) -> bytes:
         """
-        Decrypt data that was encrypted with AES-GCM.
+        Decrypt data that was encrypted with KMS or FIPS-compliant encryption.
         
-        This is a real implementation using industry-standard decryption.
+        Args:
+            data: Encrypted data with metadata
+            
+        Returns:
+            Decrypted data
+            
+        Raises:
+            RuntimeError: If decryption fails and require_encryption is True
         """
+        if not data:
+            raise ValueError("Cannot decrypt empty data")
+            
         # Log the decryption event
-        self.log_security_event('decrypt', {'data_size': len(data)})
+        self.log_security_event('decrypt_request', {'data_size': len(data)})
         
         try:
-            from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-            from cryptography.hazmat.backends import default_backend
-            import base64
-            import json
-            
-            # Check for legacy format
-            if data.startswith(b'ENCRYPTED:'):
-                return data[len(b'ENCRYPTED:'):]
-            
-            # Extract the metadata header length
+            # Extract metadata
+            if len(data) < 4:
+                raise ValueError("Invalid encrypted data format")
+                
             header_length = int.from_bytes(data[:4], byteorder='big')
             
-            # Extract and parse the metadata
+            if len(data) < 4 + header_length:
+                raise ValueError("Invalid encrypted data format")
+                
             metadata_bytes = data[4:4+header_length]
             metadata = json.loads(metadata_bytes.decode('utf-8'))
+            encrypted_data = data[4+header_length:]
             
-            # Extract the ciphertext
-            ciphertext = data[4+header_length:]
+            encryption_method = metadata.get('encryption_method')
             
-            # Get encryption parameters from metadata
-            iv = base64.b64decode(metadata['iv'])
-            tag = base64.b64decode(metadata['tag'])
-            
-            # Create a decryptor
-            cipher = Cipher(
-                algorithms.AES(self.encryption_key),
-                modes.GCM(iv, tag),
-                backend=default_backend()
-            )
-            decryptor = cipher.decryptor()
-            
-            # Decrypt the data
-            plaintext = decryptor.update(ciphertext) + decryptor.finalize()
-            
-            return plaintext
-            
-        except ImportError as e:
-            # Fallback if cryptography library is not available
-            self.log_security_event('decrypt_fallback', {'reason': 'cryptography library not available'})
-            if data.startswith(b'ENCRYPTED:'):
-                return data[len(b'ENCRYPTED:'):]
-            return data
+            if encryption_method == 'kms_direct':
+                # Direct KMS decryption
+                if not self.kms_enabled:
+                    raise RuntimeError("KMS is required to decrypt this data but is not available")
+                    
+                import boto3
+                kms = boto3.client('kms', region_name=self.kms_verifier.key_store.kms_client.meta.region_name)
+                
+                response = kms.decrypt(CiphertextBlob=encrypted_data)
+                plaintext = response['Plaintext']
+                
+                self.log_security_event('decrypt_success', {
+                    'method': 'kms_direct'
+                })
+                
+                return plaintext
+                
+            elif encryption_method == 'kms_envelope':
+                # Envelope decryption
+                if not self.kms_enabled:
+                    raise RuntimeError("KMS is required to decrypt this data but is not available")
+                    
+                import boto3
+                kms = boto3.client('kms', region_name=self.kms_verifier.key_store.kms_client.meta.region_name)
+                
+                # Decrypt the data encryption key
+                encrypted_dek = base64.b64decode(metadata['encrypted_dek'])
+                dek_response = kms.decrypt(CiphertextBlob=encrypted_dek)
+                plaintext_key = dek_response['Plaintext']
+                
+                # Use the key to decrypt the data
+                from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+                from cryptography.hazmat.backends import default_backend
+                
+                iv = base64.b64decode(metadata['iv'])
+                tag = base64.b64decode(metadata['tag'])
+                
+                cipher = Cipher(
+                    algorithms.AES(plaintext_key),
+                    modes.GCM(iv, tag),
+                    backend=default_backend()
+                )
+                decryptor = cipher.decryptor()
+                plaintext = decryptor.update(encrypted_data) + decryptor.finalize()
+                
+                # Clear the plaintext key
+                plaintext_key = None
+                
+                self.log_security_event('decrypt_success', {
+                    'method': 'kms_envelope'
+                })
+                
+                return plaintext
+                
+            elif encryption_method == 'local_fips':
+                # Local FIPS-compliant decryption
+                from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+                from cryptography.hazmat.backends import default_backend
+                from cryptography.hazmat.primitives import hashes
+                from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+                
+                if not hasattr(self, '_master_key'):
+                    raise RuntimeError("Master key not available for decryption")
+                    
+                # Derive the key using the same parameters
+                salt = base64.b64decode(metadata['salt'])
+                iterations = metadata.get('iterations', 100000)
+                
+                kdf = PBKDF2HMAC(
+                    algorithm=hashes.SHA256(),
+                    length=32,
+                    salt=salt,
+                    iterations=iterations,
+                    backend=default_backend()
+                )
+                key = kdf.derive(self._master_key)
+                
+                # Decrypt the data
+                iv = base64.b64decode(metadata['iv'])
+                tag = base64.b64decode(metadata['tag'])
+                
+                cipher = Cipher(
+                    algorithms.AES(key),
+                    modes.GCM(iv, tag),
+                    backend=default_backend()
+                )
+                decryptor = cipher.decryptor()
+                plaintext = decryptor.update(encrypted_data) + decryptor.finalize()
+                
+                self.log_security_event('decrypt_success', {
+                    'method': 'local_fips'
+                })
+                
+                return plaintext
+                
+            else:
+                raise ValueError(f"Unknown encryption method: {encryption_method}")
+                
         except Exception as e:
-            # Log the error and fall back to returning the data as-is
-            self.log_security_event('decrypt_error', {'error': str(e)})
+            self.log_security_event('decrypt_failure', {
+                'error': str(e),
+                'error_type': type(e).__name__
+            })
             
-            # For backward compatibility, check for the old format
-            if data.startswith(b'ENCRYPTED:'):
-                return data[len(b'ENCRYPTED:'):]
-            return data
+            if self.require_encryption:
+                raise RuntimeError(f"Decryption failed: {e}")
+            else:
+                # This should never happen in production
+                raise RuntimeError("Decryption is required but failed")
 
