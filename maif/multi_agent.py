@@ -20,10 +20,11 @@ import pickle
 import struct
 import zlib
 
-from .core import MAIF, Block, BlockType
-from .semantic import SemanticProcessor
+from .core import MAIFEncoder, MAIFDecoder, MAIFBlock
+from .block_types import BlockType
+from .semantic import SemanticEmbedder
 from .security import SecurityManager
-from .compression import CompressionManager
+from .compression_manager import CompressionManager
 
 
 class ExchangeProtocolVersion(Enum):

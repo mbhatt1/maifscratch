@@ -20,10 +20,10 @@ from typing import Dict, List, Optional, Union, BinaryIO, Any, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, asdict
 
-from ..maif.core import MAIFEncoder, MAIFDecoder, MAIFBlock
-from ..maif.security import SecurityEngine
-from ..maif.compression import CompressionEngine
-from ..maif.privacy import PrivacyEngine, PrivacyPolicy
+from maif.core import MAIFEncoder, MAIFDecoder, MAIFBlock
+from maif.security import SecurityManager
+from maif.compression_manager import CompressionManager
+from maif.privacy import PrivacyEngine, PrivacyPolicy
 from .types import ContentType, SecurityLevel, CompressionLevel, ContentMetadata, SecurityOptions, ProcessingOptions
 from .artifact import Artifact
 from .aws_backend import AWSConfig, create_aws_backends
@@ -111,8 +111,8 @@ class MAIFClient:
             self._aws_backends = create_aws_backends(self.config.aws_config)
             
             # Use AWS backends for security, privacy, and storage
-            self.security_engine = self._aws_backends.get('security', SecurityEngine())
-            self.compression_engine = CompressionEngine()  # Still use local compression
+            self.security_engine = self._aws_backends.get('security', SecurityManager())
+            self.compression_engine = CompressionManager()  # Still use local compression
             self.privacy_engine = self._aws_backends.get('privacy', PrivacyEngine())
             self.compliance_logger = self._aws_backends.get('compliance')
             self.storage_backend = self._aws_backends.get('storage')
@@ -121,8 +121,8 @@ class MAIFClient:
             self.encryption_backend = self._aws_backends.get('encryption')
         else:
             # Use local backends
-            self.security_engine = SecurityEngine()
-            self.compression_engine = CompressionEngine()
+            self.security_engine = SecurityManager()
+            self.compression_engine = CompressionManager()
             self.privacy_engine = PrivacyEngine()
             self.compliance_logger = None
             self.storage_backend = None

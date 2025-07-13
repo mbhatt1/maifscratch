@@ -45,19 +45,21 @@ from .agentic_framework import MAIFAgent, PerceptionSystem, ReasoningSystem, Exe
 # AWS Integrations
 from .aws_decorators import (
     maif_agent, aws_agent, aws_bedrock, aws_kms, aws_s3,
-    aws_dynamodb, aws_lambda, aws_stepfunctions
+    aws_dynamodb, aws_lambda, aws_step_functions
 )
-from .aws_bedrock_integration import AWSTrustEngine
-from .aws_kms_integration import AWSKMSIntegration
-from .aws_s3_integration import AWSS3Integration
-from .aws_dynamodb_integration import AWSDynamoDBIntegration
-from .aws_lambda_integration import AWSLambdaIntegration
-from .aws_stepfunctions_integration import AWSStepFunctionsIntegration
-from .aws_xray_integration import MAIFXRayIntegration, xray_trace, xray_subsegment
-from .aws_deployment import DeploymentManager, CloudFormationGenerator, LambdaPackager, DockerfileGenerator
+# AWS integrations - imported conditionally to avoid errors when AWS is not needed
+try:
+    from .aws_lambda_integration import AWSLambdaIntegration
+    from .aws_stepfunctions_integration import AWSStepFunctionsIntegration
+    from .aws_xray_integration import MAIFXRayIntegration, xray_trace, xray_subsegment
+    from .aws_deployment import DeploymentManager, CloudFormationGenerator, LambdaPackager, DockerfileGenerator
+    AWS_IMPORTS_AVAILABLE = True
+except ImportError:
+    # AWS features not available
+    AWS_IMPORTS_AVAILABLE = False
 
 # Production Features
-from .health_check import HealthChecker, HealthStatus, ComponentHealth
+from .health_check import HealthChecker, HealthStatus
 from .rate_limiter import RateLimiter, RateLimitConfig, CostBasedRateLimiter, rate_limit
 from .metrics_aggregator import MetricsAggregator, MAIFMetrics, initialize_metrics, get_metrics
 from .cost_tracker import CostTracker, Budget, BudgetExceededException, initialize_cost_tracking, get_cost_tracker, with_cost_tracking
@@ -66,7 +68,7 @@ from .api_gateway_integration import APIGatewayIntegration, APIGatewayHandler, a
 
 # Advanced Features
 from .bedrock_swarm import BedrockAgentSwarm, BedrockModelProvider
-from .multi_agent import MAIFAgentConsortium
+# from .multi_agent import MAIFAgentConsortium  # Disabled due to import issues
 
 # Import simple API for easy access
 try:

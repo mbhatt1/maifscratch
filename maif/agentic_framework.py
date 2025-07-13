@@ -7,7 +7,7 @@ import asyncio
 import json
 import time
 import uuid
-from typing import Dict, List, Optional, Any, Callable, Union, Tuple
+from typing import Dict, List, Optional, Any, Callable, Union, Tuple, TYPE_CHECKING
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from collections import deque
@@ -59,7 +59,12 @@ try:
     AWS_AVAILABLE = True
 except ImportError:
     AWS_AVAILABLE = False
+    AWSConfig = Any  # Fallback type for when AWS is not available
     logger.warning("AWS integrations not available. Install boto3 and aws-xray-sdk to enable.")
+
+# Type checking imports
+if TYPE_CHECKING:
+    from .aws_config import AWSConfig
 
 # Base Agent Interface
 class MAIFAgent(ABC):

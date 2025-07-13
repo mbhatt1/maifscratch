@@ -195,6 +195,240 @@ blocks = storage.query_blocks(
 )
 ```
 
+## Agentic Framework
+
+MAIF includes a sophisticated agentic framework that enables autonomous AI agents with perception, reasoning, planning, and execution capabilities. The framework seamlessly integrates with AWS services for cloud-scale multi-agent orchestration.
+
+### Core Agent Architecture
+
+```python
+from maif.agentic_framework import MAIFAgent
+
+# Create an autonomous agent
+agent = MAIFAgent(
+    agent_id="medical-assistant-001",
+    workspace_path="/data/agents/medical",
+    use_aws=True,  # Enable cloud capabilities
+    config={
+        "memory_size": 10000,
+        "learning_rate": 0.1,
+        "xray_sampling_rate": 0.1
+    }
+)
+
+# Agent follows Perception → Reasoning → Planning → Execution cycle
+await agent.initialize()
+```
+
+### Perception-Reasoning-Planning-Execution (PRPE) Cycle
+
+The agent framework implements a sophisticated cognitive cycle:
+
+```python
+# 1. PERCEPTION - Process multimodal inputs
+perception = await agent.perceive(
+    data="Patient shows symptoms of fever and cough",
+    input_type="text"
+)
+
+# 2. REASONING - Analyze and understand
+reasoning = await agent.reason([perception])
+
+# 3. PLANNING - Create action plans
+plan = await agent.plan(
+    goal="Diagnose patient condition",
+    context=[reasoning]
+)
+
+# 4. EXECUTION - Take actions
+result = await agent.execute(plan)
+```
+
+### Multi-Agent Orchestration
+
+Coordinate multiple agents for complex tasks:
+
+```python
+from maif.agentic_framework import MultiAgentOrchestrator
+
+# Create orchestrator
+orchestrator = MultiAgentOrchestrator(agent)
+
+# Define multi-agent task
+task = {
+    'id': 'diagnosis-001',
+    'description': 'Collaborative medical diagnosis',
+    'requirements': ['medical-knowledge', 'diagnostic-skills'],
+    'priority': 10,
+    'strategy': 'consensus'  # or 'vote', 'weighted'
+}
+
+# Execute with multiple agents (uses Bedrock swarm if available)
+result = await orchestrator.execute_multi_agent_task(task)
+```
+
+### AWS Bedrock Swarm Integration
+
+When AWS is enabled, the framework automatically leverages Bedrock for scalable multi-agent execution:
+
+```python
+# Automatic Bedrock swarm for cloud-scale agents
+from maif.bedrock_swarm import BedrockAgentSwarm
+
+swarm = BedrockAgentSwarm(
+    max_agents=10,
+    enable_consensus=True,
+    enable_security=True,  # Auto-encrypt sensitive data
+    enable_compliance_logging=True  # Track AI governance
+)
+
+# Execute task across multiple Bedrock models
+result = swarm.execute_task(
+    task="Analyze patient data for treatment options",
+    strategy="consensus",
+    agents=["Claude", "Titan", "AI21"]
+)
+```
+
+### Memory and State Management
+
+Agents maintain persistent memory across sessions:
+
+```python
+# Save agent state
+dump_path = await agent.dump_state("medical-agent-backup.maif")
+
+# Restore agent from previous state
+restored_agent = MAIFAgent.from_dump(
+    dump_path,
+    workspace_path="/data/agents/medical-restored",
+    use_aws=True
+)
+
+# Agent retains all memories and learned patterns
+```
+
+### Agent Specialization
+
+Create specialized agents for different domains:
+
+```python
+# Medical Diagnosis Agent
+@maif_agent(
+    specialization="medical-diagnosis",
+    required_knowledge=["medical", "diagnostic-procedures"],
+    compliance_frameworks=["HIPAA"]
+)
+class MedicalDiagnosisAgent(MAIFAgent):
+    async def diagnose(self, symptoms, patient_history):
+        # Specialized diagnostic logic
+        perception = await self.perceive(symptoms)
+        reasoning = await self.reason([perception, patient_history])
+        return await self.execute_diagnosis(reasoning)
+
+# Financial Analysis Agent
+@maif_agent(
+    specialization="financial-analysis",
+    required_knowledge=["finance", "risk-assessment"],
+    compliance_frameworks=["SOX", "PCI-DSS"]
+)
+class FinancialAnalysisAgent(MAIFAgent):
+    async def analyze_portfolio(self, holdings, market_data):
+        # Specialized financial logic
+        pass
+```
+
+### Task Orchestration
+
+Complex task management with dependencies:
+
+```python
+# Create task manager
+task_manager = TaskManager(agent)
+
+# Define task hierarchy
+task_manager.create_task({
+    'id': 'patient-treatment-plan',
+    'subtasks': [
+        {'id': 'diagnosis', 'agent_type': 'medical'},
+        {'id': 'medication-check', 'agent_type': 'pharmacy'},
+        {'id': 'insurance-verification', 'agent_type': 'billing'}
+    ],
+    'dependencies': {
+        'medication-check': ['diagnosis'],
+        'insurance-verification': ['diagnosis', 'medication-check']
+    }
+})
+
+# Execute with automatic task distribution
+results = await task_manager.execute_all()
+```
+
+### Real-Time Learning
+
+Agents learn and adapt from interactions:
+
+```python
+# Enable continuous learning
+agent.enable_learning(mode="reinforcement")
+
+# Agent improves from feedback
+feedback = await agent.process_feedback({
+    'result_quality': 0.95,
+    'user_satisfaction': 'high',
+    'corrections': []
+})
+
+# Learned patterns persist across sessions
+await agent.consolidate_learning()
+```
+
+### Production-Ready Features
+
+- **Automatic AWS Integration**: Seamlessly uses Bedrock, KMS, CloudWatch
+- **Compliance Tracking**: All agent actions logged for governance
+- **Security by Default**: Sensitive data automatically encrypted
+- **Scalable Architecture**: From single agent to cloud swarm
+- **State Persistence**: Full agent state saved/restored
+- **Error Recovery**: Graceful handling of failures
+- **Monitoring**: Built-in metrics and tracing
+
+### Example: Medical Assistant Agent
+
+```python
+# Complete example of a production medical assistant
+agent = MAIFAgent(
+    agent_id="medical-ai-prod",
+    workspace_path="/secure/medical-ai",
+    use_aws=True,
+    config={
+        "compliance_frameworks": ["HIPAA", "HITECH"],
+        "encryption_required": True,
+        "audit_all_actions": True
+    }
+)
+
+# Process patient query
+patient_query = "I have severe headaches and blurred vision"
+
+# Full cognitive cycle with security
+async with agent:
+    # Perceive symptoms (auto-encrypted if sensitive)
+    perception = await agent.perceive(patient_query, "text")
+    
+    # Reason about condition (logged for compliance)
+    reasoning = await agent.reason([perception])
+    
+    # Plan diagnostic steps
+    plan = await agent.plan("provide initial assessment", [reasoning])
+    
+    # Execute with safety checks
+    result = await agent.execute(plan)
+    
+    # Save interaction for medical records
+    await agent.save_interaction("patient-123", result)
+```
+
 ## AWS Integration
 
 ### Tightly Integrated AWS Credential Management

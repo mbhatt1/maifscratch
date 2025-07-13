@@ -254,11 +254,14 @@ class MAIFEncoder:
         if privacy_policy and self.enable_privacy:
             # Apply encryption if required
             if privacy_policy.encryption_mode != EncryptionMode.NONE:
-                data = self.privacy_engine.encrypt_data(data, block_id)
+                encrypted_data, encryption_metadata = self.privacy_engine.encrypt_data(data, block_id)
+                data = encrypted_data
                 if metadata is None:
                     metadata = {}
                 metadata["encrypted"] = True
                 metadata["encryption_mode"] = privacy_policy.encryption_mode.value
+                # Merge encryption metadata
+                metadata.update(encryption_metadata)
             
             # Store privacy policy in metadata
             if metadata is None:
@@ -282,11 +285,9 @@ class MAIFEncoder:
         
         # Create header
         header = BlockHeader(
-            block_type=normalized_type,
+            type=normalized_type,
             size=len(data) + 32,  # Header is 32 bytes
-            flags=0,
-            timestamp=int(time.time()),
-            reserved=0
+            flags=0
         )
         
         # Write header

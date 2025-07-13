@@ -262,9 +262,29 @@ class MAIF:
         if not hasattr(self, 'decoder'):
             raise RuntimeError("Cannot search - MAIF not loaded from file")
             
-        # Use decoder's search functionality
-        results = self.decoder.search_semantic(query, top_k=top_k)
-        return results
+        # Check if decoder has search functionality
+        if hasattr(self.decoder, 'search_semantic'):
+            results = self.decoder.search_semantic(query, top_k=top_k)
+            return results
+        else:
+            # Fallback: Simple text search in text blocks
+            text_blocks = self.decoder.get_text_blocks()
+            results = []
+            query_lower = query.lower()
+            
+            for i, text in enumerate(text_blocks):
+                if query_lower in text.lower():
+                    # Calculate simple relevance score based on frequency
+                    score = text.lower().count(query_lower) / len(text.split())
+                    results.append({
+                        'block_index': i,
+                        'text': text[:200] + '...' if len(text) > 200 else text,
+                        'score': score
+                    })
+            
+            # Sort by score and return top_k
+            results.sort(key=lambda x: x['score'], reverse=True)
+            return results[:top_k]
     
     def verify_integrity(self) -> bool:
         """Verify MAIF file integrity."""

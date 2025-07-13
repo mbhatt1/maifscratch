@@ -4,6 +4,10 @@ Semantic embedding and knowledge graph functionality for MAIF.
 
 import os
 import warnings
+import logging
+
+# Set up logger first
+logger = logging.getLogger(__name__)
 
 # Suppress OpenMP warning before importing scientific libraries
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'

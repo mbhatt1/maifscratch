@@ -8,6 +8,7 @@ including credential management, retry policies, and service defaults.
 
 import os
 import logging
+import threading
 from typing import Dict, Optional, Any, List
 from dataclasses import dataclass, field
 from enum import Enum

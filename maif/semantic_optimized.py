@@ -10,6 +10,7 @@ import time
 import secrets
 from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
+from collections import Counter
 from sklearn.cluster import DBSCAN
 from sklearn.decomposition import PCA
 import struct
