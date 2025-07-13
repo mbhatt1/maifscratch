@@ -378,8 +378,8 @@ class WriteAheadLog:
                 # Clean up old WAL
                 try:
                     os.remove(self.wal_path + '.old')
-                except:
-                    pass
+                except (OSError, FileNotFoundError):
+                    pass  # File doesn't exist or can't be removed
                 
                 # Track committed transactions for cleanup
                 if not hasattr(self, '_committed_transactions'):
@@ -757,8 +757,8 @@ class ACIDTransactionManager:
             for txn_id in active_txns:
                 try:
                     self.abort_transaction(txn_id)
-                except:
-                    pass
+                except Exception:
+                    pass  # Best effort cleanup
             
             # Close WAL
             if self.wal:
@@ -769,8 +769,8 @@ class ACIDTransactionManager:
             if self._block_storage:
                 try:
                     self._block_storage.close()
-                except:
-                    pass
+                except Exception:
+                    pass  # Best effort cleanup
                 self._block_storage = None
     
     def __enter__(self):
@@ -785,8 +785,8 @@ class ACIDTransactionManager:
         """Destructor to ensure cleanup."""
         try:
             self.close()
-        except:
-            pass
+        except Exception:
+            pass  # Ignore errors in destructor
 
 
 # Context manager for easy transaction usage

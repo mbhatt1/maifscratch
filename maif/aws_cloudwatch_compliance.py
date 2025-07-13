@@ -183,8 +183,9 @@ class CloudWatchLogsClient:
                 return result
                 
             except ClientError as e:
-                error_code = e.response.get('Error', {}).get('Code', '')
-                error_message = e.response.get('Error', {}).get('Message', '')
+                error_response = e.response or {}
+                error_code = error_response.get('Error', {}).get('Code', '')
+                error_message = error_response.get('Error', {}).get('Message', '')
                 
                 # Check if this is a retryable error
                 if error_code in self.RETRYABLE_ERRORS and retries < self.max_retries:
