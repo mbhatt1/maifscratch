@@ -87,7 +87,7 @@ class MAIFFileHeader:
     checksum: bytes     # 32 bytes - SHA-256 of entire file
     reserved: bytes     # 32 bytes - reserved for future use
     
-    HEADER_SIZE = 128  # Total file header size
+    HEADER_SIZE = 144  # Total file header size
     
     def pack(self) -> bytes:
         """Pack file header into binary format."""
@@ -312,8 +312,8 @@ class MAIFBinaryWriter:
             for offset, size in block_index:
                 f.write(struct.pack('>QQ', offset, size))
             
-            # Calculate and write final checksum
-            f.seek(0)
+        # Read file back to calculate checksum
+        with open(self.file_path, 'rb') as f:
             file_data = f.read()
             
             # Zero out checksum field
@@ -321,9 +321,10 @@ class MAIFBinaryWriter:
             file_data_array[96:128] = b'\x00' * 32
             
             checksum = hashlib.sha256(bytes(file_data_array)).digest()
-            
-            # Update header with real checksum
-            self.file_header.checksum = checksum
+        
+        # Update header with real checksum
+        self.file_header.checksum = checksum
+        with open(self.file_path, 'r+b') as f:
             f.seek(0)
             f.write(self.file_header.pack())
 

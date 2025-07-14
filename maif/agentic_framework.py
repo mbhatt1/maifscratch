@@ -49,18 +49,65 @@ class AgentState(Enum):
     LEARNING = "learning"
     TERMINATED = "terminated"
 
-# Import AWS integrations if enabled
-try:
-    from .aws_xray_integration import MAIFXRayIntegration
-    from .aws_bedrock_integration import BedrockClient, MAIFBedrockIntegration
-    from .aws_cloudwatch_compliance import CloudWatchComplianceLogger
-    from .aws_config import get_aws_config, AWSConfig
-    from .bedrock_swarm import BedrockAgentSwarm
-    AWS_AVAILABLE = True
-except ImportError:
-    AWS_AVAILABLE = False
-    AWSConfig = Any  # Fallback type for when AWS is not available
-    logger.warning("AWS integrations not available. Install boto3 and aws-xray-sdk to enable.")
+# AWS imports are deferred to avoid circular imports
+AWS_AVAILABLE = False
+MAIFXRayIntegration = None
+BedrockClient = None
+MAIFBedrockIntegration = None
+CloudWatchComplianceLogger = None
+get_aws_config = None
+AWSConfig = Any  # Default fallback type
+
+def _init_aws_integrations():
+    """Initialize AWS integrations - called when needed to avoid circular imports."""
+    global AWS_AVAILABLE, MAIFXRayIntegration, BedrockClient, MAIFBedrockIntegration
+    global CloudWatchComplianceLogger, get_aws_config, AWSConfig
+    
+    if AWS_AVAILABLE:  # Already initialized
+        return True
+        
+    try:
+        from .aws_xray_integration import MAIFXRayIntegration as _MAIFXRayIntegration
+        from .aws_bedrock_integration import BedrockClient as _BedrockClient, MAIFBedrockIntegration as _MAIFBedrockIntegration
+        from .aws_cloudwatch_compliance import AWSCloudWatchComplianceLogger as _CloudWatchComplianceLogger
+        from .aws_config import get_aws_config as _get_aws_config, AWSConfig as _AWSConfig
+        
+        # Update globals
+        MAIFXRayIntegration = _MAIFXRayIntegration
+        BedrockClient = _BedrockClient
+        MAIFBedrockIntegration = _MAIFBedrockIntegration
+        CloudWatchComplianceLogger = _CloudWatchComplianceLogger
+        get_aws_config = _get_aws_config
+        AWSConfig = _AWSConfig
+        AWS_AVAILABLE = True
+        return True
+    except ImportError as e:
+        # Try to install missing AWS dependencies
+        logger.info("AWS dependencies not found. Attempting to install boto3 and aws-xray-sdk...")
+        try:
+            import subprocess
+            import sys
+            subprocess.check_call([sys.executable, "-m", "pip", "install", "boto3", "aws-xray-sdk"])
+            
+            # Try importing again after installation
+            from .aws_xray_integration import MAIFXRayIntegration as _MAIFXRayIntegration
+            from .aws_bedrock_integration import BedrockClient as _BedrockClient, MAIFBedrockIntegration as _MAIFBedrockIntegration
+            from .aws_cloudwatch_compliance import AWSCloudWatchComplianceLogger as _CloudWatchComplianceLogger
+            from .aws_config import get_aws_config as _get_aws_config, AWSConfig as _AWSConfig
+            
+            # Update globals
+            MAIFXRayIntegration = _MAIFXRayIntegration
+            BedrockClient = _BedrockClient
+            MAIFBedrockIntegration = _MAIFBedrockIntegration
+            CloudWatchComplianceLogger = _CloudWatchComplianceLogger
+            get_aws_config = _get_aws_config
+            AWSConfig = _AWSConfig
+            AWS_AVAILABLE = True
+            logger.info("Successfully installed AWS dependencies")
+            return True
+        except Exception as install_error:
+            logger.warning(f"Failed to install or import AWS dependencies: {install_error}. AWS integrations will not be available.")
+            return False
 
 # Type checking imports
 if TYPE_CHECKING:
@@ -129,6 +176,12 @@ class MAIFAgent(ABC):
     
     def _initialize_aws_systems(self):
         """Initialize AWS systems for the agent."""
+        # First initialize AWS integrations
+        if not _init_aws_integrations():
+            logger.error("Failed to initialize AWS integrations")
+            self.use_aws = False
+            return
+            
         try:
             # Initialize X-Ray tracing
             self.xray_integration = MAIFXRayIntegration(

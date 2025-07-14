@@ -25,6 +25,7 @@ from .signature_verification import (
 from .aws_s3_integration import S3Client
 from .security import SecurityManager
 from .compliance_logging import EnhancedComplianceLogger
+from .unified_block_format import UnifiedBlock, UnifiedBlockHeader, BlockFormatConverter
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -234,7 +235,7 @@ class S3BlockStorage(BlockStorage):
     
     def add_block(self, block_type: str, data: bytes, metadata: Optional[Dict] = None) -> str:
         """
-        Add a new block to S3 storage with signature.
+        Add a new block to S3 storage with signature using unified format.
         
         Args:
             block_type: Block type (FourCC)
@@ -257,15 +258,34 @@ class S3BlockStorage(BlockStorage):
             last_header = self.blocks[-1][0]
             previous_hash = self._calculate_block_hash(last_header, b"")  # Simplified
         
-        # Create header
-        header = BlockHeader(
+        # Calculate block hash
+        block_hash = hashlib.sha256(data).hexdigest()
+        
+        # Create unified block header
+        unified_header = UnifiedBlockHeader(
+            magic=b'MAIF',
+            version=1,
             size=len(data),
             block_type=block_type,
-            version=1,
             uuid=block_uuid,
             timestamp=timestamp,
-            previous_hash=previous_hash
+            previous_hash=previous_hash,
+            block_hash=block_hash,
+            flags=0,
+            metadata_size=len(json.dumps(metadata)),
+            reserved=b'\x00' * 28
         )
+        
+        # Create unified block
+        unified_block = UnifiedBlock(
+            header=unified_header,
+            data=data,
+            metadata=metadata
+        )
+        
+        # Convert to legacy header for backward compatibility
+        converter = BlockFormatConverter()
+        header = converter.unified_to_legacy_header(unified_header)
         
         # Sign the block if signature verification is enabled
         if self.verify_signatures and self.signature_verifier:
@@ -285,13 +305,20 @@ class S3BlockStorage(BlockStorage):
             except Exception as e:
                 logger.warning(f"Failed to sign block {block_uuid}: {e}")
         
-        # Prepare S3 metadata
+        # Prepare S3 metadata with unified format fields
         s3_metadata = {
             'block_type': block_type,
             'size': str(len(data)),
-            'version': str(header.version),
+            'version': str(unified_header.version),
             'timestamp': str(timestamp),
-            'content_type': 'application/octet-stream'
+            'content_type': 'application/octet-stream',
+            # Unified format fields
+            'magic': 'MAIF',
+            'block_hash': block_hash,
+            'uuid': block_uuid,
+            'flags': str(unified_header.flags),
+            'metadata_size': str(unified_header.metadata_size),
+            'format_version': '1',  # Unified format version
         }
         
         if previous_hash:
@@ -427,6 +454,31 @@ class S3BlockStorage(BlockStorage):
             # Extract metadata from S3 object
             s3_metadata = response.get('Metadata', {})
             metadata = {}
+            
+            # Check if this is a unified format block
+            if s3_metadata.get('format_version') == '1' and s3_metadata.get('magic') == 'MAIF':
+                # Reconstruct unified block from S3 metadata
+                unified_header = UnifiedBlockHeader(
+                    magic=b'MAIF',
+                    version=int(s3_metadata.get('version', '1')),
+                    size=int(s3_metadata.get('size', '0')),
+                    block_type=s3_metadata.get('block_type', ''),
+                    uuid=s3_metadata.get('uuid', block_uuid),
+                    timestamp=float(s3_metadata.get('timestamp', '0')),
+                    previous_hash=s3_metadata.get('previous_hash'),
+                    block_hash=s3_metadata.get('block_hash'),
+                    flags=int(s3_metadata.get('flags', '0')),
+                    metadata_size=int(s3_metadata.get('metadata_size', '0')),
+                    reserved=b'\x00' * 28
+                )
+                
+                # Convert unified header to legacy header for compatibility
+                converter = BlockFormatConverter()
+                header = converter.unified_to_legacy_header(unified_header)
+                
+                # Store unified format info in metadata
+                metadata['unified_format'] = True
+                metadata['format_version'] = 1
             
             # Extract user metadata
             for key, value in s3_metadata.items():

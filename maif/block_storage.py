@@ -18,6 +18,7 @@ from .signature_verification import (
     SignatureVerifier, create_default_verifier, sign_block_data,
     verify_block_signature, SignatureInfo
 )
+from .unified_block_format import UnifiedBlock, UnifiedBlockHeader, BlockFormatConverter
 
 logger = logging.getLogger(__name__)
 
@@ -93,9 +94,11 @@ class BlockHeader:
 class BlockStorage:
     """High-performance block storage with memory-mapped access."""
     
-    HEADER_SIZE = 72  # Fixed header size
+    HEADER_SIZE = 72  # Legacy header size
+    UNIFIED_HEADER_SIZE = 224  # Unified format header size
     
-    def __init__(self, file_path: Optional[str] = None, verify_signatures: bool = True):
+    def __init__(self, file_path: Optional[str] = None, verify_signatures: bool = True,
+                 use_unified_format: bool = False):
         self.file_path = file_path
         self.blocks: List[Tuple[BlockHeader, int]] = []  # (header, data_offset)
         self.block_index: Dict[str, int] = {}  # uuid -> block_index
@@ -104,6 +107,10 @@ class BlockStorage:
         self._lock = threading.RLock()  # Thread safety
         self._closed = False
         self._in_memory_data: Dict[str, bytes] = {}  # For in-memory storage
+        
+        # Unified format support
+        self.use_unified_format = use_unified_format
+        self.format_converter = BlockFormatConverter() if use_unified_format else None
         
         # Signature verification
         self.verify_signatures = verify_signatures
@@ -165,21 +172,48 @@ class BlockStorage:
                 # Get the actual data for proper hash calculation
                 if self.file_handle:
                     last_data_offset = self.blocks[-1][1]
-                    self.file_handle.seek(last_data_offset + self.HEADER_SIZE)
+                    header_size = self.UNIFIED_HEADER_SIZE if self.use_unified_format else self.HEADER_SIZE
+                    self.file_handle.seek(last_data_offset + header_size)
                     last_data = self.file_handle.read(last_header.size)
                 else:
                     last_data = self._in_memory_data.get(last_header.uuid, b"")
                 previous_hash = self._calculate_block_hash(last_header, last_data)
             
-            # Create header
-            header = BlockHeader(
-                size=len(data),
-                block_type=block_type,
-                version=1,
-                uuid=block_uuid,
-                timestamp=timestamp,
-                previous_hash=previous_hash
-            )
+            # Calculate block hash
+            block_hash = hashlib.sha256(data).hexdigest()
+            
+            if self.use_unified_format:
+                # Create unified header
+                unified_header = UnifiedBlockHeader(
+                    magic=b'MAIF',
+                    version=1,
+                    size=len(data),
+                    block_type=block_type,
+                    uuid=block_uuid,
+                    timestamp=timestamp,
+                    previous_hash=previous_hash,
+                    block_hash=block_hash,
+                    flags=0,
+                    metadata_size=len(str(metadata)),
+                    reserved=b'\x00' * 28
+                )
+                
+                # Convert to legacy header for internal use
+                header = self.format_converter.unified_to_legacy_header(unified_header)
+                
+                # Store the unified header bytes for writing
+                header_bytes = unified_header.to_bytes()
+            else:
+                # Create legacy header
+                header = BlockHeader(
+                    size=len(data),
+                    block_type=block_type,
+                    version=1,
+                    uuid=block_uuid,
+                    timestamp=timestamp,
+                    previous_hash=previous_hash
+                )
+                header_bytes = header.to_bytes()
             
             # Sign the block if signature verification is enabled
             if self.verify_signatures and self.signature_verifier:
@@ -203,12 +237,13 @@ class BlockStorage:
             if self.file_handle:
                 # Write to file
                 data_offset = self.file_handle.tell()
-                self.file_handle.write(header.to_bytes())
+                self.file_handle.write(header_bytes)
                 self.file_handle.write(data)
                 self.file_handle.flush()
             else:
                 # In-memory storage
-                data_offset = len(self.blocks) * (self.HEADER_SIZE + 1000)  # Simulated offset
+                header_size = self.UNIFIED_HEADER_SIZE if self.use_unified_format else self.HEADER_SIZE
+                data_offset = len(self.blocks) * (header_size + 1000)  # Simulated offset
                 self._in_memory_data[block_uuid] = data
             
             # Update index

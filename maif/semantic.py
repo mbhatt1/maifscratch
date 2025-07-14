@@ -23,21 +23,42 @@ from typing import Dict, List, Optional, Tuple, Any
 from dataclasses import dataclass
 import hashlib
 
+# Patch for huggingface_hub compatibility issue
+try:
+    import huggingface_hub
+    if not hasattr(huggingface_hub, 'cached_download'):
+        # Add a dummy cached_download function for compatibility
+        logger.debug("Patching huggingface_hub for compatibility")
+        def cached_download(*args, **kwargs):
+            # Redirect to the new hf_hub_download function
+            from huggingface_hub import hf_hub_download
+            return hf_hub_download(*args, **kwargs)
+        huggingface_hub.cached_download = cached_download
+except ImportError:
+    pass
+
 try:
     from sentence_transformers import SentenceTransformer
     SENTENCE_TRANSFORMERS_AVAILABLE = True
-except ImportError:
-    logger.warning("sentence-transformers not installed. Attempting to install...")
-    try:
-        import subprocess
-        import sys
-        subprocess.check_call([sys.executable, "-m", "pip", "install", "sentence-transformers"])
-        from sentence_transformers import SentenceTransformer
-        SENTENCE_TRANSFORMERS_AVAILABLE = True
-        logger.info("Successfully installed sentence-transformers")
-    except Exception as e:
-        logger.warning(f"Failed to install sentence-transformers: {e}. Semantic features will use fallback methods.")
+except (ImportError, AttributeError) as e:
+    # Handle both missing package and compatibility issues (like cached_download)
+    if "cached_download" in str(e):
+        logger.warning("Incompatible huggingface_hub version detected. Semantic features will use fallback methods.")
         SENTENCE_TRANSFORMERS_AVAILABLE = False
+    else:
+        logger.warning("sentence-transformers not installed. Attempting to install...")
+        try:
+            import subprocess
+            import sys
+            # Try to install compatible versions
+            subprocess.check_call([sys.executable, "-m", "pip", "install",
+                                 "sentence-transformers>=2.2.0", "huggingface-hub>=0.19.0"])
+            from sentence_transformers import SentenceTransformer
+            SENTENCE_TRANSFORMERS_AVAILABLE = True
+            logger.info("Successfully installed sentence-transformers")
+        except Exception as install_error:
+            logger.warning(f"Failed to install sentence-transformers: {install_error}. Semantic features will use fallback methods.")
+            SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 try:
     import faiss

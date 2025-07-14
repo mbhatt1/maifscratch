@@ -1,6 +1,7 @@
 """
 Core MAIF implementation - encoding, decoding, and parsing functionality.
 Enhanced with privacy-by-design features and improved block structure.
+Now using unified storage for parity between local and AWS backends.
 """
 
 import json
@@ -19,6 +20,8 @@ import threading
 from contextlib import contextmanager
 from .privacy import PrivacyEngine, PrivacyPolicy, PrivacyLevel, EncryptionMode, AccessRule
 from .block_types import BlockType, BlockHeader, BlockFactory, BlockValidator
+from .unified_storage import UnifiedStorage
+from .unified_block_format import UnifiedBlock, UnifiedBlockHeader, BlockType as UnifiedBlockType
 
 @dataclass
 class MAIFBlock:
@@ -133,7 +136,8 @@ class MAIFEncoder:
     
     def __init__(self, agent_id: Optional[str] = None, existing_maif_path: Optional[str] = None,
                  existing_manifest_path: Optional[str] = None, enable_privacy: bool = False,
-                 privacy_engine: Optional['PrivacyEngine'] = None):
+                 privacy_engine: Optional['PrivacyEngine'] = None, use_aws: bool = False,
+                 aws_bucket: Optional[str] = None, aws_prefix: str = "maif/"):
         self.blocks: List[MAIFBlock] = []
         self.header = MAIFHeader()
         self.buffer = io.BytesIO()
@@ -144,6 +148,12 @@ class MAIFEncoder:
         self._closed = False  # Track if encoder is closed
         self.file_handle = None  # File handle for writing
         self._lock = threading.Lock()  # Thread safety lock
+        
+        # Unified storage configuration
+        self.use_aws = use_aws
+        self.aws_bucket = aws_bucket
+        self.aws_prefix = aws_prefix
+        self.unified_storage: Optional[UnifiedStorage] = None
         
         # Privacy-by-design features
         self.enable_privacy = enable_privacy
@@ -178,15 +188,21 @@ class MAIFEncoder:
                 if isinstance(version_data, dict):
                     # New format: dict of block_id -> list of versions
                     for block_id, versions in version_data.items():
-                        self.version_history[block_id] = [
-                            MAIFVersion(**v) for v in versions
-                        ]
+                        self.version_history[block_id] = []
+                        for v in versions:
+                            # Map current_hash to block_hash if needed
+                            if 'current_hash' in v and 'block_hash' not in v:
+                                v['block_hash'] = v.pop('current_hash')
+                            self.version_history[block_id].append(MAIFVersion(**v))
                 elif isinstance(version_data, list):
                     # Old format: list of versions
                     for v in version_data:
                         block_id = v.get('block_id', 'unknown')
                         if block_id not in self.version_history:
                             self.version_history[block_id] = []
+                        # Map current_hash to block_hash if needed
+                        if 'current_hash' in v and 'block_hash' not in v:
+                            v['block_hash'] = v.pop('current_hash')
                         self.version_history[block_id].append(MAIFVersion(**v))
             
             # Build block registry
@@ -280,30 +296,70 @@ class MAIFEncoder:
             metadata["anonymized"] = True
             self._last_anonymize_flag = False
         
-        # Write header and data to buffer
-        offset = self.buffer.tell()
-        
-        # Create header
-        header = BlockHeader(
-            type=normalized_type,
-            size=len(data) + 32,  # Header is 32 bytes
-            flags=0
-        )
-        
-        # Write header
-        self.buffer.write(header.to_bytes())
-        
-        # Write data
-        self.buffer.write(data)
+        # Handle unified storage for AWS
+        if self.use_aws and self.unified_storage is None:
+            # Initialize unified storage on first block add
+            self.unified_storage = UnifiedStorage(
+                storage_path=f"maif_{self.agent_id}.maif",
+                use_aws=True,
+                aws_bucket=self.aws_bucket,
+                aws_prefix=self.aws_prefix,
+                verify_signatures=self.enable_privacy
+            )
         
         # Calculate hash (data only for compatibility)
         hash_value = hashlib.sha256(data).hexdigest()
         
-        # Create block
+        if self.unified_storage:
+            # Use unified storage
+            unified_block = UnifiedBlock(
+                header=UnifiedBlockHeader(
+                    magic=b'MAIF',
+                    version=1,
+                    size=len(data),
+                    block_type=normalized_type,
+                    uuid=block_id,
+                    timestamp=time.time(),
+                    previous_hash=previous_hash,
+                    block_hash=hash_value,
+                    flags=0,
+                    metadata_size=len(json.dumps(metadata or {})),
+                    reserved=b'\x00' * 28
+                ),
+                data=data,
+                metadata=metadata
+            )
+            
+            # Store block using unified storage
+            self.unified_storage.store_block(unified_block)
+            
+            # Get offset from unified storage for compatibility
+            offset = 0  # In unified storage, offset is managed internally
+            size = len(data) + 224  # Unified header is 224 bytes
+        else:
+            # Use legacy buffer storage
+            offset = self.buffer.tell()
+            
+            # Create header
+            header = BlockHeader(
+                type=normalized_type,
+                size=len(data) + 32,  # Header is 32 bytes
+                flags=0
+            )
+            
+            # Write header
+            self.buffer.write(header.to_bytes())
+            
+            # Write data
+            self.buffer.write(data)
+            
+            size = len(data) + 32
+        
+        # Create block for internal tracking
         block = MAIFBlock(
             block_type=normalized_type,
             offset=offset,
-            size=len(data) + 32,
+            size=size,
             hash_value=hash_value,
             version=version,
             previous_hash=previous_hash,
@@ -1307,6 +1363,16 @@ class MAIFEncoder:
     def save(self, output_path: str, manifest_path: str):
         """Save the MAIF file and manifest."""
         with self._thread_safe_operation():
+            # Initialize unified storage if using AWS
+            if self.use_aws and not self.unified_storage:
+                self.unified_storage = UnifiedStorage(
+                    storage_path=output_path,
+                    use_aws=True,
+                    aws_bucket=self.aws_bucket,
+                    aws_prefix=self.aws_prefix,
+                    verify_signatures=self.enable_privacy
+                )
+            
             # Add privacy metadata to manifest if privacy is enabled
             manifest = {
                 "maif_version": self.header.version,
@@ -1346,11 +1412,38 @@ class MAIFEncoder:
             
             # Write files with proper error handling
             try:
-                with open(output_path, 'wb') as f:
-                    f.write(self.buffer.getvalue())
+                if self.unified_storage:
+                    # Use unified storage for AWS or unified format
+                    for block in self.blocks:
+                        # Convert MAIFBlock to UnifiedBlock
+                        unified_block = UnifiedBlock(
+                            header=UnifiedBlockHeader(
+                                magic=b'MAIF',
+                                version=1,
+                                size=block.size,
+                                block_type=block.block_type,
+                                uuid=block.block_id,
+                                timestamp=time.time(),
+                                previous_hash=block.previous_hash,
+                                block_hash=block.hash_value,
+                                flags=0,
+                                metadata_size=len(json.dumps(block.metadata or {})),
+                                reserved=b'\x00' * 28
+                            ),
+                            data=block.data or b'',
+                            metadata=block.metadata
+                        )
+                        self.unified_storage.store_block(unified_block)
                     
-                with open(manifest_path, 'w') as f:
-                    json.dump(manifest, f, indent=2)
+                    # Store manifest as metadata
+                    self.unified_storage.store_metadata("manifest", manifest)
+                else:
+                    # Use legacy file storage
+                    with open(output_path, 'wb') as f:
+                        f.write(self.buffer.getvalue())
+                        
+                    with open(manifest_path, 'w') as f:
+                        json.dump(manifest, f, indent=2)
             except Exception as e:
                 raise RuntimeError(f"Failed to save MAIF file: {e}")
     
@@ -2321,10 +2414,71 @@ class MAIFDecoder:
             return 0, 0
 
 class MAIFParser:
-    """High-level MAIF parsing interface."""
+    """High-level MAIF parsing interface with unified storage support."""
     
-    def __init__(self, maif_path: str, manifest_path: str):
-        self.decoder = MAIFDecoder(maif_path, manifest_path)
+    def __init__(self, maif_path: str, manifest_path: str, use_aws: bool = False,
+                 aws_bucket: Optional[str] = None, aws_prefix: str = "maif/"):
+        """Initialize parser with optional AWS support.
+        
+        Args:
+            maif_path: Path to MAIF file (or S3 key prefix for AWS)
+            manifest_path: Path to manifest file (ignored for AWS)
+            use_aws: Whether to use AWS S3 backend
+            aws_bucket: S3 bucket name (required if use_aws=True)
+            aws_prefix: S3 key prefix for storing blocks
+        """
+        self.use_aws = use_aws
+        self.unified_storage = None
+        
+        if use_aws:
+            # Use unified storage for AWS
+            self.unified_storage = UnifiedStorage(
+                storage_path=maif_path,
+                use_aws=True,
+                aws_bucket=aws_bucket,
+                aws_prefix=aws_prefix,
+                verify_signatures=True
+            )
+            # Load manifest from AWS metadata
+            manifest = self.unified_storage.get_metadata("manifest")
+            if not manifest:
+                raise ValueError("No manifest found in AWS storage")
+            
+            # Create a temporary decoder-compatible structure
+            self.decoder = type('obj', (object,), {
+                'manifest': manifest,
+                'blocks': self._load_blocks_from_unified_storage(),
+                'maif_path': maif_path
+            })
+        else:
+            # Use legacy decoder for local files
+            self.decoder = MAIFDecoder(maif_path, manifest_path)
+    
+    def _load_blocks_from_unified_storage(self) -> List[MAIFBlock]:
+        """Load blocks from unified storage and convert to MAIFBlock format."""
+        blocks = []
+        
+        # List all blocks in unified storage
+        block_ids = self.unified_storage.list_blocks()
+        
+        for block_id in block_ids:
+            unified_block = self.unified_storage.retrieve_block(block_id)
+            if unified_block:
+                # Convert UnifiedBlock to MAIFBlock
+                maif_block = MAIFBlock(
+                    block_type=unified_block.header.block_type,
+                    offset=0,  # Offset not used in unified storage
+                    size=unified_block.header.size,
+                    hash_value=unified_block.header.block_hash,
+                    version=1,  # Version tracked differently in unified format
+                    previous_hash=unified_block.header.previous_hash,
+                    block_id=unified_block.header.uuid,
+                    metadata=unified_block.metadata,
+                    data=unified_block.data
+                )
+                blocks.append(maif_block)
+        
+        return blocks
     
     def verify_integrity(self) -> bool:
         """Verify file integrity."""
