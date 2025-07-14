@@ -70,18 +70,45 @@ def create_aws_backends(config: Optional[AWSConfig] = None) -> Dict[str, Any]:
     
     backends = {}
     
-    # Import AWS backends
-    from ..maif.aws_s3_integration import AWSS3Integration
-    from ..maif.aws_kms_integration import AWSKMSIntegration
-    from ..maif.aws_secrets_manager_security import AWSSecretsManagerSecurity
-    from ..maif.aws_macie_privacy import AWSMaciePrivacy
-    from ..maif.aws_cloudwatch_compliance import AWSCloudWatchComplianceLogger
-    from ..maif.aws_s3_block_storage import AWSS3BlockStorage
-    from ..maif.aws_kinesis_streaming import AWSKinesisStreaming
+    # Try to import AWS backends - these are optional dependencies
+    try:
+        from maif.aws_s3_integration import MAIFS3Integration
+    except ImportError:
+        MAIFS3Integration = None
+        
+    try:
+        from maif.aws_kms_integration import AWSKMSIntegration
+    except ImportError:
+        AWSKMSIntegration = None
+        
+    try:
+        from maif.aws_secrets_manager_security import AWSSecretsManagerSecurity
+    except ImportError:
+        AWSSecretsManagerSecurity = None
+        
+    try:
+        from maif.aws_macie_privacy import AWSMaciePrivacy
+    except ImportError:
+        AWSMaciePrivacy = None
+        
+    try:
+        from maif.aws_cloudwatch_compliance import AWSCloudWatchComplianceLogger
+    except ImportError:
+        AWSCloudWatchComplianceLogger = None
+        
+    try:
+        from maif.aws_s3_block_storage import AWSS3BlockStorage
+    except ImportError:
+        AWSS3BlockStorage = None
+        
+    try:
+        from maif.aws_kinesis_streaming import AWSKinesisStreaming
+    except ImportError:
+        AWSKinesisStreaming = None
     
     # Storage backend
-    if config.s3_bucket:
-        backends['storage'] = AWSS3Integration(
+    if config.s3_bucket and MAIFS3Integration:
+        backends['storage'] = MAIFS3Integration(
             bucket_name=config.s3_bucket,
             region_name=config.region,
             profile_name=config.profile,
@@ -90,15 +117,16 @@ def create_aws_backends(config: Optional[AWSConfig] = None) -> Dict[str, Any]:
         )
         
         # Block storage backend
-        backends['block_storage'] = AWSS3BlockStorage(
-            bucket_name=config.s3_bucket,
-            region_name=config.region,
-            profile_name=config.profile,
-            prefix=config.s3_prefix + "blocks/"
-        )
+        if AWSS3BlockStorage:
+            backends['block_storage'] = AWSS3BlockStorage(
+                bucket_name=config.s3_bucket,
+                region_name=config.region,
+                profile_name=config.profile,
+                prefix=config.s3_prefix + "blocks/"
+            )
     
     # Security/Encryption backend
-    if config.kms_key_alias or config.kms_key_id:
+    if (config.kms_key_alias or config.kms_key_id) and AWSKMSIntegration:
         backends['encryption'] = AWSKMSIntegration(
             region_name=config.region,
             profile_name=config.profile,
@@ -107,27 +135,29 @@ def create_aws_backends(config: Optional[AWSConfig] = None) -> Dict[str, Any]:
         )
     
     # Secrets Manager for security
-    backends['security'] = AWSSecretsManagerSecurity(
-        region_name=config.region,
-        secret_prefix=config.secrets_prefix
-    )
+    if AWSSecretsManagerSecurity:
+        backends['security'] = AWSSecretsManagerSecurity(
+            region_name=config.region,
+            secret_prefix=config.secrets_prefix
+        )
     
     # Privacy backend with Macie
-    if config.enable_macie:
+    if config.enable_macie and AWSMaciePrivacy:
         backends['privacy'] = AWSMaciePrivacy(
             region_name=config.region,
             enable_auto_classification=True
         )
     
     # Compliance logging with CloudWatch
-    backends['compliance'] = AWSCloudWatchComplianceLogger(
-        region_name=config.region,
-        log_group_name=config.cloudwatch_log_group,
-        retention_days=config.cloudwatch_retention_days
-    )
+    if AWSCloudWatchComplianceLogger:
+        backends['compliance'] = AWSCloudWatchComplianceLogger(
+            region_name=config.region,
+            log_group_name=config.cloudwatch_log_group,
+            retention_days=config.cloudwatch_retention_days
+        )
     
     # Streaming with Kinesis
-    if config.kinesis_stream:
+    if config.kinesis_stream and AWSKinesisStreaming:
         backends['streaming'] = AWSKinesisStreaming(
             stream_name=config.kinesis_stream,
             region_name=config.region,

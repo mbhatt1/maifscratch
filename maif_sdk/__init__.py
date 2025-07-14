@@ -34,12 +34,21 @@ Architecture Overview:
                         └──────────────────────────────────────┘
 """
 
-from .client import MAIFClient, quick_write, quick_read
-from .artifact import Artifact, ContentItem
-from .types import (
-    ContentType, SecurityLevel, CompressionLevel, 
-    ContentMetadata, SecurityOptions, ProcessingOptions
-)
+# Import core SDK components
+try:
+    from .client import MAIFClient, quick_write, quick_read
+    from .artifact import Artifact, ContentItem
+    from .types import (
+        ContentType, SecurityLevel, CompressionLevel,
+        ContentMetadata, SecurityOptions, ProcessingOptions
+    )
+    CORE_SDK_AVAILABLE = True
+except ImportError as e:
+    # If core SDK components are missing, the SDK can't function
+    raise ImportError(
+        f"Failed to import core SDK components: {e}\n"
+        "Please ensure all required dependencies are installed."
+    )
 
 # AWS Backend support
 try:
@@ -51,23 +60,37 @@ except ImportError:
     create_aws_backends = None
 
 # Optional components (may not be available on all systems)
-try:
-    from .fuse_fs import MAIFFilesystem, mount_maif_filesystem, unmount_filesystem
-    FUSE_AVAILABLE = True
-except ImportError:
-    FUSE_AVAILABLE = False
-    MAIFFilesystem = None
-    mount_maif_filesystem = None
-    unmount_filesystem = None
+# These are commented out as they don't exist yet
+# When implementing FUSE or gRPC support, uncomment these sections
 
-try:
-    from .grpc_daemon import MAIFServicer, serve_maif_grpc, MAIFGRPCClient
-    GRPC_AVAILABLE = True
-except ImportError:
-    GRPC_AVAILABLE = False
-    MAIFServicer = None
-    serve_maif_grpc = None
-    MAIFGRPCClient = None
+# try:
+#     from .fuse_fs import MAIFFilesystem, mount_maif_filesystem, unmount_filesystem
+#     FUSE_AVAILABLE = True
+# except ImportError:
+#     FUSE_AVAILABLE = False
+#     MAIFFilesystem = None
+#     mount_maif_filesystem = None
+#     unmount_filesystem = None
+
+# try:
+#     from .grpc_daemon import MAIFServicer, serve_maif_grpc, MAIFGRPCClient
+#     GRPC_AVAILABLE = True
+# except ImportError:
+#     GRPC_AVAILABLE = False
+#     MAIFServicer = None
+#     serve_maif_grpc = None
+#     MAIFGRPCClient = None
+
+# Set defaults for now
+FUSE_AVAILABLE = False
+MAIFFilesystem = None
+mount_maif_filesystem = None
+unmount_filesystem = None
+
+GRPC_AVAILABLE = False
+MAIFServicer = None
+serve_maif_grpc = None
+MAIFGRPCClient = None
 
 __version__ = "1.0.0"
 __all__ = [

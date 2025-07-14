@@ -20,13 +20,35 @@ from typing import Dict, List, Optional, Union, BinaryIO, Any, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, asdict
 
-from maif.core import MAIFEncoder, MAIFDecoder, MAIFBlock
-from maif.security import SecurityManager
-from maif.compression_manager import CompressionManager
-from maif.privacy import PrivacyEngine, PrivacyPolicy
+# Import from maif package if available, otherwise use stubs
+try:
+    from maif.core import MAIFEncoder, MAIFDecoder, MAIFBlock
+    from maif.security import SecurityManager
+    from maif.compression_manager import CompressionManager
+    from maif.privacy import PrivacyEngine, PrivacyPolicy
+    MAIF_AVAILABLE = True
+except ImportError:
+    # Create minimal stubs for testing SDK without full maif package
+    MAIF_AVAILABLE = False
+    MAIFEncoder = None
+    MAIFDecoder = None
+    MAIFBlock = None
+    SecurityManager = None
+    CompressionManager = None
+    PrivacyEngine = None
+    PrivacyPolicy = None
+
 from .types import ContentType, SecurityLevel, CompressionLevel, ContentMetadata, SecurityOptions, ProcessingOptions
 from .artifact import Artifact
-from .aws_backend import AWSConfig, create_aws_backends
+
+# Import AWS backend conditionally
+try:
+    from .aws_backend import AWSConfig, create_aws_backends
+    AWS_BACKEND_AVAILABLE = True
+except ImportError:
+    AWS_BACKEND_AVAILABLE = False
+    AWSConfig = None
+    create_aws_backends = None
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -99,6 +121,20 @@ class MAIFClient:
             aws_config: AWS configuration (uses environment if not provided)
             **kwargs: Additional configuration options
         """
+        # Check if MAIF core is available
+        if not MAIF_AVAILABLE:
+            raise ImportError(
+                "MAIF core package is not installed. Please install it to use the SDK.\n"
+                "Run: pip install maif"
+            )
+        
+        # Check if AWS backend is requested but not available
+        if use_aws and not AWS_BACKEND_AVAILABLE:
+            raise ImportError(
+                "AWS backend dependencies are not installed. Please install boto3.\n"
+                "Run: pip install boto3"
+            )
+        
         self.config = ClientConfig(
             agent_id=agent_id,
             use_aws=use_aws,
@@ -121,7 +157,7 @@ class MAIFClient:
             self.encryption_backend = self._aws_backends.get('encryption')
         else:
             # Use local backends
-            self.security_engine = SecurityManager()
+            self.security_engine = SecurityManager(use_kms=False, require_encryption=False)
             self.compression_engine = CompressionManager()
             self.privacy_engine = PrivacyEngine()
             self.compliance_logger = None
@@ -275,8 +311,9 @@ class MAIFClient:
         
         # Log to compliance logger if AWS enabled
         if self.config.use_aws and self.compliance_logger:
-            from ..maif.compliance_logging import LogLevel, LogCategory
-            self.compliance_logger.log(
+            try:
+                from maif.compliance_logging import LogLevel, LogCategory
+                self.compliance_logger.log(
                 level=LogLevel.INFO,
                 category=LogCategory.DATA,
                 user_id=self.config.agent_id,
@@ -287,8 +324,11 @@ class MAIFClient:
                     "size": len(content),
                     "encrypted": meta_dict.get('encrypted', False),
                     "compressed": meta_dict.get('compressed', False)
-                }
-            )
+                    }
+                )
+            except ImportError:
+                # Compliance logging module not available
+                pass
         
         # Use AWS S3 storage if enabled
         if self.config.use_aws and self.storage_backend:
@@ -367,8 +407,9 @@ class MAIFClient:
         """
         # Log read access if AWS enabled
         if self.config.use_aws and self.compliance_logger:
-            from ..maif.compliance_logging import LogLevel, LogCategory
-            self.compliance_logger.log(
+            try:
+                from maif.compliance_logging import LogLevel, LogCategory
+                self.compliance_logger.log(
                 level=LogLevel.INFO,
                 category=LogCategory.ACCESS,
                 user_id=self.config.agent_id,
@@ -377,8 +418,11 @@ class MAIFClient:
                 details={
                     "block_id": block_id,
                     "content_type": content_type.value if content_type else None
-                }
-            )
+                    }
+                )
+            except ImportError:
+                # Compliance logging module not available
+                pass
         
         with self.open_file(filepath, 'r') as decoder:
             for block in decoder.blocks:
@@ -622,3 +666,33 @@ def quick_read(filepath: Union[str, Path], **kwargs) -> List[Dict]:
     """Quick read operation using default client."""
     with MAIFClient() as client:
         return list(client.read_content(filepath, **kwargs))
+
+
+# Stub implementations for when MAIF core is not available
+if not MAIF_AVAILABLE:
+    class MAIFEncoderStub:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("MAIF core package is required. Install with: pip install maif")
+    
+    class MAIFDecoderStub:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("MAIF core package is required. Install with: pip install maif")
+    
+    class SecurityManagerStub:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("MAIF core package is required. Install with: pip install maif")
+    
+    class CompressionManagerStub:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("MAIF core package is required. Install with: pip install maif")
+    
+    class PrivacyEngineStub:
+        def __init__(self, *args, **kwargs):
+            raise NotImplementedError("MAIF core package is required. Install with: pip install maif")
+    
+    # Replace None values with stub classes
+    MAIFEncoder = MAIFEncoder or MAIFEncoderStub
+    MAIFDecoder = MAIFDecoder or MAIFDecoderStub
+    SecurityManager = SecurityManager or SecurityManagerStub
+    CompressionManager = CompressionManager or CompressionManagerStub
+    PrivacyEngine = PrivacyEngine or PrivacyEngineStub

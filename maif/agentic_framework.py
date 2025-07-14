@@ -556,10 +556,20 @@ class PerceptionSystem:
         self.csb = CryptographicSemanticBinding()
         
         # Perception buffer
-        self.buffer = HotBufferLayer(
-            buffer_size=10 * 1024 * 1024,  # 10MB
+        from .hot_buffer import HotBufferConfig
+        buffer_config = HotBufferConfig(
+            max_buffer_size=10 * 1024 * 1024,  # 10MB
             flush_interval=5.0
         )
+        self.buffer = HotBufferLayer(
+            config=buffer_config,
+            flush_callback=self._flush_perception_buffer
+        )
+    
+    def _flush_perception_buffer(self, operations: List[Any]) -> None:
+        """Flush perception buffer operations."""
+        # For now, just log the flush
+        logger.info(f"Flushing {len(operations)} perception operations")
     
     async def process(self, input_data: Any, input_type: str) -> MAIFArtifact:
         """Process perception input into MAIF artifact."""

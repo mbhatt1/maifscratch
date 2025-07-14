@@ -21,11 +21,12 @@ from .agentic_framework import (
 from .aws_bedrock_integration import BedrockClient, MAIFBedrockIntegration
 from .aws_kms_integration import create_kms_verifier, sign_block_data_with_kms
 from .aws_xray_integration import MAIFXRayIntegration, xray_trace, xray_subsegment
+from .aws_config import AWSConfig
+from .aws_credentials import configure_aws_credentials
 
 from maif_sdk.artifact import Artifact as MAIFArtifact
 from maif_sdk.types import SecurityLevel
 from maif_sdk.client import MAIFClient
-from maif_sdk.aws_backend import AWSConfig
 
 
 # ===== Enhanced AWS System Implementations =====
@@ -653,16 +654,23 @@ def aws_agent(region_name: str = "us-east-1", profile_name: Optional[str] = None
     """
     def decorator(cls):
         # Configure AWS settings if aws_config not provided
-        if use_aws and aws_config is None:
-            aws_config = AWSConfig(
-                region_name=region_name,
-                profile_name=profile_name
+        config_to_use = aws_config
+        if use_aws and config_to_use is None:
+            # Create credential manager with the specified profile
+            from .aws_credentials import configure_aws_credentials
+            credential_manager = configure_aws_credentials(
+                profile_name=profile_name,
+                region_name=region_name
+            )
+            config_to_use = AWSConfig(
+                credential_manager=credential_manager,
+                default_region=region_name
             )
         
         # First apply the maif_agent decorator with AWS backend support and X-Ray
         agent_cls = maif_agent(
             use_aws=use_aws,
-            aws_config=aws_config,
+            aws_config=config_to_use,
             enable_xray=enable_xray,
             xray_service_name=xray_service_name,
             **config
