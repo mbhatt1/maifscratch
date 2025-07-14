@@ -53,28 +53,21 @@ graph TB
 
 ### 1. Batch Processing
 
-Maximize throughput with efficient batching. The following code configures a high-throughput client and uses a `BatchProcessor` to ingest a large number of documents efficiently.
+Maximize throughput with efficient batching using the client's write buffer. The following code configures a high-throughput client with memory-mapped I/O and compression.
 
 ```python
-from maif_sdk import create_client, BatchProcessor
-import asyncio
+from maif_sdk import create_client, ContentType
+from maif.batch_processor import BatchProcessor  # If using the full MAIF package
+import time
 
-# Configure a client for high-throughput scenarios with a large batch size,
-# multiple connections, and compression enabled.
+# Configure a client for high-throughput scenarios with write buffering
+# and compression enabled.
 client = create_client(
-    endpoint="https://api.maif.ai",
-    batch_size=10000,
-    max_connections=50,
-    compression=True
-)
-
-# Use a BatchProcessor to automatically handle batching of operations
-# for maximum throughput. It flushes every second or when the memory limit is reached.
-batch_processor = BatchProcessor(
-    client,
-    batch_size=5000,
-    flush_interval="1s",
-    max_memory="2GB"
+    agent_id="high-throughput-agent",
+    enable_mmap=True,         # Memory-mapped I/O for performance
+    buffer_size=128*1024,     # 128KB write buffer
+    enable_compression=True,   # Enable compression
+    max_concurrent_writers=8   # Allow parallel write operations
 )
 
 # Utility function to break a list into smaller chunks.
@@ -82,9 +75,9 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
-async def high_throughput_ingestion():
+def high_throughput_ingestion():
     # Create an artifact to store the data.
-    artifact = await client.create_artifact("high-throughput")
+    artifact = client.create_artifact("high-throughput")
     
     # Prepare a large dataset for ingestion.
     documents = []
@@ -95,9 +88,18 @@ async def high_throughput_ingestion():
         })
     
     # Process the documents in optimized batches.
-    # The `async with` block ensures the processor is properly closed.
-    async with batch_processor:
-        for batch in chunks(documents, 5000):
+    # The client's write buffer automatically combines small writes.
+    start_time = time.time()
+    
+    for i, doc in enumerate(documents):
+        artifact.add_text(
+            doc["content"],
+            metadata=doc["metadata"]
+        )
+        
+        # Periodically flush to avoid memory buildup
+        if i % 5000 == 0:
+            client.flush_all_buffers()
             # The processor automatically optimizes the batch submission.
             await batch_processor.add_text_batch(artifact, batch)
     

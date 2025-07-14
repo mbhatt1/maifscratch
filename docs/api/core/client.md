@@ -39,23 +39,28 @@ graph TB
 This example provides a brief overview of the `MAIFClient`'s core functionality: creating a client, storing information with `remember`, retrieving it with `recall`, and configuring advanced features.
 
 ```python
-from maif_sdk import create_client
+from maif_sdk import create_client, ContentType
 
 # Create a basic client instance with a unique agent ID.
 client = create_client("my-agent")
 
-# Store a piece of information. MAIF will automatically handle semantic indexing.
-memory_id = client.remember("User prefers dark theme")
+# Write content to a MAIF file
+client.write_content(
+    "agent_memory.maif",
+    b"User prefers dark theme",
+    content_type=ContentType.TEXT,
+    metadata={"topic": "preferences"}
+)
 
-# Retrieve information using a semantic query.
-results = client.recall("user preferences")
+# Read content from a MAIF file
+content = client.read_content("agent_memory.maif")
 
 # Create a client with more advanced configurations for an enterprise-grade agent.
 client = create_client(
     "enterprise-agent",
-    enable_privacy=True,      # Enable the privacy engine for encryption and anonymization.
-    default_encryption=True,  # Encrypt all data by default.
-    semantic_model="all-MiniLM-L6-v2" # Specify a default embedding model.
+    enable_mmap=True,         # Enable memory-mapped I/O for performance
+    enable_compression=True,  # Enable automatic compression
+    use_aws=True             # Enable AWS backend integration
 )
 ```
 

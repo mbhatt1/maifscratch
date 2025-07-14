@@ -14,10 +14,10 @@ This example demonstrates building a privacy-compliant financial AI agent with M
 ## Complete Implementation
 
 ```python
-from maif_sdk import create_client, create_artifact
-from maif import (
+from maif_sdk import create_client, create_artifact, SecurityLevel
+from maif.privacy import (
     PrivacyPolicy, PrivacyLevel, EncryptionMode,
-    SecurityLevel, AccessRule, Permission
+    AccessRule
 )
 from maif.semantic_optimized import AdaptiveCrossModalAttention
 from maif.streaming import MAIFStreamWriter

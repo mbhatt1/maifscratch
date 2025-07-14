@@ -74,8 +74,8 @@ Let's build a privacy-aware AI agent that can remember conversations, understand
 This first step initializes the MAIF client and creates a secure, persistent memory space for our agent called an "artifact". The following code sets up the client and the agent's memory.
 
 ```python
-from maif_sdk import create_client, create_artifact
-from maif import PrivacyLevel, SecurityLevel
+from maif_sdk import create_client, create_artifact, SecurityLevel
+from maif.privacy import PrivacyLevel
 
 # Create a high-performance MAIF client.
 # The client is the main entry point for interacting with the MAIF framework.

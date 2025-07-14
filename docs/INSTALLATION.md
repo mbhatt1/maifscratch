@@ -68,10 +68,10 @@ pip install -e .[dev,full]
 ### Using the Simple API
 
 ```python
-import maif
+from maif_api import create_maif, load_maif
 
 # Create a new MAIF
-artifact = maif.create_maif("my_agent")
+artifact = create_maif("my_agent")
 
 # Add content
 artifact.add_text("Hello, MAIF world!", title="Greeting")
@@ -84,7 +84,7 @@ artifact.add_multimodal({
 artifact.save("my_artifact.maif")
 
 # Load and verify
-loaded = maif.load_maif("my_artifact.maif")
+loaded = load_maif("my_artifact.maif")
 print(f"Integrity: {loaded.verify_integrity()}")
 ```
 

@@ -52,17 +52,15 @@ pip install maif[aws]
 
 # Basic usage example
 from maif.core import MAIFClient
-from maif.aws_s3_integration import AWSS3Integration
-from maif.aws_kms_integration import AWSKMSIntegration
+from maif.aws_s3_integration import S3Client
+from maif.aws_kms_integration import KMSKeyStore
 
 # Initialize MAIF with AWS integrations
 client = MAIFClient(
-    storage_backend=AWSS3Integration(
-        bucket_name="my-maif-artifacts",
+    storage_backend=S3Client(
         region_name="us-east-1"
     ),
-    encryption_backend=AWSKMSIntegration(
-        key_alias="alias/maif-encryption-key",
+    encryption_backend=KMSKeyStore(
         region_name="us-east-1"
     )
 )
@@ -86,16 +84,18 @@ artifact_id, path = client.create_artifact(config, data)
 
 **Usage**:
 ```python
-from maif.aws_bedrock_integration import AWSBedrockIntegration
+from maif.aws_bedrock_integration import BedrockClient
 
-bedrock = AWSBedrockIntegration(region_name="us-east-1")
+bedrock = BedrockClient(region_name="us-east-1")
 
 # Generate text
-response = bedrock.generate_text(
+response = bedrock.generate_text_block(
     prompt="Explain quantum computing",
-    model_id="anthropic.claude-v2",
-    max_tokens=500,
-    temperature=0.7
+    metadata={
+        "model_id": "anthropic.claude-v2",
+        "max_tokens": 500,
+        "temperature": 0.7
+    }
 )
 
 # Stream responses
