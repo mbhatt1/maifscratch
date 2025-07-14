@@ -11,6 +11,8 @@ This example showcases the comprehensive capabilities of MAIF 2.0 including:
 """
 
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import json
 import time
 from pathlib import Path
@@ -19,9 +21,10 @@ from pathlib import Path
 from maif.core import MAIFEncoder, MAIFParser
 from maif.security import MAIFSigner, MAIFVerifier
 from maif.compression import MAIFCompressor, CompressionAlgorithm
-from maif.binary_format import BinaryFormatWriter, BinaryFormatReader
+from maif.binary_format import MAIFBinaryWriter, MAIFBinaryParser
 from maif.validation import MAIFValidator, MAIFRepairTool
 from maif.streaming import MAIFStreamReader, MAIFStreamWriter, StreamingConfig
+from maif.integration import MAIFConverter
 from maif.integration_enhanced import EnhancedMAIFProcessor
 from maif.metadata import MAIFMetadataManager
 from maif.forensics import ForensicAnalyzer
@@ -68,22 +71,32 @@ def demo_binary_format():
     output_file = "demo_binary.maif"
     
     # Write binary format
-    with BinaryFormatWriter(output_file) as writer:
-        # Add various block types
-        writer.write_block("text_block", b"Hello, MAIF!", "text_data")
-        writer.write_block("binary_block", b"\x00\x01\x02\x03\x04", "binary_data")
-        writer.write_block("json_block", json.dumps({"key": "value"}).encode(), "json_data")
+    writer = MAIFBinaryWriter(output_file)
     
+    # Add various block types using BlockType enum
+    from maif.binary_format import BlockType
+    writer.add_block(BlockType.TEXT_DATA, b"Hello, MAIF!")
+    writer.add_block(BlockType.IMAGE_DATA, b"\x00\x01\x02\x03\x04")
+    writer.add_block(BlockType.EMBEDDINGS, json.dumps({"key": "value"}).encode())
+    
+    # Write the file
+    writer.write_file()
     print(f"✓ Binary MAIF file created: {output_file}")
     
     # Read binary format
-    with BinaryFormatReader(output_file) as reader:
-        header = reader.read_header()
-        print(f"✓ Header read: {header.block_count} blocks")
-        
-        for block_id in reader.list_blocks():
-            block_data = reader.read_block(block_id)
-            print(f"  Block {block_id}: {len(block_data)} bytes")
+    parser = MAIFBinaryParser(output_file)
+    header = parser.parse_file_header()
+    print(f"✓ Header read: Version {header.version_major}.{header.version_minor}, {header.block_count} blocks")
+    
+    # Parse block index
+    blocks = parser.parse_block_index()
+    print(f"✓ Found {len(blocks)} blocks")
+    
+    # Read blocks
+    for i in range(len(blocks)):
+        block_header = parser.read_block_header(i)
+        block_data = parser.read_block_data(i)
+        print(f"  Block {i}: Type {block_header.block_type}, {len(block_data)} bytes")
     
     # Cleanup
     if os.path.exists(output_file):
@@ -96,7 +109,11 @@ def demo_validation_and_repair():
     # Create a MAIF file
     encoder = MAIFEncoder(agent_id="demo_agent")
     encoder.add_text_block("Sample content for validation")
-    encoder.add_metadata_block({"demo": True, "version": "2.0"})
+    encoder.add_binary_block(
+        json.dumps({"demo": True, "version": "2.0"}).encode(),
+        "metadata",
+        {"content_type": "application/json"}
+    )
     
     maif_file = "demo_validation.maif"
     manifest_file = f"{maif_file}.manifest.json"
@@ -110,8 +127,10 @@ def demo_validation_and_repair():
     
     print(f"✓ Validation complete:")
     print(f"  Valid: {report.is_valid}")
-    print(f"  Issues found: {len(report.issues)}")
-    print(f"  Statistics: {report.statistics}")
+    print(f"  Errors found: {len(report.errors)}")
+    print(f"  Warnings found: {len(report.warnings)}")
+    print(f"  Block count: {report.block_count}")
+    print(f"  File size: {report.file_size} bytes")
     
     if not report.is_valid:
         # Attempt repair
@@ -138,7 +157,7 @@ def demo_streaming_operations():
     with MAIFStreamWriter(maif_file, config) as writer:
         for i in range(10):
             content = f"Block {i}: " + "x" * 1000  # 1KB per block
-            writer.write_block(f"block_{i}", content.encode(), "text_data")
+            writer.write_block(content.encode(), "text_data", {"block_id": f"block_{i}"})
     
     print(f"✓ Created streaming MAIF file: {maif_file}")
     
@@ -188,28 +207,19 @@ def demo_format_conversion():
     # Convert to MAIF
     converter = MAIFConverter()
     maif_file = "converted.maif"
+    manifest_file = "converted.maif.manifest.json"
     
-    result = converter.convert_to_maif(json_file, maif_file, "json")
+    result = converter.convert_to_maif(json_file, maif_file, manifest_file, "json")
     
-    if result.success:
+    if result["success"]:
         print(f"✓ Converted to MAIF: {maif_file}")
-        print(f"  Warnings: {len(result.warnings)}")
-        print(f"  Metadata: {result.metadata}")
+        print(f"  Message: {result.get('message', 'Success')}")
         
-        # Convert back to JSON
-        json_output = "converted_back.json"
-        export_result = converter.export_from_maif(maif_file, json_output, "json")
-        
-        if export_result.success:
-            print(f"✓ Exported back to JSON: {json_output}")
-        else:
-            print(f"✗ Export failed: {export_result.errors}")
-        
-        # Cleanup export file
-        if os.path.exists(json_output):
-            os.remove(json_output)
+        # Note: Export functionality is not implemented in MAIFConverter
+        # The conversion demo shows successful import to MAIF format
+        print("\n(Export from MAIF to other formats is not yet implemented)")
     else:
-        print(f"✗ Conversion failed: {result.errors}")
+        print(f"✗ Conversion failed: {result.get('error', 'Unknown error')}")
     
     # Cleanup
     for file_path in [json_file, maif_file, f"{maif_file}.manifest.json"]:
@@ -224,7 +234,7 @@ def demo_metadata_management():
     metadata_mgr = MAIFMetadataManager()
     
     # Create header
-    header = metadata_mgr.create_header("demo_agent", creator_agent="advanced_demo")
+    header = metadata_mgr.create_header(creator_agent="advanced_demo")
     print(f"✓ Created header: {header.file_id}")
     
     # Add block metadata
@@ -246,7 +256,10 @@ def demo_metadata_management():
         {"operation": "demo", "timestamp": time.time()}
     )
     
-    print(f"✓ Added provenance record: {provenance.operation_id}")
+    if provenance:
+        print("✓ Added provenance record")
+    else:
+        print("✗ Failed to add provenance record")
     
     # Validate dependencies
     errors = metadata_mgr.validate_dependencies()
@@ -264,12 +277,10 @@ def demo_forensic_analysis():
     encoder = MAIFEncoder(agent_id="forensic_demo")
     
     # Add initial content
-    encoder.add_text_block("Initial content")
-    encoder.add_metadata_block({"version": 1, "author": "user1"})
+    encoder.add_text_block("Initial content", metadata={"version": 1, "author": "user1"})
     
     # Simulate modifications
-    encoder.add_text_block("Modified content")
-    encoder.add_metadata_block({"version": 2, "author": "user2", "modification": "content_update"})
+    encoder.add_text_block("Modified content", metadata={"version": 2, "author": "user2", "modification": "content_update"})
     
     maif_file = "forensic_demo.maif"
     manifest_file = f"{maif_file}.manifest.json"
@@ -278,22 +289,19 @@ def demo_forensic_analysis():
     print(f"✓ Created MAIF file for forensic analysis: {maif_file}")
     
     # Perform forensic analysis
-    parser = MAIFParser(maif_file, manifest_file)
-    verifier = MAIFVerifier()
     analyzer = ForensicAnalyzer()
     
-    report = analyzer.analyze_maif(parser, verifier)
+    report = analyzer.analyze_maif_file(maif_file, manifest_file)
     
     print(f"✓ Forensic analysis complete:")
-    print(f"  Integrity status: {report.integrity_status}")
-    print(f"  Events analyzed: {report.events_analyzed}")
-    print(f"  Evidence items: {len(report.evidence)}")
-    print(f"  Timeline events: {len(report.timeline)}")
+    print(f"  File ID: {report.get('file_id', 'N/A')}")
+    print(f"  Block count: {report.get('block_count', 0)}")
+    print(f"  Total size: {report.get('total_size', 0)} bytes")
     
-    if report.evidence:
-        print("  Evidence found:")
-        for evidence in report.evidence[:3]:  # Show first 3
-            print(f"    - {evidence.severity.upper()}: {evidence.description}")
+    if 'blocks' in report and report['blocks']:
+        print(f"  Blocks analyzed: {len(report['blocks'])}")
+        for i, block in enumerate(report['blocks'][:3]):  # Show first 3
+            print(f"    - Block {i}: Type {block.get('block_type', 'unknown')}, {block.get('size', 0)} bytes")
     
     # Cleanup
     for file_path in [maif_file, manifest_file]:

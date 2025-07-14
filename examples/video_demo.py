@@ -236,18 +236,18 @@ def demonstrate_video_statistics(decoder: MAIFDecoder):
     
     summary = decoder.get_video_summary()
     
-    print(f"Total videos: {summary['total_videos']}")
-    print(f"Total duration: {summary['total_duration_seconds']:.1f} seconds")
-    print(f"Total size: {summary['total_size_mb']:.1f} MB")
-    print(f"Average duration: {summary['average_duration']:.1f} seconds")
-    print(f"Videos with semantic analysis: {summary['videos_with_semantic_analysis']}")
+    print(f"Total videos: {summary.get('total_videos', 0)}")
+    print(f"Total duration: {summary.get('total_duration_seconds', 0):.1f} seconds")
+    print(f"Total size: {summary.get('total_size_mb', 0):.1f} MB")
+    print(f"Average duration: {summary.get('average_duration', 0):.1f} seconds")
+    print(f"Videos with semantic analysis: {summary.get('videos_with_semantic_analysis', 0)}")
     
     print("\nFormat distribution:")
-    for format_name, count in summary['formats'].items():
+    for format_name, count in summary.get('formats', {}).items():
         print(f"  {format_name}: {count} videos")
     
     print("\nResolution distribution:")
-    for resolution, count in summary['resolutions'].items():
+    for resolution, count in summary.get('resolutions', {}).items():
         print(f"  {resolution}: {count} videos")
 
 

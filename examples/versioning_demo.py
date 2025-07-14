@@ -4,6 +4,13 @@ Demonstration of MAIF versioning and forensic capabilities.
 
 import json
 import time
+import sys
+import os
+from datetime import datetime
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from maif import MAIFEncoder, MAIFParser, MAIFSigner, MAIFVerifier
 from maif.forensics import ForensicAnalyzer
 
@@ -136,7 +143,8 @@ def analyze_version_history(block_id):
     timeline = parser.decoder.get_version_timeline()
     print(f"\n   Complete timeline ({len(timeline)} events):")
     for event in timeline:
-        print(f"   - {event.datetime_str}: {event.operation} by {event.agent_id}")
+        datetime_str = datetime.fromtimestamp(event.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+        print(f"   - {datetime_str}: {event.operation} by {event.agent_id}")
         if event.change_description:
             print(f"     Description: {event.change_description}")
     
@@ -160,41 +168,42 @@ def perform_forensic_analysis(parser):
     analyzer = ForensicAnalyzer()
     
     # Perform analysis
-    report = analyzer.analyze_maif(parser, verifier)
+    report = analyzer.analyze_maif_file("versioned_doc.maif", "versioned_doc_manifest.json")
     
-    print(f"   Forensic Status: {report.integrity_status}")
-    print(f"   Events Analyzed: {report.events_analyzed}")
-    print(f"   Tampering Detected: {report.tampering_detected}")
-    print(f"   Evidence Found: {len(report.evidence)}")
-    print(f"   Version Analyses: {len(report.version_analysis)}")
+    # Extract key information from the report dictionary
+    print(f"   Forensic Status: {report.get('status', 'Unknown')}")
+    print(f"   Risk Assessment: {report.get('risk_assessment', {}).get('overall_risk', 'Unknown')}")
+    print(f"   Total Evidence: {len(report.get('evidence', []))}")
+    print(f"   Recommendations: {len(report.get('recommendations', []))}")
     
-    # Show version analysis details
-    if report.version_analysis:
+    # Show version analysis details if available
+    version_history = report.get('version_history', {})
+    if version_history.get('version_count', 0) > 0:
         print("\n   Version Analysis Details:")
-        for analysis in report.version_analysis:
-            print(f"   - Block {analysis.block_id[:8]}...")
-            print(f"     Total versions: {analysis.total_versions}")
-            print(f"     Modification frequency: {analysis.modification_frequency:.2f} changes/day")
-            print(f"     Agents involved: {', '.join(analysis.agents_involved)}")
-            if analysis.suspicious_patterns:
-                print(f"     Suspicious patterns: {len(analysis.suspicious_patterns)}")
-                for pattern in analysis.suspicious_patterns:
-                    print(f"       - {pattern}")
+        print(f"   - Total versions: {version_history.get('version_count', 0)}")
+        print(f"   - Active agents: {version_history.get('agent_count', 0)}")
+        if version_history.get('anomalies'):
+            print(f"   - Anomalies detected: {len(version_history.get('anomalies', []))}")
     
     # Show evidence if any
-    if report.evidence:
+    evidence = report.get('evidence', [])
+    if evidence:
         print("\n   Evidence Found:")
-        for evidence in report.evidence:
-            print(f"   - {evidence.severity.upper()}: {evidence.description}")
+        for i, ev in enumerate(evidence[:3], 1):  # Show first 3 pieces of evidence
+            severity = ev.get('severity', 'Unknown')
+            description = ev.get('description', 'No description')
+            print(f"   {i}. [{severity}] {description}")
     
     # Show recommendations
-    print(f"\n   Recommendations ({len(report.recommendations)}):")
-    for i, rec in enumerate(report.recommendations[:5], 1):
-        print(f"   {i}. {rec}")
+    recommendations = report.get('recommendations', [])
+    if recommendations:
+        print(f"\n   Recommendations ({len(recommendations)}):")
+        for i, rec in enumerate(recommendations[:5], 1):
+            print(f"   {i}. {rec.get('description', 'No description')}")
     
     # Save forensic report
     with open("versioning_forensic_report.json", "w") as f:
-        json.dump(report.to_dict(), f, indent=2)
+        json.dump(report, f, indent=2)
     
     print("\n   ✓ Forensic report saved: versioning_forensic_report.json")
     
@@ -252,8 +261,16 @@ def main():
         print("  - versioning_forensic_report.json (comprehensive forensic analysis)")
         
         print(f"\nKey achievements:")
-        print(f"  - Created {len(parser.decoder.version_history)} version entries")
-        print(f"  - Tracked changes by {len(set(v.agent_id for v in parser.decoder.version_history))} agents")
+        # Count total versions across all blocks
+        total_versions = sum(len(versions) for versions in parser.decoder.version_history.values())
+        # Get unique agents from all versions
+        all_agents = set()
+        for versions in parser.decoder.version_history.values():
+            for v in versions:
+                all_agents.add(v.agent_id)
+        
+        print(f"  - Created {total_versions} version entries")
+        print(f"  - Tracked changes by {len(all_agents)} agents")
         print(f"  - Preserved complete audit trail with forensic analysis")
         print(f"  - Demonstrated append-on-write with data preservation")
         

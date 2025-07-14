@@ -25,7 +25,8 @@ from maif.semantic import (
     SemanticEmbedder,
     CrossModalAttention,
     HierarchicalSemanticCompression,
-    CryptographicSemanticBinding
+    CryptographicSemanticBinding,
+    DeepSemanticUnderstanding
 )
 
 def demo_acam():
@@ -53,8 +54,16 @@ def demo_acam():
     attention_weights = acam.compute_attention_weights(embeddings)
     
     print("\nAttention weights between modalities:")
-    for (mod1, mod2), weight in attention_weights.items():
-        print(f"  {mod1} -> {mod2}: {weight:.4f}")
+    if hasattr(attention_weights, 'coherence_matrix'):
+        # Display the coherence matrix as modality relationships
+        modalities = attention_weights.modalities
+        for i, mod1 in enumerate(modalities):
+            for j, mod2 in enumerate(modalities):
+                if i != j:
+                    weight = attention_weights.coherence_matrix[i, j]
+                    print(f"  {mod1} -> {mod2}: {weight:.4f}")
+    else:
+        print("  AttentionWeights structure not as expected")
     
     # Get attended representation for text modality
     attended_text = acam.get_attended_representation(embeddings, "text")
@@ -187,66 +196,32 @@ def demo_cross_modal_ai():
     # Initialize Deep Semantic Understanding
     dsu = DeepSemanticUnderstanding()
     
-    # Register modality processors
-    def text_processor(text):
-        embedder = SemanticEmbedder()
-        return embedder.embed_text(str(text)).vector
-    
-    def image_processor(image_data):
-        # Simulate image processing with hash-based embedding (384 dimensions)
-        import hashlib
-        if isinstance(image_data, str):
-            image_data = image_data.encode()
-        hash_obj = hashlib.sha256(image_data)
-        hash_hex = hash_obj.hexdigest()
-        # Create 384-dimensional embedding by repeating and padding
-        base_embedding = [float(int(hash_hex[i:i+2], 16)) / 255.0 for i in range(0, len(hash_hex), 2)]
-        # Repeat to get 384 dimensions
-        embedding = (base_embedding * (384 // len(base_embedding) + 1))[:384]
-        return embedding
-    
-    dsu.register_modality_processor("text", text_processor)
-    dsu.register_modality_processor("image", image_processor)
-    dsu.register_modality_processor("audio", image_processor)  # Reuse for demo
-    
-    # Create multimodal input
-    multimodal_input = {
-        "text": "A beautiful sunset over the ocean with waves crashing on the shore",
-        "image": "sunset_ocean_image_data_placeholder",
-        "audio": "ocean_waves_audio_data_placeholder"
+    # Create multimodal content for analysis
+    multimodal_content = {
+        "text": "A beautiful sunset over the ocean with waves crashing on the shore"
     }
     
-    print("Processing multimodal input:")
-    for modality, data in multimodal_input.items():
-        print(f"  {modality}: {data[:50]}..." if len(str(data)) > 50 else f"  {modality}: {data}")
+    print("Analyzing multimodal content:")
+    print(f"  Text: {multimodal_content['text']}")
     
-    # Process multimodal input
-    print("\nApplying cross-modal attention and semantic understanding...")
-    result = dsu.process_multimodal_input(multimodal_input)
+    # Analyze semantic content
+    print("\nApplying deep semantic understanding...")
+    result = dsu.analyze_semantic_content(multimodal_content)
     
-    print(f"\nProcessing results:")
-    print(f"  Modalities processed: {len(result['embeddings'])}")
-    print(f"  Attention weights computed: {len(result['attention_weights'])}")
-    print(f"  Unified representation dimensions: {len(result['unified_representation'])}")
+    print(f"\nAnalysis results:")
+    print(f"  Embeddings generated: {len(result['embeddings'])}")
     
-    print("\nSemantic features extracted:")
-    for modality, features in result['semantic_features'].items():
-        print(f"  {modality}:")
-        for key, value in features.items():
-            print(f"    {key}: {value}")
+    if result['embeddings'].get('text') is not None:
+        text_embedding = result['embeddings']['text']
+        print(f"  Text embedding dimensions: {len(text_embedding) if hasattr(text_embedding, '__len__') else 'N/A'}")
     
-    print("\nCross-modal attention weights:")
-    for (mod1, mod2), weight in result['attention_weights'].items():
-        print(f"  {mod1} -> {mod2}: {weight:.4f}")
+    if result['knowledge_graph'].get('entities'):
+        print(f"  Entities extracted: {len(result['knowledge_graph']['entities'])}")
+        for entity in result['knowledge_graph']['entities'][:3]:  # Show first 3
+            print(f"    - {entity}")
     
-    # Perform semantic reasoning
-    print("\nPerforming semantic reasoning...")
-    query = "What is the mood of this scene?"
-    reasoning_result = dsu.semantic_reasoning(query, result)
-    
-    print(f"Query: {query}")
-    print(f"Confidence: {reasoning_result['confidence']:.4f}")
-    print(f"Explanation: {reasoning_result['explanation']}")
+    print(f"  Semantic coherence score: {result['semantic_coherence']:.4f}")
+    print(f"  Understanding score: {result['understanding_score']:.4f}")
     
     return result
 
