@@ -6,6 +6,7 @@ import pytest
 import json
 import time
 import os
+import requests
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch, MagicMock, call
 import logging
@@ -332,6 +333,114 @@ class TestSIEMIntegration:
         assert data['index'] == "maif_compliance"
         assert data['event']['event_type'] == "DATA_ACCESS"
         
+    def test_elasticsearch_integration(self):
+        """Test Elasticsearch SIEM integration."""
+        with patch('requests.put') as mock_put:
+            # Mock successful response
+            mock_response = MagicMock()
+            mock_response.raise_for_status = MagicMock()
+            mock_put.return_value = mock_response
+            
+            siem = SIEMIntegration(
+                provider="elastic",
+                config={
+                    "url": "https://localhost:9200",
+                    "index": "maif-compliance",
+                    "api_key": "test-api-key"
+                }
+            )
+            
+            # Send test event
+            event = AuditEvent(
+                event_type=AuditEventType.DATA_ACCESS,
+                action="view_document",
+                user_id="user-789",
+                resource_id="doc-123"
+            )
+            
+            siem.send_event(event)
+            
+            # Verify API call
+            assert mock_put.called
+            call_args = mock_put.call_args
+            
+            # Check URL
+            expected_url = f"https://localhost:9200/maif-compliance/_doc/{event.event_id}"
+            assert call_args[0][0] == expected_url
+            
+            # Check headers
+            headers = call_args[1]['headers']
+            assert headers['Content-Type'] == 'application/json'
+            assert headers['Authorization'] == 'ApiKey test-api-key'
+            
+            # Check data
+            assert call_args[1]['data'] == event.to_json()
+            
+    def test_elasticsearch_basic_auth(self):
+        """Test Elasticsearch with basic authentication."""
+        with patch('requests.put') as mock_put:
+            mock_response = MagicMock()
+            mock_response.raise_for_status = MagicMock()
+            mock_put.return_value = mock_response
+            
+            siem = SIEMIntegration(
+                provider="elastic",
+                config={
+                    "url": "https://localhost:9200",
+                    "index": "maif-compliance",
+                    "username": "elastic",
+                    "password": "changeme"
+                }
+            )
+            
+            # Send test event
+            event = AuditEvent(
+                event_type=AuditEventType.SECURITY,
+                action="login_attempt",
+                user_id="admin-001"
+            )
+            
+            siem.send_event(event)
+            
+            # Verify basic auth header
+            headers = mock_put.call_args[1]['headers']
+            assert 'Authorization' in headers
+            assert headers['Authorization'].startswith('Basic ')
+            
+            # Decode and verify credentials
+            import base64
+            auth_header = headers['Authorization'].replace('Basic ', '')
+            decoded = base64.b64decode(auth_header).decode('ascii')
+            assert decoded == "elastic:changeme"
+            
+    def test_elasticsearch_failure_handling(self):
+        """Test Elasticsearch integration failure handling."""
+        with patch('requests.put') as mock_put:
+            # Mock network error
+            mock_put.side_effect = requests.RequestException("Connection refused")
+            
+            siem = SIEMIntegration(
+                provider="elastic",
+                config={
+                    "url": "https://localhost:9200",
+                    "index": "maif-compliance",
+                    "fallback_file": "/tmp/elastic_fallback.log"
+                }
+            )
+            
+            # Send event that will fail
+            event = AuditEvent(
+                event_type=AuditEventType.SECURITY,
+                action="critical_operation",
+                user_id="admin-002"
+            )
+            
+            # Should not raise exception
+            siem.send_event(event)
+            
+            # Verify error was logged (event should be in buffer)
+            assert mock_put.called
+            
     def test_siem_batch_sending(self):
         """Test batch sending of events to SIEM."""
         with patch('boto3.client') as mock_boto:
