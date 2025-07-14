@@ -1,8 +1,8 @@
-# MAIF 2.0 - Complete Feature Documentation
+# MAIF - Complete Feature Documentation
 
 ## Overview
 
-MAIF (Multimodal Artifact File Format) 2.0 is a comprehensive, AI-native file format designed for secure, versioned, and semantically-rich content storage. This document provides a complete overview of all features and capabilities.
+MAIF (Multimodal Artifact File Format) is a comprehensive, AI-native file format designed for secure, versioned, and semantically-rich content storage. This document provides a complete overview of all features and capabilities.
 
 ## Core Architecture
 
@@ -46,13 +46,13 @@ encoder.build_maif("output.maif", "manifest.json")
 - Version tracking
 - Agent attribution
 
-#### MAIFDecoder/Parser
+#### MAIFDecoder
 ```python
-from maif import MAIFParser
+from maif.core import MAIFDecoder
 
-parser = MAIFParser("file.maif", "manifest.json")
-content = parser.extract_content()
-metadata = parser.get_metadata()
+decoder = MAIFDecoder("file.maif", "manifest.json")
+blocks = list(decoder.blocks)
+metadata = decoder.manifest
 ```
 
 **Features:**
@@ -139,11 +139,11 @@ kg_builder.add_relationship("entity1", "knows", "entity2")
 
 #### Advanced Compression
 ```python
-from maif import MAIFCompressor, CompressionAlgorithm
+from maif.compression_manager import CompressionManager, CompressionType
 
-compressor = MAIFCompressor()
-compressed = compressor.compress(data, CompressionAlgorithm.BROTLI)
-decompressed = compressor.decompress(compressed, CompressionAlgorithm.BROTLI)
+compressor = CompressionManager()
+compressed = compressor.compress(data, CompressionType.BROTLI)
+decompressed = compressor.decompress(compressed)
 ```
 
 **Supported Algorithms:**
@@ -162,16 +162,19 @@ decompressed = compressor.decompress(compressed, CompressionAlgorithm.BROTLI)
 
 #### Low-Level Binary Operations
 ```python
-from maif import BinaryFormatWriter, BinaryFormatReader
+from maif.block_storage import BlockStorage, BlockType
 
 # Writing
-with BinaryFormatWriter("file.maif") as writer:
-    writer.write_block("block1", data, "text_data")
+storage = BlockStorage("file.maif")
+block_id = storage.add_block(
+    block_type=BlockType.TEXT_DATA,
+    data=b"Hello world",
+    metadata={"title": "Example"}
+)
 
 # Reading
-with BinaryFormatReader("file.maif") as reader:
-    header = reader.read_header()
-    data = reader.read_block("block1")
+block = storage.get_block(block_id)
+data = block.data
 ```
 
 **Features:**
@@ -185,14 +188,15 @@ with BinaryFormatReader("file.maif") as reader:
 
 #### File Validation
 ```python
-from maif import MAIFValidator, MAIFRepairTool
+from maif.validation import MAIFValidator
 
 validator = MAIFValidator()
 report = validator.validate_file("file.maif", "manifest.json")
 
-if not report.is_valid:
-    repair_tool = MAIFRepairTool()
-    repair_tool.repair_file("file.maif", "manifest.json")
+# Validation results
+print(f"Valid: {report.is_valid}")
+print(f"Errors: {report.errors}")
+print(f"Warnings: {report.warnings}")
 ```
 
 **Validation Checks:**
@@ -214,14 +218,14 @@ if not report.is_valid:
 
 #### Rich Metadata
 ```python
-from maif import MAIFMetadataManager, BlockMetadata
+from maif.metadata import MetadataManager
 
-metadata_mgr = MAIFMetadataManager()
-header = metadata_mgr.create_header("agent_id")
-
-block_meta = metadata_mgr.add_block_metadata(
-    "block1", "text_data", "text/plain", 1024, 0, "hash123",
-    tags=["important"], custom_metadata={"priority": "high"}
+metadata_mgr = MetadataManager()
+metadata = metadata_mgr.create_metadata(
+    agent_id="my_agent",
+    content_type="text/plain",
+    tags=["important"],
+    custom={"priority": "high"}
 )
 ```
 
@@ -237,12 +241,15 @@ block_meta = metadata_mgr.add_block_metadata(
 
 #### High-Performance Streaming
 ```python
-from maif import MAIFStreamReader, StreamingConfig
+from maif.streaming import StreamingEngine
+from maif.core import MAIFDecoder
 
-config = StreamingConfig(chunk_size=8192, max_workers=4)
-with MAIFStreamReader("large_file.maif", config) as reader:
-    for block_id, data in reader.stream_blocks_parallel():
-        process_block(data)
+# Stream processing
+decoder = MAIFDecoder("large_file.maif")
+streaming = StreamingEngine(buffer_size=8192)
+
+for block in decoder.stream_blocks():
+    streaming.process_block(block)
 ```
 
 **Features:**
@@ -257,42 +264,49 @@ with MAIFStreamReader("large_file.maif", config) as reader:
 
 #### Format Conversion
 ```python
-from maif import MAIFConverter
+from maif.integration import MAIFIntegration
 
-converter = MAIFConverter()
+# Create MAIF from various sources
+integration = MAIFIntegration()
+maif = integration.create_maif("my_agent")
 
-# Convert to MAIF
-result = converter.convert_to_maif("data.json", "output.maif", "json")
-
-# Export from MAIF
-result = converter.export_from_maif("input.maif", "output.xml", "xml")
+# Add content from files
+maif.add_text_file("document.txt")
+maif.add_json_file("data.json")
+maif.save("output.maif")
 ```
 
 **Supported Formats:**
 - **Input**: JSON, XML, ZIP, TAR, CSV, TXT, MD, PDF, DOCX
 - **Output**: JSON, XML, ZIP, CSV, HTML
 
-**Plugin System:**
+**Framework Adapters:**
 ```python
-from maif import MAIFPluginManager
+from maif.framework_adapters import LangChainAdapter, CrewAIAdapter
 
-plugin_mgr = MAIFPluginManager()
-plugin_mgr.register_plugin("custom_processor", MyPlugin)
-plugin_mgr.register_hook("pre_encode", my_callback)
+# LangChain integration
+lc_adapter = LangChainAdapter(maif_path="knowledge.maif")
+docs = lc_adapter.load()
+
+# CrewAI integration
+crew_adapter = CrewAIAdapter(maif_path="agents.maif")
+agent_data = crew_adapter.get_agent_data("agent-001")
 ```
 
 ### 10. Forensics & Analysis (`maif.forensics`)
 
 #### Digital Forensics
 ```python
-from maif import ForensicAnalyzer
+from maif.forensics import ForensicsAnalyzer
+from maif.core import MAIFDecoder
 
-analyzer = ForensicAnalyzer()
-report = analyzer.analyze_maif(parser, verifier)
+decoder = MAIFDecoder("suspicious.maif")
+analyzer = ForensicsAnalyzer()
+report = analyzer.analyze(decoder)
 
-print(f"Integrity: {report.integrity_status}")
-print(f"Evidence: {len(report.evidence)} items")
-print(f"Timeline: {len(report.timeline)} events")
+print(f"Total blocks: {report.total_blocks}")
+print(f"Suspicious activities: {len(report.suspicious_activities)}")
+print(f"Timeline events: {len(report.timeline)}")
 ```
 
 **Forensic Capabilities:**
@@ -412,17 +426,12 @@ encoder.add_validation_schema(data_schema)
 
 ## Future Roadmap
 
-### Version 2.1 (Planned)
+### Upcoming Features
 - **Advanced Analytics**: ML-based anomaly detection
-- **Cloud Integration**: Native cloud storage support
-- **Real-time Streaming**: Live data ingestion
-- **Novel Algorithms**: Enhanced ACAM, HSC, and CSB implementations
+- **Enhanced Cloud Integration**: Extended AWS service support
+- **Real-time Streaming**: Live data ingestion improvements
+- **Novel Algorithm Enhancements**: Optimized ACAM, HSC, and CSB implementations
 - **Cross-Modal AI**: Advanced deep semantic understanding
-
-### Version 3.0 (Research)
-- **AI-Native Features**: Embedded model inference
-- **Advanced Cross-Modal Reasoning**: Multi-layered semantic understanding
-- **Adaptive Semantic Compression**: Context-aware compression optimization
 
 ## Getting Started
 
@@ -435,17 +444,18 @@ pip install maif        # Core functionality
 
 ### Quick Start
 ```python
-from maif import MAIFEncoder, MAIFParser
+from maif.core import MAIFEncoder, MAIFDecoder
 
 # Create
 encoder = MAIFEncoder(agent_id="quickstart")
-encoder.add_text_block("Hello, MAIF 2.0!")
-encoder.build_maif("hello.maif", "hello.manifest.json")
+encoder.add_text_block("Hello, MAIF!")
+encoder.save("hello.maif", "hello_manifest.json")
 
 # Read
-parser = MAIFParser("hello.maif", "hello.manifest.json")
-content = parser.extract_content()
-print(content['texts'][0])  # "Hello, MAIF 2.0!"
+decoder = MAIFDecoder("hello.maif", "hello_manifest.json")
+for block in decoder.blocks:
+    if block.block_type == "text":
+        print(block.data.decode())  # "Hello, MAIF!"
 ```
 
 ### Examples
@@ -455,11 +465,10 @@ print(content['texts'][0])  # "Hello, MAIF 2.0!"
 
 ## Support & Documentation
 
-- **GitHub**: https://github.com/maif-ai/maif
-- **Documentation**: https://maif.readthedocs.io/
-- **Issues**: https://github.com/maif-ai/maif/issues
-- **Discussions**: https://github.com/maif-ai/maif/discussions
+- **Documentation**: See the `/docs` directory for comprehensive guides
+- **Examples**: Check `/examples` for usage demonstrations
+- **Tests**: Run `pytest tests/` to verify functionality
 
 ---
 
-*MAIF 2.0 - The complete AI-native file format for the future of trustworthy AI systems.*
+*MAIF - The complete AI-native file format for the future of trustworthy AI systems.*

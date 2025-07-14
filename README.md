@@ -1,4 +1,4 @@
-# MAIF (Multi-Agent Interaction Format)
+# MAIF (Multimodal Artifact File Format)
 
 ## Overview
 

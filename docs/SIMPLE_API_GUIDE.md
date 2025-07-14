@@ -291,7 +291,7 @@ Quickly create a MAIF with multimodal content.
 ### Example 1: Simple Document
 
 ```python
-from maif_api import create_maif
+from maif.integration import create_maif
 
 # Create MAIF
 maif = create_maif("document_agent")
@@ -306,7 +306,7 @@ maif.save("document.maif")
 ### Example 2: Multimodal Content with ACAM
 
 ```python
-from maif_api import create_maif
+from maif.integration import create_maif
 
 # Create MAIF
 maif = create_maif("multimodal_agent")
@@ -327,7 +327,7 @@ maif.save("product.maif")
 ### Example 3: Privacy-Enabled MAIF
 
 ```python
-from maif_api import create_maif
+from maif.integration import create_maif
 
 # Create MAIF with privacy
 maif = create_maif("secure_agent", enable_privacy=True)
@@ -351,7 +351,7 @@ print(f"Encrypted blocks: {report.get('encrypted_blocks', 0)}")
 ### Example 4: Search and Retrieval
 
 ```python
-from maif_api import load_maif
+from maif.integration import load_maif
 
 # Load existing MAIF
 maif = load_maif("knowledge_base.maif")
@@ -366,7 +366,7 @@ for result in results:
 ### Example 5: Working with Embeddings
 
 ```python
-from maif_api import create_maif
+from maif.integration import create_maif
 
 # Create MAIF
 maif = create_maif("embedding_agent")
@@ -446,7 +446,7 @@ The Simple API is designed to work alongside the existing MAIF library:
 ```python
 # You can still use the full library
 from maif.core import MAIFEncoder
-from maif_api import create_maif
+from maif.integration import create_maif
 
 # Mix and match as needed
 simple_maif = create_maif("agent1")
