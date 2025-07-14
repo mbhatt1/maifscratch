@@ -9,6 +9,7 @@ docs/.vitepress/dist/
 # Python
 *.maif
 *.blocks
+*.wal
 __pycache__/
 *.py[cod]
 *$py.class
