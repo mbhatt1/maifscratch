@@ -80,6 +80,25 @@ try:
 except ImportError:
     SIMPLE_API_AVAILABLE = False
 
+# Import convenience features
+try:
+    from .convenience_api import SimpleMAIFAgent, create_agent
+    CONVENIENCE_API_AVAILABLE = True
+except ImportError:
+    CONVENIENCE_API_AVAILABLE = False
+    
+try:
+    from .migration_tools import VectorDBMigrator, migrate_to_maif
+    MIGRATION_TOOLS_AVAILABLE = True
+except ImportError:
+    MIGRATION_TOOLS_AVAILABLE = False
+
+try:
+    from .debug_tools import MAIFDebugger, debug_maif
+    DEBUG_TOOLS_AVAILABLE = True
+except ImportError:
+    DEBUG_TOOLS_AVAILABLE = False
+
 __version__ = "2.0.0"
 __author__ = "MAIF Development Team"
 __license__ = "MIT"
